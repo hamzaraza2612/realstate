@@ -5,7 +5,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | Milestone | Scope | Status |
 |---|---|---|
 | 0 | Discovery + docs | ✅ |
-| 1 | Foundation: solution structure, DB, tenancy, auth, RBAC, org mgmt, audit log, API conventions, frontend shell | 🚧 |
+| 1 | Foundation: solution structure, DB, tenancy, auth, RBAC, org mgmt, audit log, API conventions, frontend shell | ✅ |
 | 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ⬜ |
 | 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ⬜ |
 | 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ⬜ |
@@ -19,22 +19,29 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 12 | SaaS: subscriptions, plans, entitlements, super-admin | ⬜ |
 | 13 | Production hardening: security, tests, Docker, CI/CD, docs | ⬜ |
 
-## Milestone 1 — Foundation (current)
+## Milestone 1 — Foundation ✅
 - [x] Repo/docs scaffold
-- [ ] Backend solution (`backend/RealEstateErp.sln`) with Api/Application/Domain/Infrastructure/Shared
-- [ ] PostgreSQL EF Core setup + initial migration
-- [ ] Tenant model + `ITenantContext` + global query filters
-- [ ] ASP.NET Core Identity + JWT access/refresh tokens
-- [ ] Permission-based RBAC (Roles, Permissions, RolePermissions)
-- [ ] Organization (tenant) CRUD + Super Admin bootstrap
-- [ ] Audit logging (interceptor + service)
-- [ ] Global error handling middleware + ProblemDetails
-- [ ] Serilog structured logging
-- [ ] Swagger/OpenAPI
-- [ ] Frontend shell (Vite+React+TS+Tailwind+shadcn/ui): login, dashboard shell, nav, org switcher
-- [ ] Docker Compose (Postgres, Redis, API, Web, Nginx) + `.env.example`
-- [ ] Seed script: Super Admin + demo organization
-- [ ] Unit/integration tests: login, tenant isolation, RBAC
+- [x] Backend solution (`backend/RealEstateErp.sln`) with Api/Application/Domain/Infrastructure/Shared
+- [x] PostgreSQL EF Core setup + initial migration
+- [x] Tenant model + `ITenantContext` + global query filters (+ explicit Super-Admin-only bypass)
+- [x] ASP.NET Core Identity + JWT access/refresh tokens (rotating, hashed at rest)
+- [x] Permission-based RBAC (Roles, Permissions, RolePermissions) — 17 system roles seeded per spec
+- [x] Organization (tenant) CRUD + Super Admin bootstrap + Subscription Plan CRUD
+- [x] Audit logging (automatic diff-based via DbContext + explicit `IAuditLogger` for business events)
+- [x] Global error handling middleware + ProblemDetails
+- [x] Serilog structured logging
+- [x] Swagger/OpenAPI with JWT auth
+- [x] IP rate limiting (AspNetCoreRateLimit) — tighter limits on `/auth/login` and `/auth/refresh`
+- [x] Frontend shell (Vite+React+TS+Tailwind+Radix "shadcn-style" components): login, dashboard,
+      sidebar/topbar/breadcrumbs, dark mode, Users/Roles/Organization/Audit Logs pages, Super Admin
+      Platform pages (Organizations, Subscription Plans) — verified in a real browser end-to-end
+- [x] Docker Compose (Postgres, Redis, API, Web, reverse-proxy Nginx) + `.env.example` +
+      per-service Dockerfiles — API image built and run end-to-end against real Postgres in this
+      session; full `docker compose up` could not be exercised here because this sandbox's network
+      policy blocks Docker Hub image pulls (see `docs/DEPLOYMENT.md`)
+- [x] Seed script: Super Admin + demo organization (`acme-builders`) with demo users per role
+- [x] Unit/integration tests: 12 unit + 13 integration (real Postgres, real HTTP pipeline) covering
+      login, refresh rotation, tenant isolation, and RBAC enforcement — all passing
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

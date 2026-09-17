@@ -1,3 +1,4 @@
+using AspNetCoreRateLimit;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -81,10 +82,22 @@ try
 
     builder.Services.AddHealthChecks();
 
+    builder.Services.AddMemoryCache();
+    builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+    builder.Services.AddInMemoryRateLimiting();
+    builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+
     var app = builder.Build();
 
     app.UseSerilogRequestLogging();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+    // Skipped under the in-process "Testing" host (WebApplicationFactory): integration tests
+    // legitimately issue far more requests per IP than any real client would in the same window.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        app.UseIpRateLimiting();
+    }
 
     if (app.Environment.IsDevelopment())
     {
