@@ -8,6 +8,8 @@ import {
   CreditCard,
   Contact,
   UserSquare2,
+  FolderKanban,
+  Boxes,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -26,6 +28,8 @@ const navItems: NavItem[] = [
   { to: '/crm', label: 'CRM Dashboard', icon: LayoutDashboard, permission: 'crm.lead.view' },
   { to: '/crm/leads', label: 'Leads', icon: Contact, permission: 'crm.lead.view' },
   { to: '/crm/customers', label: 'Customers', icon: UserSquare2, permission: 'crm.customer.view' },
+  { to: '/projects', label: 'Projects', icon: FolderKanban, permission: 'projects.view' },
+  { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },

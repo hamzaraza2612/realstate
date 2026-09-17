@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
 using RealEstateErp.Domain.Crm;
+using RealEstateErp.Domain.Projects;
 using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
@@ -32,6 +33,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Activity> Activities => Set<Activity>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
+    public DbSet<InventoryUnit> InventoryUnits => Set<InventoryUnit>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

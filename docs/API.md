@@ -58,4 +58,21 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
 - `GET/POST/PUT /api/v1/platform/subscription-plans` (Super Admin only)
 - `GET /api/v1/platform/audit-logs` (Super Admin only, cross-tenant)
 
+## Milestone 2 endpoints (CRM)
+- `GET/POST/PUT/DELETE /api/v1/crm/leads`, `POST /api/v1/crm/leads/{id}/assign`,
+  `POST /api/v1/crm/leads/{id}/convert` (creates a Customer, one-way, guarded against re-conversion)
+- `GET/POST/PUT /api/v1/crm/customers` (no delete — customers may be linked from a converted lead)
+- `GET/POST/PUT/DELETE /api/v1/crm/activities`, `POST /api/v1/crm/activities/{id}/complete`
+- `GET /api/v1/crm/dashboard` (tenant-scoped pipeline/follow-up metrics)
+
+## Milestone 3 endpoints (Projects + Inventory)
+- `GET/POST/PUT/DELETE /api/v1/projects` (delete blocked while the project still has hierarchy
+  nodes or inventory units — `409 Conflict`)
+- `GET/POST/PUT/DELETE /api/v1/projects/nodes` (hierarchy: phase/zone/block/building/floor;
+  `GET` takes `?projectId=`; delete blocked while the node still has children — `409 Conflict`)
+- `GET/POST/PUT/DELETE /api/v1/inventory` (filterable by `projectId`, `nodeId`, `type`, `status`,
+  `minArea`/`maxArea`, `search`; delete only allowed while `status = Available` — `409 Conflict`
+  otherwise), `POST /api/v1/inventory/{id}/status` (enforces `InventoryStatusRules` — invalid
+  transitions return `400`)
+
 Further modules append their endpoint list here as they ship.

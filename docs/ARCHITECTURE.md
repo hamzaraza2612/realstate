@@ -15,8 +15,12 @@ revisited per-tenant if a customer needs physical isolation later).
 - **Frontend**: React 19 + TypeScript + Vite, Tailwind CSS, hand-built Radix UI
   primitives styled in the shadcn/ui convention (`components/ui/*` — no external
   shadcn dependency, so no network fetch at setup time), TanStack Query, React
-  Hook Form + Zod, Zustand (auth/theme state). Recharts and Leaflet/OpenStreetMap
-  are planned for the Reporting and Mapping milestones, not yet wired in.
+  Hook Form + Zod, Zustand (auth/theme state). Recharts is planned for the
+  Reporting milestone, not yet wired in. The Projects/Inventory milestone's map
+  view (`components/common/CoordinateMapView.tsx`) is a dependency-free
+  bounding-box scatter plot, deliberately not a georeferenced map — a real
+  basemap (Leaflet/OpenStreetMap or similar) is still open for a future GIS
+  milestone once that's actually asked for.
 - **Infra**: Docker Compose (Postgres, Redis, API, Web, reverse-proxy Nginx),
   env-based config via `.env`. Redis is provisioned in Compose for future
   distributed caching/rate-limiting but nothing reads it yet — rate limiting

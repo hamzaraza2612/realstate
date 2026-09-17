@@ -12,6 +12,8 @@ const labels: Record<string, string> = {
   crm: 'CRM',
   leads: 'Leads',
   customers: 'Customers',
+  projects: 'Projects',
+  inventory: 'Inventory',
 }
 
 export function Breadcrumbs() {

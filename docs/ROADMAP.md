@@ -6,8 +6,8 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 |---|---|---|
 | 0 | Discovery + docs | ✅ |
 | 1 | Foundation: solution structure, DB, tenancy, auth, RBAC, org mgmt, audit log, API conventions, frontend shell | ✅ |
-| 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ⬜ |
-| 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ⬜ |
+| 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ✅ |
+| 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ✅ |
 | 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ⬜ |
 | 5 | Finance: chart of accounts, journals, receivables/payables, reports | ⬜ |
 | 6 | Construction: phases, BOQ, procurement, vendors, materials, workforce | ⬜ |
@@ -42,6 +42,36 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 - [x] Seed script: Super Admin + demo organization (`acme-builders`) with demo users per role
 - [x] Unit/integration tests: 12 unit + 13 integration (real Postgres, real HTTP pipeline) covering
       login, refresh rotation, tenant isolation, and RBAC enforcement — all passing
+
+## Milestone 2 — CRM ✅
+- [x] Leads: source/status/priority, assignment, notes, tenant-scoped CRUD
+- [x] Customers: profile, address, conversion link back to originating lead
+- [x] Activities: calls/meetings/notes/follow-ups, due dates, completion, linked to a lead or customer
+- [x] Lead → Customer conversion (transactional, one-way, guarded against double-conversion)
+- [x] CRM dashboard: totals, pipeline by stage, follow-ups pending/overdue, conversion rate
+- [x] Frontend: dashboard, lead list/detail/create/edit, customer list/detail, reusable activity log
+- [x] Unit/integration tests: 7 new integration tests (CRUD, conversion, RBAC, tenant isolation,
+      dashboard scoping) — all passing alongside the existing Milestone 1 suite
+
+## Milestone 3 — Projects + Inventory ✅
+- [x] Projects: type (Society/Building/Town Planning/Construction/Commercial/Other), code, address,
+      status, start/end dates, map anchor (lat/lng + optional GeoJSON)
+- [x] Project hierarchy: a single self-referencing `ProjectNode` table (Phase/Zone/Block/Building/Floor)
+      so each project type can nest only the levels it actually needs, instead of fixed tables per level
+- [x] Inventory units: plots/apartments/offices/shops/houses/commercial/other, project-scoped unique
+      code, area + unit (SqFt/SqYd/SqM/Marla/Kanal/Acre), optional hierarchy-node placement, map point
+- [x] Inventory status lifecycle (`InventoryStatusRules`): Available → Reserved/Booked/Blocked/
+      UnderConstruction → Sold → HandedOver, with invalid transitions rejected server-side
+- [x] Relationship guards: a project/node can't be deleted while it still has children; an inventory
+      unit can only be hard-deleted while `Available` (its identity is safe to reuse once booking exists)
+- [x] Search/filtering API: by project, hierarchy node, type, status, area range, code/number
+- [x] Map foundation: lat/lng + GeoJSON columns on both projects and inventory units, plus a practical
+      first map view (lightweight bounding-box scatter plot, no external GIS dependency yet)
+- [x] Frontend: project list/detail/create/edit, hierarchy tree management, inventory list/detail/
+      create/edit with list+map toggle and filters, reusing the CRM module's design patterns
+- [x] Unit/integration tests: 14 new integration tests (project/hierarchy/inventory CRUD, uniqueness,
+      status transitions, relationship guards, filtering, tenant isolation, RBAC, coordinate
+      persistence) — all passing alongside the existing suite (46 total)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

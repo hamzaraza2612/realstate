@@ -8,6 +8,10 @@ import { LeadsPage } from '@/modules/crm/leads/LeadsPage'
 import { LeadDetailPage } from '@/modules/crm/leads/LeadDetailPage'
 import { CustomersPage } from '@/modules/crm/customers/CustomersPage'
 import { CustomerDetailPage } from '@/modules/crm/customers/CustomerDetailPage'
+import { ProjectsPage } from '@/modules/projects/ProjectsPage'
+import { ProjectDetailPage } from '@/modules/projects/ProjectDetailPage'
+import { InventoryPage } from '@/modules/inventory/InventoryPage'
+import { InventoryDetailPage } from '@/modules/inventory/InventoryDetailPage'
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
@@ -65,6 +69,38 @@ export default function App() {
           element={
             <PermissionRoute permission="crm.customer.view">
               <CustomerDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="projects"
+          element={
+            <PermissionRoute permission="projects.view">
+              <ProjectsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="projects/:id"
+          element={
+            <PermissionRoute permission="projects.view">
+              <ProjectDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="inventory"
+          element={
+            <PermissionRoute permission="inventory.view">
+              <InventoryPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="inventory/:id"
+          element={
+            <PermissionRoute permission="inventory.view">
+              <InventoryDetailPage />
             </PermissionRoute>
           }
         />

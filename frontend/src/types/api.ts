@@ -245,3 +245,179 @@ export interface CrmDashboardDto {
   overdueFollowUps: number
   conversionRatePercent: number
 }
+
+// --- Projects & Inventory ---
+
+export const ProjectType = {
+  Society: 0,
+  Building: 1,
+  TownPlanning: 2,
+  ConstructionProject: 3,
+  CommercialProperty: 4,
+  Other: 5,
+} as const
+export type ProjectType = (typeof ProjectType)[keyof typeof ProjectType]
+
+export const ProjectTypeLabel: Record<ProjectType, string> = {
+  [ProjectType.Society]: 'Society',
+  [ProjectType.Building]: 'Building',
+  [ProjectType.TownPlanning]: 'Town Planning',
+  [ProjectType.ConstructionProject]: 'Construction Project',
+  [ProjectType.CommercialProperty]: 'Commercial Property',
+  [ProjectType.Other]: 'Other',
+}
+
+export const ProjectStatus = {
+  Planning: 0,
+  Active: 1,
+  OnHold: 2,
+  Completed: 3,
+  Cancelled: 4,
+} as const
+export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus]
+
+export const ProjectStatusLabel: Record<ProjectStatus, string> = {
+  [ProjectStatus.Planning]: 'Planning',
+  [ProjectStatus.Active]: 'Active',
+  [ProjectStatus.OnHold]: 'On Hold',
+  [ProjectStatus.Completed]: 'Completed',
+  [ProjectStatus.Cancelled]: 'Cancelled',
+}
+
+export interface ProjectDto {
+  id: string
+  name: string
+  code: string
+  type: ProjectType
+  status: ProjectStatus
+  description: string | null
+  addressLine: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+  postalCode: string | null
+  startDate: string | null
+  endDate: string | null
+  latitude: number | null
+  longitude: number | null
+  geoJson: string | null
+  nodeCount: number
+  inventoryCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const ProjectNodeType = {
+  Phase: 0,
+  Zone: 1,
+  Block: 2,
+  Building: 3,
+  Floor: 4,
+} as const
+export type ProjectNodeType = (typeof ProjectNodeType)[keyof typeof ProjectNodeType]
+
+export const ProjectNodeTypeLabel: Record<ProjectNodeType, string> = {
+  [ProjectNodeType.Phase]: 'Phase',
+  [ProjectNodeType.Zone]: 'Zone',
+  [ProjectNodeType.Block]: 'Block',
+  [ProjectNodeType.Building]: 'Building',
+  [ProjectNodeType.Floor]: 'Floor',
+}
+
+export interface ProjectNodeDto {
+  id: string
+  projectId: string
+  parentNodeId: string | null
+  nodeType: ProjectNodeType
+  name: string
+  code: string
+  sortOrder: number
+  latitude: number | null
+  longitude: number | null
+  geoJson: string | null
+  metadataJson: string | null
+  childNodeCount: number
+  inventoryCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const InventoryUnitType = {
+  Plot: 0,
+  Apartment: 1,
+  Office: 2,
+  Shop: 3,
+  House: 4,
+  CommercialUnit: 5,
+  Other: 6,
+} as const
+export type InventoryUnitType = (typeof InventoryUnitType)[keyof typeof InventoryUnitType]
+
+export const InventoryUnitTypeLabel: Record<InventoryUnitType, string> = {
+  [InventoryUnitType.Plot]: 'Plot',
+  [InventoryUnitType.Apartment]: 'Apartment',
+  [InventoryUnitType.Office]: 'Office',
+  [InventoryUnitType.Shop]: 'Shop',
+  [InventoryUnitType.House]: 'House',
+  [InventoryUnitType.CommercialUnit]: 'Commercial Unit',
+  [InventoryUnitType.Other]: 'Other',
+}
+
+export const InventoryAreaUnit = {
+  SqFt: 0,
+  SqYd: 1,
+  SqM: 2,
+  Marla: 3,
+  Kanal: 4,
+  Acre: 5,
+} as const
+export type InventoryAreaUnit = (typeof InventoryAreaUnit)[keyof typeof InventoryAreaUnit]
+
+export const InventoryAreaUnitLabel: Record<InventoryAreaUnit, string> = {
+  [InventoryAreaUnit.SqFt]: 'Sq. Ft.',
+  [InventoryAreaUnit.SqYd]: 'Sq. Yd.',
+  [InventoryAreaUnit.SqM]: 'Sq. M.',
+  [InventoryAreaUnit.Marla]: 'Marla',
+  [InventoryAreaUnit.Kanal]: 'Kanal',
+  [InventoryAreaUnit.Acre]: 'Acre',
+}
+
+export const InventoryStatus = {
+  Available: 0,
+  Reserved: 1,
+  Booked: 2,
+  Sold: 3,
+  Blocked: 4,
+  UnderConstruction: 5,
+  HandedOver: 6,
+} as const
+export type InventoryStatus = (typeof InventoryStatus)[keyof typeof InventoryStatus]
+
+export const InventoryStatusLabel: Record<InventoryStatus, string> = {
+  [InventoryStatus.Available]: 'Available',
+  [InventoryStatus.Reserved]: 'Reserved',
+  [InventoryStatus.Booked]: 'Booked',
+  [InventoryStatus.Sold]: 'Sold',
+  [InventoryStatus.Blocked]: 'Blocked',
+  [InventoryStatus.UnderConstruction]: 'Under Construction',
+  [InventoryStatus.HandedOver]: 'Handed Over',
+}
+
+export interface InventoryUnitDto {
+  id: string
+  projectId: string
+  projectName: string
+  nodeId: string | null
+  nodePath: string | null
+  code: string
+  type: InventoryUnitType
+  status: InventoryStatus
+  areaSize: number | null
+  areaUnit: InventoryAreaUnit | null
+  latitude: number | null
+  longitude: number | null
+  geoJson: string | null
+  metadataJson: string | null
+  createdAt: string
+  updatedAt: string | null
+}

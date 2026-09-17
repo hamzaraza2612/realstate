@@ -27,7 +27,22 @@ Never edit production schema by hand — always via `dotnet ef migrations add`.
 - `subscription_plans`: id, name, price, billing_cycle, user_limit, project_limit, storage_limit_mb, is_active
 - `tenant_feature_entitlements`: tenant_id, feature_code, is_enabled
 
-Later milestones extend this file per-module (CRM, Sales/Inventory, Finance,
+## Milestone 2 schema (CRM)
+- `leads`: id, tenant_id, full_name, email, phone, company_name, source, status, priority, notes, assigned_to_user_id (no FK — AppUser lives in Infrastructure), converted_to_customer_id
+- `customers`: id, tenant_id, full_name, email, phone, address, company_name, converted_from_lead_id (unique, nullable — one lead converts to at most one customer)
+- `activities`: id, tenant_id, type, subject, description, due_date, status, completed_at, lead_id (FK, cascade), customer_id (FK, cascade), assigned_to_user_id; check constraint requires at least one of lead_id/customer_id
+
+## Milestone 3 schema (Projects + Inventory)
+- `projects`: id, tenant_id, name, code (unique per tenant), type, status, description, address_line, city, state, country, postal_code, start_date, end_date, latitude, longitude, geo_json
+- `project_nodes`: id, tenant_id, project_id (FK, restrict), parent_node_id (self-FK, restrict — a single
+  self-referencing table for Phase/Zone/Block/Building/Floor, so each project only has the levels it
+  needs), node_type, name, code (unique per project), sort_order, latitude, longitude, geo_json, metadata_json
+- `inventory_units`: id, tenant_id, project_id (FK, restrict), node_id (FK to project_nodes, restrict,
+  nullable), code (unique per project), type, status, area_size, area_unit, latitude, longitude,
+  geo_json, metadata_json; status transitions are enforced in the application layer
+  (`InventoryStatusRules`), not by a DB constraint
+
+Later milestones extend this file per-module (Sales/Inventory bookings, Finance,
 Construction, Property, Facility, Documents, Subscription) as they land —
 each new module's tables and relationships are appended here in the same
 milestone's PR/commit that adds the migration.
