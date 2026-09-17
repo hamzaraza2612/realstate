@@ -46,6 +46,8 @@ public static class Permissions
         public const string LeadDelete = "crm.lead.delete";
         public const string CustomerView = "crm.customer.view";
         public const string CustomerManage = "crm.customer.manage";
+        public const string ActivityView = "crm.activity.view";
+        public const string ActivityManage = "crm.activity.manage";
     }
 
     public static class Sales

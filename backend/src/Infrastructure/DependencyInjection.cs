@@ -7,6 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using RealEstateErp.Application.AuditLogs;
 using RealEstateErp.Application.Auth;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Crm.Activities;
+using RealEstateErp.Application.Crm.Customers;
+using RealEstateErp.Application.Crm.Dashboard;
+using RealEstateErp.Application.Crm.Leads;
 using RealEstateErp.Application.Organizations;
 using RealEstateErp.Application.Roles;
 using RealEstateErp.Application.Subscription;
@@ -14,6 +18,7 @@ using RealEstateErp.Application.Users;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Infrastructure.Services;
+using RealEstateErp.Infrastructure.Services.Crm;
 
 namespace RealEstateErp.Infrastructure;
 
@@ -56,6 +61,10 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
         services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
+        services.AddScoped<ILeadService, LeadService>();
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IActivityService, ActivityService>();
+        services.AddScoped<ICrmDashboardService, CrmDashboardService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

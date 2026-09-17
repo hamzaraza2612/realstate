@@ -37,6 +37,28 @@ public abstract class TestBase
         return (response.IsSuccessStatusCode, body, response.StatusCode);
     }
 
+    protected async Task<(bool Success, JsonElement Body, System.Net.HttpStatusCode Status)> PutAsync(string url, object payload, string? token = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(payload) };
+        if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Client.SendAsync(request);
+        var text = await response.Content.ReadAsStringAsync();
+        var body = string.IsNullOrWhiteSpace(text) ? default : JsonSerializer.Deserialize<JsonElement>(text, JsonOptions);
+        return (response.IsSuccessStatusCode, body, response.StatusCode);
+    }
+
+    protected async Task<(bool Success, JsonElement Body, System.Net.HttpStatusCode Status)> DeleteAsync(string url, string? token = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Client.SendAsync(request);
+        var text = await response.Content.ReadAsStringAsync();
+        var body = string.IsNullOrWhiteSpace(text) ? default : JsonSerializer.Deserialize<JsonElement>(text, JsonOptions);
+        return (response.IsSuccessStatusCode, body, response.StatusCode);
+    }
+
     protected async Task<string> LoginAsync(string email, string password)
     {
         var (success, body, status) = await PostAsync("/api/v1/auth/login", new { email, password });
