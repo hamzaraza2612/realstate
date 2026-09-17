@@ -103,13 +103,23 @@ notices, lease-expiry notices, report generation, notification dispatch.
 
 ## Infra layout
 ```
-backend/src/Api/Dockerfile      # multi-stage: dotnet SDK build -> aspnet runtime, non-root user
-frontend/Dockerfile             # multi-stage: node build -> nginx serving the static SPA build
+backend/src/Api/Dockerfile      # 3 targets: build (SDK) -> runtime (aspnet, non-root, HEALTHCHECK)
+                                 #            and migrator (SDK + dotnet-ef, for manual migrations)
+frontend/Dockerfile             # multi-stage: node build (VITE_API_BASE_URL arg) -> nginx runtime
 infra/nginx/reverse-proxy.conf  # top-level reverse proxy: /api/* + /health -> api, else -> web
-docker-compose.yml              # postgres, redis, api, web, nginx (the only published port: 80)
+docker-compose.yml              # postgres, redis, api, migrate (tools profile), web, nginx —
+                                 # only nginx publishes a host port; healthchecks + service_healthy
+                                 # depends_on throughout; postgres-data + uploads-data volumes
 .env.example                    # documents every required env var; copy to .env, never commit it
 ```
-See `docs/DEPLOYMENT.md` for local dev, Docker Compose, migrations, and backup/restore instructions.
+The whole application is meant to run via Docker Compose end to end: no
+dependency beyond Docker/Compose is required on the host, `docker compose up
+-d --build` is the full startup command, migrations run automatically inside
+the `api` container on boot (or manually via `docker compose --profile tools
+run --rm migrate`), and Postgres data plus uploaded-file storage
+(`uploads-data`, provisioned ahead of the Documents module) persist in named
+volumes independent of container lifecycle. See `docs/DEPLOYMENT.md` for the
+full production procedure, migrations, and backup/restore instructions.
 
 ## Status
 See `ROADMAP.md` for milestone-by-milestone delivery status.
