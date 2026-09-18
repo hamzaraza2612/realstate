@@ -5,6 +5,7 @@ using RealEstateErp.Application.Organizations;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
+using RealEstateErp.Infrastructure.Services.Finance;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
 
@@ -89,6 +90,9 @@ public class OrganizationService : IOrganizationService
             TrialEndsAt = DateTimeOffset.UtcNow.AddDays(14)
         };
         _db.Tenants.Add(tenant);
+        await _db.SaveChangesAsync(ct);
+
+        await SystemAccountSeeder.SeedAsync(_db, tenant.Id, ct);
         await _db.SaveChangesAsync(ct);
 
         var owner = new AppUser

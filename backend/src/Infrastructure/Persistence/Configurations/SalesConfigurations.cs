@@ -78,10 +78,12 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.Property(x => x.Amount).HasColumnType("numeric(18,2)");
         b.Property(x => x.ReferenceNumber).HasMaxLength(100);
         b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.IdempotencyKey).HasMaxLength(100);
 
         b.HasIndex(x => new { x.TenantId, x.ReceiptNumber }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.BookingId });
         b.HasIndex(x => new { x.TenantId, x.InstallmentId });
+        b.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
         b.HasOne<Booking>().WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Installment>().WithMany().HasForeignKey(x => x.InstallmentId).OnDelete(DeleteBehavior.Restrict);

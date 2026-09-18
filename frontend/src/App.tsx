@@ -15,6 +15,12 @@ import { InventoryDetailPage } from '@/modules/inventory/InventoryDetailPage'
 import { SalesDashboardPage } from '@/modules/sales/dashboard/SalesDashboardPage'
 import { BookingsPage } from '@/modules/sales/bookings/BookingsPage'
 import { BookingDetailPage } from '@/modules/sales/bookings/BookingDetailPage'
+import { FinanceDashboardPage } from '@/modules/finance/dashboard/FinanceDashboardPage'
+import { ChartOfAccountsPage } from '@/modules/finance/accounts/ChartOfAccountsPage'
+import { JournalPage } from '@/modules/finance/journal/JournalPage'
+import { JournalEntryDetailPage } from '@/modules/finance/journal/JournalEntryDetailPage'
+import { ReceivablesPage } from '@/modules/finance/receivables/ReceivablesPage'
+import { TrialBalancePage } from '@/modules/finance/reports/TrialBalancePage'
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
@@ -128,6 +134,54 @@ export default function App() {
           element={
             <PermissionRoute permission="sales.booking.view">
               <BookingDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <FinanceDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/accounts"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <ChartOfAccountsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/journal"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <JournalPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/journal/:id"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <JournalEntryDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/receivables"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <ReceivablesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/trial-balance"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <TrialBalancePage />
             </PermissionRoute>
           }
         />

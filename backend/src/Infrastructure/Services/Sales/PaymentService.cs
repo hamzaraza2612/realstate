@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Finance;
 using RealEstateErp.Application.Sales.Payments;
 using RealEstateErp.Domain.Sales;
 using RealEstateErp.Infrastructure.Persistence;
@@ -15,12 +16,14 @@ public class PaymentService : IPaymentService
     private readonly AppDbContext _db;
     private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
+    private readonly ISalesPaymentPostingService _financePosting;
 
-    public PaymentService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger)
+    public PaymentService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger, ISalesPaymentPostingService financePosting)
     {
         _db = db;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
+        _financePosting = financePosting;
     }
 
     public async Task<Result<IReadOnlyList<PaymentDto>>> ListByBookingAsync(Guid bookingId, CancellationToken ct = default)
@@ -34,6 +37,13 @@ public class PaymentService : IPaymentService
 
     public async Task<Result<PaymentDto>> RecordAsync(Guid bookingId, RecordPaymentRequest request, CancellationToken ct = default)
     {
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var existing = await _db.Payments.FirstOrDefaultAsync(
+                p => p.BookingId == bookingId && p.IdempotencyKey == request.IdempotencyKey, ct);
+            if (existing is not null) return Result.Success((await ToDtosAsync(new[] { existing }, ct))[0]);
+        }
+
         var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, ct);
         if (booking is null) return Result.Failure<PaymentDto>("Booking not found.", "not_found");
         if (booking.Status == BookingStatus.Cancelled)
@@ -68,7 +78,8 @@ public class PaymentService : IPaymentService
                 Method = request.Method,
                 ReferenceNumber = request.ReferenceNumber,
                 Notes = request.Notes,
-                RecordedByUserId = _tenantContext.UserId ?? Guid.Empty
+                RecordedByUserId = _tenantContext.UserId ?? Guid.Empty,
+                IdempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey
             };
             _db.Payments.Add(payment);
 
@@ -77,6 +88,15 @@ public class PaymentService : IPaymentService
                 ? InstallmentStatus.Paid
                 : InstallmentStatus.PartiallyPaid;
             if (installment.Status == InstallmentStatus.Paid) installment.PaymentDate = request.PaymentDate;
+
+            var postingResult = await _financePosting.PostSalesPaymentAsync(
+                payment.Id, booking.CustomerId, payment.Amount, payment.PaymentDate, payment.ReferenceNumber, ct);
+            if (!postingResult.Succeeded)
+            {
+                await transaction.RollbackAsync(ct);
+                _db.ChangeTracker.Clear();
+                return Result.Failure<PaymentDto>(postingResult.Error!, postingResult.ErrorCode!);
+            }
 
             try
             {
@@ -105,10 +125,15 @@ public class PaymentService : IPaymentService
         var installmentLabels = await _db.Installments.Where(i => installmentIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, i => i.Label, ct);
         var userIds = payments.Select(p => p.RecordedByUserId).Distinct().ToList();
         var userNames = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
+        var paymentIds = payments.Select(p => p.Id).ToList();
+        var journalEntryIds = await _db.JournalEntries
+            .Where(j => j.ReferenceType == "SalesPayment" && j.ReferenceId.HasValue && paymentIds.Contains(j.ReferenceId.Value))
+            .ToDictionaryAsync(j => j.ReferenceId!.Value, j => j.Id, ct);
 
         return payments.Select(p => new PaymentDto(
             p.Id, p.ReceiptNumber, p.BookingId, p.InstallmentId, installmentLabels.GetValueOrDefault(p.InstallmentId, ""),
             p.Amount, p.PaymentDate, p.Method, p.ReferenceNumber, p.Notes,
-            p.RecordedByUserId, userNames.GetValueOrDefault(p.RecordedByUserId), p.CreatedAt)).ToList();
+            p.RecordedByUserId, userNames.GetValueOrDefault(p.RecordedByUserId),
+            journalEntryIds.TryGetValue(p.Id, out var journalEntryId) ? journalEntryId : null, p.CreatedAt)).ToList();
     }
 }

@@ -55,9 +55,37 @@ Never edit production schema by hand — always via `dotnet ef migrations add`.
   never written here — it's computed from due_date + grace period at read time
 - `payments`: id, tenant_id, receipt_number (unique per tenant), booking_id (FK, restrict), installment_id
   (FK, restrict — payments are a financial record and must never cascade-delete), amount, payment_date,
-  method, reference_number, notes, recorded_by_user_id
+  method, reference_number, notes, recorded_by_user_id, idempotency_key (unique per tenant, nullable —
+  added in Milestone 5 so a retried payment request returns the original payment instead of duplicating it)
 
-Later milestones extend this file per-module (Finance, Construction, Property,
+## Milestone 5 schema (Finance & Accounting Foundation)
+- `accounts`: id, tenant_id, code (unique per tenant), name, type (Asset/Liability/Equity/Revenue/Expense),
+  parent_account_id (self-FK, restrict), is_active, is_system; the two system accounts a tenant needs for
+  Sales payment posting (`1000` Cash and Bank, `4000` Sales Revenue) are seeded once per tenant, at tenant
+  creation — see `SystemAccountSeeder`, called from `OrganizationService` and `DemoDataSeeder`, not from
+  the global `DbSeeder` (accounts are tenant-owned, not a platform-wide catalog)
+- `journal_entries`: id, tenant_id, entry_number (unique per tenant), entry_date, description,
+  reference_type (default `"Manual"`), reference_id, status (Draft/Posted/Cancelled); a unique index on
+  (tenant_id, reference_type, reference_id) where reference_id is not null caps a source event (e.g. one
+  Sales Payment) at exactly one journal entry — the database-level half of duplicate-posting protection
+- `journal_lines`: id, tenant_id, journal_entry_id (FK, cascade), account_id (FK, restrict), debit, credit,
+  description; a check constraint requires exactly one of debit/credit to be positive and the other zero
+- `financial_documents`: id, tenant_id, document_number (unique per tenant), type
+  (Invoice/Receipt/CreditNote/DebitNote), status, customer_id (no FK — deliberately generic so future
+  modules can attach other party types), amount, issue_date, reference_type, reference_id, journal_entry_id,
+  notes — a reusable document shell, not a full invoicing/tax engine
+
+### Accounting mapping: Sales payments
+Each Sales `Payment` posts one journal entry in the same transaction it's recorded in (see
+`ISalesPaymentPostingService`, called from Sales' `PaymentService` before its `SaveChangesAsync`):
+Dr **Cash and Bank** (1000), Cr **Sales Revenue** (4000), for the payment amount. This is cash-basis
+recognition — revenue is recognized when cash is received, not when the booking is confirmed — a
+deliberate scope reduction for this foundation milestone (no accrual-basis AR recognition at booking
+time yet). The Sales installment schedule itself remains the operational AR sub-ledger (surfaced via
+`GET /api/v1/finance/receivables`); accrual revenue recognition tied to booking confirmation is left to a
+future accounting milestone.
+
+Later milestones extend this file per-module (Construction, Property,
 Facility, Documents, Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds
 the migration.

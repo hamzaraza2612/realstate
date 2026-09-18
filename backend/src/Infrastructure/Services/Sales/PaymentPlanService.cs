@@ -188,7 +188,7 @@ public class PaymentPlanService : IPaymentPlanService
         _ => date.AddMonths(periods)
     };
 
-    internal static InstallmentStatus EffectiveStatus(Installment installment, int gracePeriodDays)
+    public static InstallmentStatus EffectiveStatus(Installment installment, int gracePeriodDays)
     {
         if (installment.Status is InstallmentStatus.Pending or InstallmentStatus.PartiallyPaid)
         {

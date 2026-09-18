@@ -9,7 +9,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ✅ |
 | 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ✅ |
 | 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ✅ |
-| 5 | Finance: chart of accounts, journals, receivables/payables, reports | ⬜ |
+| 5 | Finance: chart of accounts, journals, receivables/payables, reports | ✅ |
 | 6 | Construction: phases, BOQ, procurement, vendors, materials, workforce | ⬜ |
 | 7 | Property/Rental: properties, tenants, leases, rent, maintenance | ⬜ |
 | 8 | Facility: mall, coworking, facility management | ⬜ |
@@ -99,6 +99,38 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
       side effects, schedule reconciliation (both plan types), partial payments, overpayment rejection,
       overdue computation, tenant isolation, RBAC, dashboard scoping, and audit logging — all passing
       alongside the existing suite (64 total)
+
+## Milestone 5 — Finance & Accounting Foundation ✅
+- [x] Chart of accounts: Asset/Liability/Equity/Revenue/Expense types, self-referencing hierarchy with
+      cycle rejection, tenant-unique codes, system-vs-user-defined accounts; the two minimum accounts a
+      tenant needs (Cash and Bank, Sales Revenue) are seeded automatically at tenant creation — not from
+      the global DbSeeder, since accounts are tenant-owned data
+- [x] Double-entry journal: JournalEntry + JournalLine, balance enforced server-side both at draft
+      creation and again at posting (never persisted unbalanced), Draft -> Posted -> immutable (no edit
+      endpoint — a wrong draft is cancelled and recreated), Draft -> Cancelled
+- [x] FinancialDocument: a reusable invoice/receipt/credit-note/debit-note envelope shared across future
+      modules — no tax engine, no line items yet, just the numbering/status/reference shell
+- [x] Sales integration: `ISalesPaymentPostingService` adds the journal entry (Dr Cash and Bank, Cr Sales
+      Revenue) and a Receipt document to the same DbContext Sales' PaymentService already uses, inside the
+      same transaction — one SaveChanges, so the payment and its ledger postings commit or roll back
+      together; a per-tenant unique index on (ReferenceType, ReferenceId) plus a payment-level
+      IdempotencyKey stop a retried request from ever posting twice. See docs/DATABASE.md for the mapping.
+- [x] Receivables: a projection over Sales installments (no new source-of-truth table), by customer, with
+      outstanding amount and computed overdue status
+- [x] Finance dashboard: revenue, collected, receivable/overdue, expenses, asset/liability/equity
+      summary, recent journal entries — all tenant-scoped
+- [x] Reports: trial balance (reconciles by construction — every posted entry balances, so the aggregate
+      does too) and an income summary (revenue − expenses) over an optional date range
+- [x] Frontend: finance dashboard, chart of accounts list/create, journal list/detail with post/cancel
+      actions and a manual-entry builder, receivables list, trial balance view
+- [x] Unit/integration tests: 16 new integration tests covering account CRUD, hierarchy + circular-hierarchy
+      rejection, system-account protection, balanced/unbalanced journal entries, posted-entry immutability,
+      automatic Sales -> Finance posting, overpayment creating no journal entry, idempotent duplicate
+      payments, receivable calculation, tenant-scoped dashboards, trial balance reconciliation, RBAC, and
+      audit logging — all passing alongside the existing suite (80 total)
+- [x] Live end-to-end verification: Customer -> Booking -> Payment Plan -> Installment -> Payment ->
+      Financial Journal -> Receivable -> Dashboard/Trial Balance run against the real API, every figure
+      reconciling exactly
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

@@ -15,6 +15,7 @@ public record PaymentDto(
     string? Notes,
     Guid RecordedByUserId,
     string? RecordedByUserName,
+    Guid? JournalEntryId,
     DateTimeOffset CreatedAt);
 
 public record RecordPaymentRequest(
@@ -23,4 +24,5 @@ public record RecordPaymentRequest(
     DateOnly PaymentDate,
     PaymentMethod Method,
     string? ReferenceNumber,
-    string? Notes);
+    string? Notes,
+    string? IdempotencyKey = null);

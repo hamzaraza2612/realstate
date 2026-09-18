@@ -11,6 +11,10 @@ import {
   FolderKanban,
   Boxes,
   ReceiptText,
+  Wallet,
+  BookOpen,
+  HandCoins,
+  Scale,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -33,6 +37,11 @@ const navItems: NavItem[] = [
   { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
   { to: '/sales', label: 'Sales Dashboard', icon: LayoutDashboard, permission: 'sales.booking.view' },
   { to: '/sales/bookings', label: 'Bookings', icon: ReceiptText, permission: 'sales.booking.view' },
+  { to: '/finance', label: 'Finance Dashboard', icon: Wallet, permission: 'finance.reports.view' },
+  { to: '/finance/accounts', label: 'Chart of Accounts', icon: BookOpen, permission: 'finance.reports.view' },
+  { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
+  { to: '/finance/receivables', label: 'Receivables', icon: HandCoins, permission: 'finance.reports.view' },
+  { to: '/finance/trial-balance', label: 'Trial Balance', icon: Scale, permission: 'finance.reports.view' },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },
@@ -88,7 +97,7 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/' || item.to === '/crm' || item.to === '/sales'}
+      end={item.to === '/' || item.to === '/crm' || item.to === '/sales' || item.to === '/finance'}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',

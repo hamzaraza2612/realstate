@@ -11,6 +11,12 @@ using RealEstateErp.Application.Crm.Activities;
 using RealEstateErp.Application.Crm.Customers;
 using RealEstateErp.Application.Crm.Dashboard;
 using RealEstateErp.Application.Crm.Leads;
+using RealEstateErp.Application.Finance;
+using RealEstateErp.Application.Finance.Accounts;
+using RealEstateErp.Application.Finance.Dashboard;
+using RealEstateErp.Application.Finance.Journal;
+using RealEstateErp.Application.Finance.Receivables;
+using RealEstateErp.Application.Finance.Reports;
 using RealEstateErp.Application.Inventory;
 using RealEstateErp.Application.Organizations;
 using RealEstateErp.Application.Projects.Hierarchy;
@@ -26,6 +32,7 @@ using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Infrastructure.Services;
 using RealEstateErp.Infrastructure.Services.Crm;
+using RealEstateErp.Infrastructure.Services.Finance;
 using RealEstateErp.Infrastructure.Services.Inventory;
 using RealEstateErp.Infrastructure.Services.Projects;
 using RealEstateErp.Infrastructure.Services.Sales;
@@ -82,6 +89,12 @@ public static class DependencyInjection
         services.AddScoped<IPaymentPlanService, PaymentPlanService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<ISalesDashboardService, SalesDashboardService>();
+        services.AddScoped<ISalesPaymentPostingService, SalesPaymentPostingService>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IJournalService, JournalService>();
+        services.AddScoped<IReceivableService, ReceivableService>();
+        services.AddScoped<IFinanceDashboardService, FinanceDashboardService>();
+        services.AddScoped<IFinanceReportService, FinanceReportService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
 using RealEstateErp.Domain.Crm;
+using RealEstateErp.Domain.Finance;
 using RealEstateErp.Domain.Projects;
 using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
@@ -41,6 +42,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<PaymentPlan> PaymentPlans => Set<PaymentPlan>();
     public DbSet<Installment> Installments => Set<Installment>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+    public DbSet<JournalLine> JournalLines => Set<JournalLine>();
+    public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

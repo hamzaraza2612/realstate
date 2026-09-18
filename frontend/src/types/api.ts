@@ -565,6 +565,7 @@ export interface PaymentDto {
   notes: string | null
   recordedByUserId: string
   recordedByUserName: string | null
+  journalEntryId: string | null
   createdAt: string
 }
 
@@ -593,4 +594,129 @@ export interface SalesDashboardDto {
   outstandingAmount: number
   overdueInstallments: number
   recentBookings: RecentBookingDto[]
+}
+
+// --- Finance: Chart of Accounts, Journal, Receivables ---
+
+export const AccountType = {
+  Asset: 0,
+  Liability: 1,
+  Equity: 2,
+  Revenue: 3,
+  Expense: 4,
+} as const
+export type AccountType = (typeof AccountType)[keyof typeof AccountType]
+
+export const AccountTypeLabel: Record<AccountType, string> = {
+  [AccountType.Asset]: 'Asset',
+  [AccountType.Liability]: 'Liability',
+  [AccountType.Equity]: 'Equity',
+  [AccountType.Revenue]: 'Revenue',
+  [AccountType.Expense]: 'Expense',
+}
+
+export interface AccountDto {
+  id: string
+  code: string
+  name: string
+  type: AccountType
+  parentAccountId: string | null
+  parentAccountName: string | null
+  isActive: boolean
+  isSystem: boolean
+  balance: number
+  childAccountCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const JournalEntryStatus = {
+  Draft: 0,
+  Posted: 1,
+  Cancelled: 2,
+} as const
+export type JournalEntryStatus = (typeof JournalEntryStatus)[keyof typeof JournalEntryStatus]
+
+export const JournalEntryStatusLabel: Record<JournalEntryStatus, string> = {
+  [JournalEntryStatus.Draft]: 'Draft',
+  [JournalEntryStatus.Posted]: 'Posted',
+  [JournalEntryStatus.Cancelled]: 'Cancelled',
+}
+
+export interface JournalLineDto {
+  id: string
+  accountId: string
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description: string | null
+}
+
+export interface JournalEntryDto {
+  id: string
+  entryNumber: string
+  entryDate: string
+  description: string | null
+  referenceType: string
+  referenceId: string | null
+  status: JournalEntryStatus
+  createdBy: string | null
+  createdByName: string | null
+  totalDebit: number
+  totalCredit: number
+  lines: JournalLineDto[]
+  createdAt: string
+}
+
+export interface ReceivableDto {
+  bookingId: string
+  bookingNumber: string
+  customerId: string
+  customerName: string
+  installmentId: string
+  reference: string
+  amount: number
+  paidAmount: number
+  outstandingAmount: number
+  dueDate: string
+  status: InstallmentStatus
+}
+
+export interface RecentJournalEntryDto {
+  id: string
+  entryNumber: string
+  entryDate: string
+  description: string | null
+  referenceType: string
+  status: JournalEntryStatus
+  total: number
+  createdAt: string
+}
+
+export interface FinanceDashboardDto {
+  totalRevenue: number
+  totalCollected: number
+  totalReceivable: number
+  overdueReceivable: number
+  totalExpenses: number
+  totalAssets: number
+  totalLiabilities: number
+  totalEquity: number
+  recentJournalEntries: RecentJournalEntryDto[]
+}
+
+export interface TrialBalanceLineDto {
+  accountId: string
+  code: string
+  name: string
+  type: AccountType
+  totalDebit: number
+  totalCredit: number
+}
+
+export interface TrialBalanceDto {
+  lines: TrialBalanceLineDto[]
+  totalDebit: number
+  totalCredit: number
 }

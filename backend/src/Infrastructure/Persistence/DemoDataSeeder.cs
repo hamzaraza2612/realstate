@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
+using RealEstateErp.Infrastructure.Services.Finance;
 
 namespace RealEstateErp.Infrastructure.Persistence;
 
@@ -37,6 +38,9 @@ public static class DemoDataSeeder
             await db.SaveChangesAsync();
             logger.LogInformation("Seeded demo tenant '{Name}'.", tenant.Name);
         }
+
+        await SystemAccountSeeder.SeedAsync(db, tenant.Id);
+        await db.SaveChangesAsync();
 
         await SeedDemoUserAsync(userManager, tenant.Id, "owner@acme-builders.demo", "Demo Owner", "Organization Owner", logger);
         await SeedDemoUserAsync(userManager, tenant.Id, "sales.manager@acme-builders.demo", "Demo Sales Manager", "Sales Manager", logger);

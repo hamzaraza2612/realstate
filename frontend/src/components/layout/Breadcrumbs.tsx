@@ -16,6 +16,11 @@ const labels: Record<string, string> = {
   inventory: 'Inventory',
   sales: 'Sales',
   bookings: 'Bookings',
+  finance: 'Finance',
+  accounts: 'Chart of Accounts',
+  journal: 'Journal',
+  receivables: 'Receivables',
+  'trial-balance': 'Trial Balance',
 }
 
 export function Breadcrumbs() {

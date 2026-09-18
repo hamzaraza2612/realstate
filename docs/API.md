@@ -86,4 +86,17 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
   installment; rejects amounts beyond that installment's outstanding balance with `overpayment_not_allowed`)
 - `GET /api/v1/sales/dashboard` (tenant-scoped booking/inventory/collections summary)
 
+## Milestone 5 endpoints (Finance & Accounting Foundation)
+- `GET/POST/PUT/DELETE /api/v1/finance/accounts` (delete blocked while the account has child accounts,
+  journal activity, or is a seeded system account — `409 Conflict`; hierarchy changes that would create
+  a cycle return `400 invalid_hierarchy`)
+- `GET/POST /api/v1/finance/journal-entries`, `POST /api/v1/finance/journal-entries/{id}/post|cancel`
+  (manual entries are created as `Draft`; `post`/`cancel` only succeed from `Draft` — a `Posted` entry is
+  immutable, there is no edit endpoint; unbalanced entries are rejected with `400 unbalanced` at both
+  creation and posting)
+- `GET /api/v1/finance/receivables` (a projection over Sales installments, not its own table — filterable
+  by `customerId`, `status`, `overdueOnly`)
+- `GET /api/v1/finance/dashboard` (tenant-scoped revenue/collections/receivables/balance-sheet summary)
+- `GET /api/v1/finance/reports/trial-balance`, `GET /api/v1/finance/reports/income-summary?from=&to=`
+
 Further modules append their endpoint list here as they ship.

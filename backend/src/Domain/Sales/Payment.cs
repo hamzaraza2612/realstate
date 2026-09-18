@@ -13,10 +13,8 @@ public enum PaymentMethod
 }
 
 /// <summary>
-/// A recorded payment against one installment. Deliberately simple — this is the recording
-/// foundation for sales collections, not a ledger; a future accounting/GL milestone can post
-/// against these rows without needing to change their shape (booking/installment linkage,
-/// amount, method, reference already match what a journal entry would need).
+/// A recorded payment against one installment. Each payment posts exactly one journal entry to the
+/// Finance module (see ISalesPaymentPostingService) in the same transaction it's recorded in.
 /// </summary>
 public class Payment : TenantEntity
 {
@@ -34,4 +32,7 @@ public class Payment : TenantEntity
 
     /// <summary>No navigation property — AppUser lives in Infrastructure (Identity).</summary>
     public Guid RecordedByUserId { get; set; }
+
+    /// <summary>Optional caller-supplied key (e.g. from a retried HTTP request) so replaying the same request returns the original payment instead of recording it twice.</summary>
+    public string? IdempotencyKey { get; set; }
 }

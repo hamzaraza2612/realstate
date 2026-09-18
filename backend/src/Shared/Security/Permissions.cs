@@ -64,6 +64,7 @@ public static class Permissions
         public const string InvoiceCreate = "finance.invoice.create";
         public const string PaymentApprove = "finance.payment.approve";
         public const string ReportsView = "finance.reports.view";
+        public const string Manage = "finance.manage";
     }
 
     public static class Projects
