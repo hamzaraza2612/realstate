@@ -10,6 +10,7 @@ import {
   UserSquare2,
   FolderKanban,
   Boxes,
+  ReceiptText,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,8 @@ const navItems: NavItem[] = [
   { to: '/crm/customers', label: 'Customers', icon: UserSquare2, permission: 'crm.customer.view' },
   { to: '/projects', label: 'Projects', icon: FolderKanban, permission: 'projects.view' },
   { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
+  { to: '/sales', label: 'Sales Dashboard', icon: LayoutDashboard, permission: 'sales.booking.view' },
+  { to: '/sales/bookings', label: 'Bookings', icon: ReceiptText, permission: 'sales.booking.view' },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },
@@ -85,7 +88,7 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/' || item.to === '/crm'}
+      end={item.to === '/' || item.to === '/crm' || item.to === '/sales'}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',

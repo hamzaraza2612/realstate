@@ -16,6 +16,10 @@ using RealEstateErp.Application.Organizations;
 using RealEstateErp.Application.Projects.Hierarchy;
 using RealEstateErp.Application.Projects.Projects;
 using RealEstateErp.Application.Roles;
+using RealEstateErp.Application.Sales.Bookings;
+using RealEstateErp.Application.Sales.Dashboard;
+using RealEstateErp.Application.Sales.PaymentPlans;
+using RealEstateErp.Application.Sales.Payments;
 using RealEstateErp.Application.Subscription;
 using RealEstateErp.Application.Users;
 using RealEstateErp.Infrastructure.Identity;
@@ -24,6 +28,7 @@ using RealEstateErp.Infrastructure.Services;
 using RealEstateErp.Infrastructure.Services.Crm;
 using RealEstateErp.Infrastructure.Services.Inventory;
 using RealEstateErp.Infrastructure.Services.Projects;
+using RealEstateErp.Infrastructure.Services.Sales;
 
 namespace RealEstateErp.Infrastructure;
 
@@ -73,6 +78,10 @@ public static class DependencyInjection
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IProjectNodeService, ProjectNodeService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IPaymentPlanService, PaymentPlanService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<ISalesDashboardService, SalesDashboardService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

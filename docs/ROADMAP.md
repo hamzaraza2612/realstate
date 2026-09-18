@@ -8,7 +8,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 1 | Foundation: solution structure, DB, tenancy, auth, RBAC, org mgmt, audit log, API conventions, frontend shell | ✅ |
 | 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ✅ |
 | 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ✅ |
-| 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ⬜ |
+| 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ✅ |
 | 5 | Finance: chart of accounts, journals, receivables/payables, reports | ⬜ |
 | 6 | Construction: phases, BOQ, procurement, vendors, materials, workforce | ⬜ |
 | 7 | Property/Rental: properties, tenants, leases, rent, maintenance | ⬜ |
@@ -72,6 +72,33 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 - [x] Unit/integration tests: 14 new integration tests (project/hierarchy/inventory CRUD, uniqueness,
       status transitions, relationship guards, filtering, tenant isolation, RBAC, coordinate
       persistence) — all passing alongside the existing suite (46 total)
+
+## Milestone 4 — Sales Booking & Payment Plans ✅
+- [x] Booking: number/reference, customer, agent, project, inventory unit, date, status, total/discount/net
+      price, notes — status lifecycle Draft → PendingApproval → Confirmed, Cancelled reachable from any
+      non-terminal state, invalid transitions rejected (`BookingStatusRules`)
+- [x] Double-booking protection is a real database constraint, not just an app-level check: a partial
+      unique index on `bookings.InventoryUnitId` (active statuses only) — verified under genuine
+      concurrent requests, not just sequential ones
+- [x] Inventory integration: only `Available` units can be booked; Confirmed moves the unit to `Booked`;
+      Cancelled releases it back to `Available` and cancels any still-open installments
+- [x] Payment plans: booking amount + down payment + N periodic installments, both percentage-based and
+      fixed-amount custom schedules, auto-generated even schedules, all reconciled exactly against the
+      booking's net price (rounding remainder absorbed by the last installment)
+- [x] Installments: Pending/PartiallyPaid/Paid/Cancelled are persisted; Overdue is computed at read time
+      from due date + grace period, so nothing needs a background job to keep it in sync
+- [x] Payments: receipt-numbered, partial payments accumulate on an installment, overpayment beyond the
+      outstanding amount is rejected outright (no credit-balance/overpayment handling in this milestone —
+      documented limitation, not an oversight)
+- [x] Sales dashboard: booking counts by status, inventory availability summary, total booking value,
+      collected/outstanding amounts, overdue installment count, recent bookings — all tenant-scoped
+- [x] Frontend: sales dashboard, booking list/create/detail, payment plan configuration (even-split or
+      custom schedule builder), installment schedule table, payment recording, status action buttons
+- [x] Unit/integration tests: 18 new integration tests covering booking/customer/inventory relationships,
+      unavailable-inventory rejection, genuine concurrent double-booking, status transitions, cancellation
+      side effects, schedule reconciliation (both plan types), partial payments, overpayment rejection,
+      overdue computation, tenant isolation, RBAC, dashboard scoping, and audit logging — all passing
+      alongside the existing suite (64 total)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

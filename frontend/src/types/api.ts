@@ -421,3 +421,176 @@ export interface InventoryUnitDto {
   createdAt: string
   updatedAt: string | null
 }
+
+// --- Sales: Bookings, Payment Plans, Payments ---
+
+export const BookingStatus = {
+  Draft: 0,
+  PendingApproval: 1,
+  Confirmed: 2,
+  Cancelled: 3,
+} as const
+export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus]
+
+export const BookingStatusLabel: Record<BookingStatus, string> = {
+  [BookingStatus.Draft]: 'Draft',
+  [BookingStatus.PendingApproval]: 'Pending Approval',
+  [BookingStatus.Confirmed]: 'Confirmed',
+  [BookingStatus.Cancelled]: 'Cancelled',
+}
+
+export interface BookingDto {
+  id: string
+  bookingNumber: string
+  customerId: string
+  customerName: string
+  projectId: string
+  projectName: string
+  inventoryUnitId: string
+  inventoryUnitCode: string
+  salesAgentUserId: string
+  salesAgentUserName: string | null
+  bookingDate: string
+  status: BookingStatus
+  totalPrice: number
+  discount: number
+  netPrice: number
+  notes: string | null
+  hasPaymentPlan: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const PaymentPlanType = {
+  Percentage: 0,
+  FixedAmount: 1,
+} as const
+export type PaymentPlanType = (typeof PaymentPlanType)[keyof typeof PaymentPlanType]
+
+export const PaymentPlanTypeLabel: Record<PaymentPlanType, string> = {
+  [PaymentPlanType.Percentage]: 'Percentage-based',
+  [PaymentPlanType.FixedAmount]: 'Fixed amount',
+}
+
+export const InstallmentFrequency = {
+  Monthly: 0,
+  Quarterly: 1,
+  SemiAnnually: 2,
+  Annually: 3,
+} as const
+export type InstallmentFrequency = (typeof InstallmentFrequency)[keyof typeof InstallmentFrequency]
+
+export const InstallmentFrequencyLabel: Record<InstallmentFrequency, string> = {
+  [InstallmentFrequency.Monthly]: 'Monthly',
+  [InstallmentFrequency.Quarterly]: 'Quarterly',
+  [InstallmentFrequency.SemiAnnually]: 'Semi-annually',
+  [InstallmentFrequency.Annually]: 'Annually',
+}
+
+export const InstallmentStatus = {
+  Pending: 0,
+  PartiallyPaid: 1,
+  Paid: 2,
+  Overdue: 3,
+  Cancelled: 4,
+} as const
+export type InstallmentStatus = (typeof InstallmentStatus)[keyof typeof InstallmentStatus]
+
+export const InstallmentStatusLabel: Record<InstallmentStatus, string> = {
+  [InstallmentStatus.Pending]: 'Pending',
+  [InstallmentStatus.PartiallyPaid]: 'Partially Paid',
+  [InstallmentStatus.Paid]: 'Paid',
+  [InstallmentStatus.Overdue]: 'Overdue',
+  [InstallmentStatus.Cancelled]: 'Cancelled',
+}
+
+export interface InstallmentDto {
+  id: string
+  bookingId: string
+  paymentPlanId: string
+  installmentNumber: number
+  label: string
+  dueDate: string
+  amount: number
+  paidAmount: number
+  remainingAmount: number
+  status: InstallmentStatus
+  paymentDate: string | null
+  notes: string | null
+}
+
+export interface PaymentPlanDto {
+  id: string
+  bookingId: string
+  name: string
+  bookingAmount: number
+  downPayment: number
+  planType: PaymentPlanType
+  frequency: InstallmentFrequency
+  numberOfInstallments: number
+  gracePeriodDays: number
+  totalScheduled: number
+  installments: InstallmentDto[]
+}
+
+export const PaymentMethod = {
+  Cash: 0,
+  BankTransfer: 1,
+  Cheque: 2,
+  CreditCard: 3,
+  Online: 4,
+  Other: 5,
+} as const
+export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod]
+
+export const PaymentMethodLabel: Record<PaymentMethod, string> = {
+  [PaymentMethod.Cash]: 'Cash',
+  [PaymentMethod.BankTransfer]: 'Bank Transfer',
+  [PaymentMethod.Cheque]: 'Cheque',
+  [PaymentMethod.CreditCard]: 'Credit Card',
+  [PaymentMethod.Online]: 'Online',
+  [PaymentMethod.Other]: 'Other',
+}
+
+export interface PaymentDto {
+  id: string
+  receiptNumber: string
+  bookingId: string
+  installmentId: string
+  installmentLabel: string
+  amount: number
+  paymentDate: string
+  method: PaymentMethod
+  referenceNumber: string | null
+  notes: string | null
+  recordedByUserId: string
+  recordedByUserName: string | null
+  createdAt: string
+}
+
+export interface RecentBookingDto {
+  id: string
+  bookingNumber: string
+  customerName: string
+  projectName: string
+  inventoryUnitCode: string
+  status: BookingStatus
+  netPrice: number
+  createdAt: string
+}
+
+export interface SalesDashboardDto {
+  totalBookings: number
+  draftBookings: number
+  pendingApprovalBookings: number
+  confirmedBookings: number
+  cancelledBookings: number
+  availableInventory: number
+  reservedOrBookedInventory: number
+  soldInventory: number
+  totalBookingValue: number
+  collectedAmount: number
+  outstandingAmount: number
+  overdueInstallments: number
+  recentBookings: RecentBookingDto[]
+}

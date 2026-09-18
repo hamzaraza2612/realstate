@@ -42,7 +42,22 @@ Never edit production schema by hand — always via `dotnet ef migrations add`.
   geo_json, metadata_json; status transitions are enforced in the application layer
   (`InventoryStatusRules`), not by a DB constraint
 
-Later milestones extend this file per-module (Sales/Inventory bookings, Finance,
-Construction, Property, Facility, Documents, Subscription) as they land —
-each new module's tables and relationships are appended here in the same
-milestone's PR/commit that adds the migration.
+## Milestone 4 schema (Sales Booking & Payment Plans)
+- `bookings`: id, tenant_id, booking_number (unique per tenant), customer_id (FK, restrict), project_id
+  (FK, restrict), inventory_unit_id (FK, restrict), sales_agent_user_id (no FK — AppUser lives in
+  Infrastructure), booking_date, status, total_price, discount, net_price, notes; a **partial unique
+  index on inventory_unit_id (`WHERE status <> Cancelled`)** is the actual double-booking guard, not
+  application logic
+- `payment_plans`: id, tenant_id, booking_id (FK, cascade, unique — one plan per booking), name,
+  booking_amount, down_payment, plan_type, frequency, number_of_installments, grace_period_days
+- `installments`: id, tenant_id, booking_id (FK, cascade), payment_plan_id (FK, cascade), installment_number
+  (unique per plan), label, due_date, amount, paid_amount, status, payment_date, notes; "Overdue" is
+  never written here — it's computed from due_date + grace period at read time
+- `payments`: id, tenant_id, receipt_number (unique per tenant), booking_id (FK, restrict), installment_id
+  (FK, restrict — payments are a financial record and must never cascade-delete), amount, payment_date,
+  method, reference_number, notes, recorded_by_user_id
+
+Later milestones extend this file per-module (Finance, Construction, Property,
+Facility, Documents, Subscription) as they land — each new module's tables and
+relationships are appended here in the same milestone's PR/commit that adds
+the migration.

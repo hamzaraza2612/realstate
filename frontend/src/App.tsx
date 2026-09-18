@@ -12,6 +12,9 @@ import { ProjectsPage } from '@/modules/projects/ProjectsPage'
 import { ProjectDetailPage } from '@/modules/projects/ProjectDetailPage'
 import { InventoryPage } from '@/modules/inventory/InventoryPage'
 import { InventoryDetailPage } from '@/modules/inventory/InventoryDetailPage'
+import { SalesDashboardPage } from '@/modules/sales/dashboard/SalesDashboardPage'
+import { BookingsPage } from '@/modules/sales/bookings/BookingsPage'
+import { BookingDetailPage } from '@/modules/sales/bookings/BookingDetailPage'
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
@@ -101,6 +104,30 @@ export default function App() {
           element={
             <PermissionRoute permission="inventory.view">
               <InventoryDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales"
+          element={
+            <PermissionRoute permission="sales.booking.view">
+              <SalesDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales/bookings"
+          element={
+            <PermissionRoute permission="sales.booking.view">
+              <BookingsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales/bookings/:id"
+          element={
+            <PermissionRoute permission="sales.booking.view">
+              <BookingDetailPage />
             </PermissionRoute>
           }
         />

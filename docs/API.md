@@ -75,4 +75,15 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
   otherwise), `POST /api/v1/inventory/{id}/status` (enforces `InventoryStatusRules` — invalid
   transitions return `400`)
 
+## Milestone 4 endpoints (Sales Booking & Payment Plans)
+- `GET/POST/PUT /api/v1/sales/bookings` (no delete — cancellation is a status transition, not a
+  deletion, to preserve audit history), `POST /api/v1/sales/bookings/{id}/submit|approve|cancel`
+  (status transitions enforced server-side; `PUT` only succeeds while the booking is still `Draft`)
+- `GET/POST /api/v1/sales/bookings/{bookingId}/payment-plan` (one plan per booking; `POST` fails with
+  `409`-equivalent `400 conflict` if one already exists, or `schedule_mismatch` if the schedule doesn't
+  reconcile with the booking's net price)
+- `GET/POST /api/v1/sales/bookings/{bookingId}/payments` (`POST` records a payment against one
+  installment; rejects amounts beyond that installment's outstanding balance with `overpayment_not_allowed`)
+- `GET /api/v1/sales/dashboard` (tenant-scoped booking/inventory/collections summary)
+
 Further modules append their endpoint list here as they ship.

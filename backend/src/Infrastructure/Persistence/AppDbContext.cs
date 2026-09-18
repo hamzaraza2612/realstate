@@ -6,6 +6,7 @@ using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
 using RealEstateErp.Domain.Crm;
 using RealEstateErp.Domain.Projects;
+using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
@@ -36,6 +37,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
     public DbSet<InventoryUnit> InventoryUnits => Set<InventoryUnit>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<PaymentPlan> PaymentPlans => Set<PaymentPlan>();
+    public DbSet<Installment> Installments => Set<Installment>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
