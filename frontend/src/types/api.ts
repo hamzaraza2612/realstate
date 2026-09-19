@@ -720,3 +720,375 @@ export interface TrialBalanceDto {
   totalDebit: number
   totalCredit: number
 }
+
+// ===== Construction & Procurement =====
+
+export const WorkPackageStatus = {
+  Planned: 0,
+  InProgress: 1,
+  OnHold: 2,
+  Completed: 3,
+  Cancelled: 4,
+} as const
+export type WorkPackageStatus = (typeof WorkPackageStatus)[keyof typeof WorkPackageStatus]
+
+export const WorkPackageStatusLabel: Record<WorkPackageStatus, string> = {
+  [WorkPackageStatus.Planned]: 'Planned',
+  [WorkPackageStatus.InProgress]: 'In Progress',
+  [WorkPackageStatus.OnHold]: 'On Hold',
+  [WorkPackageStatus.Completed]: 'Completed',
+  [WorkPackageStatus.Cancelled]: 'Cancelled',
+}
+
+export interface WorkPackageDto {
+  id: string
+  projectId: string
+  projectName: string
+  name: string
+  code: string
+  description: string | null
+  plannedStartDate: string | null
+  plannedEndDate: string | null
+  actualStartDate: string | null
+  actualEndDate: string | null
+  status: WorkPackageStatus
+  progressPercent: number
+  managerUserId: string | null
+  managerUserName: string | null
+  budget: number | null
+  taskCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const ConstructionTaskStatus = {
+  Planned: 0,
+  InProgress: 1,
+  Blocked: 2,
+  Completed: 3,
+  Cancelled: 4,
+} as const
+export type ConstructionTaskStatus = (typeof ConstructionTaskStatus)[keyof typeof ConstructionTaskStatus]
+
+export const ConstructionTaskStatusLabel: Record<ConstructionTaskStatus, string> = {
+  [ConstructionTaskStatus.Planned]: 'Planned',
+  [ConstructionTaskStatus.InProgress]: 'In Progress',
+  [ConstructionTaskStatus.Blocked]: 'Blocked',
+  [ConstructionTaskStatus.Completed]: 'Completed',
+  [ConstructionTaskStatus.Cancelled]: 'Cancelled',
+}
+
+export const ConstructionTaskPriority = {
+  Low: 0,
+  Medium: 1,
+  High: 2,
+} as const
+export type ConstructionTaskPriority = (typeof ConstructionTaskPriority)[keyof typeof ConstructionTaskPriority]
+
+export const ConstructionTaskPriorityLabel: Record<ConstructionTaskPriority, string> = {
+  [ConstructionTaskPriority.Low]: 'Low',
+  [ConstructionTaskPriority.Medium]: 'Medium',
+  [ConstructionTaskPriority.High]: 'High',
+}
+
+export interface ConstructionTaskDto {
+  id: string
+  workPackageId: string
+  workPackageName: string
+  title: string
+  description: string | null
+  assignedToUserId: string | null
+  assignedToUserName: string | null
+  priority: ConstructionTaskPriority
+  plannedStartDate: string | null
+  plannedEndDate: string | null
+  actualStartDate: string | null
+  actualEndDate: string | null
+  status: ConstructionTaskStatus
+  progressPercent: number
+  dependsOnTaskId: string | null
+  dependsOnTaskTitle: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const ExpenseCategory = {
+  Labor: 0,
+  Materials: 1,
+  Equipment: 2,
+  Subcontractor: 3,
+  Other: 4,
+} as const
+export type ExpenseCategory = (typeof ExpenseCategory)[keyof typeof ExpenseCategory]
+
+export const ExpenseCategoryLabel: Record<ExpenseCategory, string> = {
+  [ExpenseCategory.Labor]: 'Labor',
+  [ExpenseCategory.Materials]: 'Materials',
+  [ExpenseCategory.Equipment]: 'Equipment',
+  [ExpenseCategory.Subcontractor]: 'Subcontractor',
+  [ExpenseCategory.Other]: 'Other',
+}
+
+export const ExpenseStatus = {
+  Pending: 0,
+  Approved: 1,
+  Rejected: 2,
+} as const
+export type ExpenseStatus = (typeof ExpenseStatus)[keyof typeof ExpenseStatus]
+
+export const ExpenseStatusLabel: Record<ExpenseStatus, string> = {
+  [ExpenseStatus.Pending]: 'Pending',
+  [ExpenseStatus.Approved]: 'Approved',
+  [ExpenseStatus.Rejected]: 'Rejected',
+}
+
+export interface ExpenseDto {
+  id: string
+  projectId: string
+  projectName: string
+  workPackageId: string | null
+  workPackageName: string | null
+  category: ExpenseCategory
+  amount: number
+  expenseDate: string
+  vendorId: string | null
+  vendorName: string | null
+  referenceNumber: string | null
+  notes: string | null
+  status: ExpenseStatus
+  journalEntryId: string | null
+  createdAt: string
+}
+
+export interface WorkPackageProgressDto {
+  id: string
+  name: string
+  projectName: string
+  status: WorkPackageStatus
+  progressPercent: number
+  budget: number | null
+  actualExpenses: number
+}
+
+export interface ConstructionDashboardDto {
+  activeProjects: number
+  totalWorkPackages: number
+  workPackagesInProgress: number
+  totalTasks: number
+  delayedTasks: number
+  completedTasks: number
+  purchaseRequestsPendingApproval: number
+  openPurchaseOrders: number
+  totalBudget: number
+  totalExpenses: number
+  recentWorkPackages: WorkPackageProgressDto[]
+}
+
+export interface VendorDto {
+  id: string
+  name: string
+  contactPerson: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  taxRegistrationNumber: string | null
+  isActive: boolean
+  notes: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const PurchaseRequestStatus = {
+  Draft: 0,
+  Submitted: 1,
+  Approved: 2,
+  Rejected: 3,
+  Cancelled: 4,
+} as const
+export type PurchaseRequestStatus = (typeof PurchaseRequestStatus)[keyof typeof PurchaseRequestStatus]
+
+export const PurchaseRequestStatusLabel: Record<PurchaseRequestStatus, string> = {
+  [PurchaseRequestStatus.Draft]: 'Draft',
+  [PurchaseRequestStatus.Submitted]: 'Submitted',
+  [PurchaseRequestStatus.Approved]: 'Approved',
+  [PurchaseRequestStatus.Rejected]: 'Rejected',
+  [PurchaseRequestStatus.Cancelled]: 'Cancelled',
+}
+
+export const PurchasePriority = {
+  Low: 0,
+  Medium: 1,
+  High: 2,
+} as const
+export type PurchasePriority = (typeof PurchasePriority)[keyof typeof PurchasePriority]
+
+export const PurchasePriorityLabel: Record<PurchasePriority, string> = {
+  [PurchasePriority.Low]: 'Low',
+  [PurchasePriority.Medium]: 'Medium',
+  [PurchasePriority.High]: 'High',
+}
+
+export interface PurchaseRequestLineDto {
+  id: string
+  materialId: string | null
+  itemDescription: string
+  unitOfMeasure: string
+  quantity: number
+  estimatedUnitPrice: number
+  estimatedTotal: number
+}
+
+export interface PurchaseRequestDto {
+  id: string
+  requestNumber: string
+  projectId: string
+  projectName: string
+  workPackageId: string | null
+  workPackageName: string | null
+  requestedByUserId: string
+  requestedByUserName: string | null
+  requiredDate: string | null
+  priority: PurchasePriority
+  status: PurchaseRequestStatus
+  notes: string | null
+  estimatedTotal: number
+  lines: PurchaseRequestLineDto[]
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const PurchaseOrderStatus = {
+  Draft: 0,
+  PendingApproval: 1,
+  Approved: 2,
+  Sent: 3,
+  PartiallyReceived: 4,
+  Received: 5,
+  Cancelled: 6,
+} as const
+export type PurchaseOrderStatus = (typeof PurchaseOrderStatus)[keyof typeof PurchaseOrderStatus]
+
+export const PurchaseOrderStatusLabel: Record<PurchaseOrderStatus, string> = {
+  [PurchaseOrderStatus.Draft]: 'Draft',
+  [PurchaseOrderStatus.PendingApproval]: 'Pending Approval',
+  [PurchaseOrderStatus.Approved]: 'Approved',
+  [PurchaseOrderStatus.Sent]: 'Sent',
+  [PurchaseOrderStatus.PartiallyReceived]: 'Partially Received',
+  [PurchaseOrderStatus.Received]: 'Received',
+  [PurchaseOrderStatus.Cancelled]: 'Cancelled',
+}
+
+export interface PurchaseOrderLineDto {
+  id: string
+  materialId: string | null
+  itemDescription: string
+  unitOfMeasure: string
+  quantity: number
+  unitPrice: number
+  total: number
+  receivedQuantity: number
+  outstandingQuantity: number
+}
+
+export interface PurchaseOrderDto {
+  id: string
+  poNumber: string
+  vendorId: string
+  vendorName: string
+  projectId: string
+  projectName: string
+  workPackageId: string | null
+  workPackageName: string | null
+  purchaseRequestId: string | null
+  purchaseRequestNumber: string | null
+  orderDate: string
+  expectedDeliveryDate: string | null
+  status: PurchaseOrderStatus
+  subtotal: number
+  discount: number
+  taxAmount: number
+  total: number
+  notes: string | null
+  lines: PurchaseOrderLineDto[]
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface MaterialReceiptLineDto {
+  id: string
+  purchaseOrderLineId: string
+  itemDescription: string
+  receivedQuantity: number
+}
+
+export interface MaterialReceiptDto {
+  id: string
+  receiptNumber: string
+  purchaseOrderId: string
+  poNumber: string
+  vendorId: string
+  vendorName: string
+  receivedDate: string
+  receivedByUserId: string
+  receivedByUserName: string | null
+  notes: string | null
+  lines: MaterialReceiptLineDto[]
+  createdAt: string
+}
+
+export interface MaterialDto {
+  id: string
+  sku: string
+  name: string
+  unitOfMeasure: string
+  category: string | null
+  currentQuantity: number
+  minimumQuantity: number
+  isActive: boolean
+  isBelowMinimum: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const StockMovementType = {
+  Receipt: 0,
+  Issue: 1,
+  Adjustment: 2,
+} as const
+export type StockMovementType = (typeof StockMovementType)[keyof typeof StockMovementType]
+
+export const StockMovementTypeLabel: Record<StockMovementType, string> = {
+  [StockMovementType.Receipt]: 'Receipt',
+  [StockMovementType.Issue]: 'Issue',
+  [StockMovementType.Adjustment]: 'Adjustment',
+}
+
+export interface StockMovementDto {
+  id: string
+  materialId: string
+  type: StockMovementType
+  quantity: number
+  referenceType: string | null
+  referenceId: string | null
+  notes: string | null
+  createdAt: string
+}
+
+export interface RecentPurchaseOrderDto {
+  id: string
+  poNumber: string
+  vendorName: string
+  status: PurchaseOrderStatus
+  total: number
+  createdAt: string
+}
+
+export interface ProcurementDashboardDto {
+  purchaseRequestsPendingApproval: number
+  totalPurchaseOrders: number
+  pendingDeliveries: number
+  partiallyReceivedOrders: number
+  activeVendors: number
+  totalProcurementValue: number
+  recentPurchaseOrders: RecentPurchaseOrderDto[]
+}

@@ -15,6 +15,20 @@ import { InventoryDetailPage } from '@/modules/inventory/InventoryDetailPage'
 import { SalesDashboardPage } from '@/modules/sales/dashboard/SalesDashboardPage'
 import { BookingsPage } from '@/modules/sales/bookings/BookingsPage'
 import { BookingDetailPage } from '@/modules/sales/bookings/BookingDetailPage'
+import { ConstructionDashboardPage } from '@/modules/construction/dashboard/ConstructionDashboardPage'
+import { WorkPackagesPage } from '@/modules/construction/workPackages/WorkPackagesPage'
+import { WorkPackageDetailPage } from '@/modules/construction/workPackages/WorkPackageDetailPage'
+import { TasksPage } from '@/modules/construction/tasks/TasksPage'
+import { TaskDetailPage } from '@/modules/construction/tasks/TaskDetailPage'
+import { ExpensesPage } from '@/modules/construction/expenses/ExpensesPage'
+import { ProcurementDashboardPage } from '@/modules/procurement/dashboard/ProcurementDashboardPage'
+import { VendorsPage } from '@/modules/procurement/vendors/VendorsPage'
+import { PurchaseRequestsPage } from '@/modules/procurement/purchaseRequests/PurchaseRequestsPage'
+import { PurchaseRequestDetailPage } from '@/modules/procurement/purchaseRequests/PurchaseRequestDetailPage'
+import { PurchaseOrdersPage } from '@/modules/procurement/purchaseOrders/PurchaseOrdersPage'
+import { PurchaseOrderDetailPage } from '@/modules/procurement/purchaseOrders/PurchaseOrderDetailPage'
+import { MaterialsPage } from '@/modules/procurement/materials/MaterialsPage'
+import { MaterialDetailPage } from '@/modules/procurement/materials/MaterialDetailPage'
 import { FinanceDashboardPage } from '@/modules/finance/dashboard/FinanceDashboardPage'
 import { ChartOfAccountsPage } from '@/modules/finance/accounts/ChartOfAccountsPage'
 import { JournalPage } from '@/modules/finance/journal/JournalPage'
@@ -134,6 +148,118 @@ export default function App() {
           element={
             <PermissionRoute permission="sales.booking.view">
               <BookingDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction"
+          element={
+            <PermissionRoute permission="construction.view">
+              <ConstructionDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction/work-packages"
+          element={
+            <PermissionRoute permission="construction.view">
+              <WorkPackagesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction/work-packages/:id"
+          element={
+            <PermissionRoute permission="construction.view">
+              <WorkPackageDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction/tasks"
+          element={
+            <PermissionRoute permission="construction.view">
+              <TasksPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction/tasks/:id"
+          element={
+            <PermissionRoute permission="construction.view">
+              <TaskDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="construction/expenses"
+          element={
+            <PermissionRoute permission="construction.view">
+              <ExpensesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <ProcurementDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/vendors"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <VendorsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/purchase-requests"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <PurchaseRequestsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/purchase-requests/:id"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <PurchaseRequestDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/purchase-orders"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <PurchaseOrdersPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/purchase-orders/:id"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <PurchaseOrderDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/materials"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <MaterialsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="procurement/materials/:id"
+          element={
+            <PermissionRoute permission="procurement.view">
+              <MaterialDetailPage />
             </PermissionRoute>
           }
         />
