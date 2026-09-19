@@ -81,6 +81,7 @@ public static class Permissions
 
     public static class Construction
     {
+        public const string View = "construction.view";
         public const string ProjectManage = "construction.project.manage";
     }
 
@@ -91,7 +92,10 @@ public static class Permissions
 
     public static class Procurement
     {
+        public const string View = "procurement.view";
         public const string RequestCreate = "procurement.request.create";
+        public const string RequestApprove = "procurement.request.approve";
+        public const string OrderManage = "procurement.order.manage";
         public const string OrderApprove = "procurement.order.approve";
     }
 

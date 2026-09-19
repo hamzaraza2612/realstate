@@ -10,6 +10,10 @@ using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Crm.Activities;
 using RealEstateErp.Application.Crm.Customers;
 using RealEstateErp.Application.Crm.Dashboard;
+using RealEstateErp.Application.Construction.Dashboard;
+using RealEstateErp.Application.Construction.Expenses;
+using RealEstateErp.Application.Construction.Tasks;
+using RealEstateErp.Application.Construction.WorkPackages;
 using RealEstateErp.Application.Crm.Leads;
 using RealEstateErp.Application.Finance;
 using RealEstateErp.Application.Finance.Accounts;
@@ -18,7 +22,13 @@ using RealEstateErp.Application.Finance.Journal;
 using RealEstateErp.Application.Finance.Receivables;
 using RealEstateErp.Application.Finance.Reports;
 using RealEstateErp.Application.Inventory;
+using RealEstateErp.Application.Materials;
 using RealEstateErp.Application.Organizations;
+using RealEstateErp.Application.Procurement.Dashboard;
+using RealEstateErp.Application.Procurement.PurchaseOrders;
+using RealEstateErp.Application.Procurement.PurchaseRequests;
+using RealEstateErp.Application.Procurement.Receiving;
+using RealEstateErp.Application.Procurement.Vendors;
 using RealEstateErp.Application.Projects.Hierarchy;
 using RealEstateErp.Application.Projects.Projects;
 using RealEstateErp.Application.Roles;
@@ -31,9 +41,12 @@ using RealEstateErp.Application.Users;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Infrastructure.Services;
+using RealEstateErp.Infrastructure.Services.Construction;
 using RealEstateErp.Infrastructure.Services.Crm;
 using RealEstateErp.Infrastructure.Services.Finance;
 using RealEstateErp.Infrastructure.Services.Inventory;
+using RealEstateErp.Infrastructure.Services.Materials;
+using RealEstateErp.Infrastructure.Services.Procurement;
 using RealEstateErp.Infrastructure.Services.Projects;
 using RealEstateErp.Infrastructure.Services.Sales;
 
@@ -95,6 +108,17 @@ public static class DependencyInjection
         services.AddScoped<IReceivableService, ReceivableService>();
         services.AddScoped<IFinanceDashboardService, FinanceDashboardService>();
         services.AddScoped<IFinanceReportService, FinanceReportService>();
+        services.AddScoped<IWorkPackageService, WorkPackageService>();
+        services.AddScoped<IConstructionTaskService, ConstructionTaskService>();
+        services.AddScoped<IExpenseService, ExpenseService>();
+        services.AddScoped<IConstructionDashboardService, ConstructionDashboardService>();
+        services.AddScoped<IConstructionFinancePostingService, ConstructionFinancePostingService>();
+        services.AddScoped<IVendorService, VendorService>();
+        services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
+        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+        services.AddScoped<IReceiptService, ReceiptService>();
+        services.AddScoped<IProcurementDashboardService, ProcurementDashboardService>();
+        services.AddScoped<IMaterialService, MaterialService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

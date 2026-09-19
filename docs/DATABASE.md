@@ -60,10 +60,13 @@ Never edit production schema by hand — always via `dotnet ef migrations add`.
 
 ## Milestone 5 schema (Finance & Accounting Foundation)
 - `accounts`: id, tenant_id, code (unique per tenant), name, type (Asset/Liability/Equity/Revenue/Expense),
-  parent_account_id (self-FK, restrict), is_active, is_system; the two system accounts a tenant needs for
-  Sales payment posting (`1000` Cash and Bank, `4000` Sales Revenue) are seeded once per tenant, at tenant
-  creation — see `SystemAccountSeeder`, called from `OrganizationService` and `DemoDataSeeder`, not from
-  the global `DbSeeder` (accounts are tenant-owned, not a platform-wide catalog)
+  parent_account_id (self-FK, restrict), is_active, is_system; the system accounts a tenant needs for
+  operational posting (`1000` Cash and Bank, `4000` Sales Revenue, plus `2200` Accounts Payable and
+  `5200` Construction Expenses added in Milestone 6) are seeded once per tenant, at tenant creation — see
+  `SystemAccountSeeder`, called from `OrganizationService` and `DemoDataSeeder`, not from the global
+  `DbSeeder` (accounts are tenant-owned, not a platform-wide catalog); `SystemAccountSeeder` loops a
+  table of (code, name, type) and adds only what's missing, so it also backfills new system accounts for
+  pre-existing tenants (e.g. the demo tenant) the next time it runs
 - `journal_entries`: id, tenant_id, entry_number (unique per tenant), entry_date, description,
   reference_type (default `"Manual"`), reference_id, status (Draft/Posted/Cancelled); a unique index on
   (tenant_id, reference_type, reference_id) where reference_id is not null caps a source event (e.g. one
@@ -85,7 +88,53 @@ time yet). The Sales installment schedule itself remains the operational AR sub-
 `GET /api/v1/finance/receivables`); accrual revenue recognition tied to booking confirmation is left to a
 future accounting milestone.
 
-Later milestones extend this file per-module (Construction, Property,
+## Milestone 6 schema (Construction & Procurement)
+- `work_packages`: id, tenant_id, project_id (FK, restrict), name, code (unique per project),
+  description, planned/actual start/end date, status, progress_percent, manager_user_id (no FK — AppUser
+  lives in Infrastructure), budget
+- `construction_tasks`: id, tenant_id, work_package_id (FK, restrict), title, description,
+  assigned_to_user_id, priority, planned/actual start/end date, status, progress_percent,
+  depends_on_task_id (self-FK, restrict — single-predecessor dependency foundation, not a full DAG)
+- `vendors`: id, tenant_id, name, contact_person, email, phone, address, tax_registration_number,
+  is_active, notes — a standalone procurement-side profile, deliberately separate from `customers`
+- `purchase_requests`: id, tenant_id, request_number (unique per tenant, `PR-000001`...), project_id (FK,
+  restrict), work_package_id (FK, restrict, nullable), requested_by_user_id, required_date, priority,
+  status, notes
+- `purchase_request_lines`: id, tenant_id, purchase_request_id (FK, cascade), material_id (FK, restrict,
+  nullable), item_description, unit_of_measure, quantity, estimated_unit_price, estimated_total
+- `purchase_orders`: id, tenant_id, po_number (unique per tenant, `PO-000001`...), vendor_id (FK,
+  restrict), project_id (FK, restrict), work_package_id (FK, restrict, nullable), purchase_request_id
+  (FK, restrict, nullable), order_date, expected_delivery_date, status, subtotal, discount, tax_amount,
+  total, notes — subtotal/total are server-computed, never accepted from the client
+- `purchase_order_lines`: id, tenant_id, purchase_order_id (FK, cascade), material_id (FK, restrict,
+  nullable), item_description, unit_of_measure, quantity, unit_price, total, received_quantity (running
+  total updated by receipts); **`CK_purchase_order_lines_received_not_exceed_ordered` CHECK
+  (`received_quantity <= quantity`)** — the DB-level half of over-receiving protection, backing up the
+  application-level pre-check for the race-condition case
+- `material_receipts`: id, tenant_id, receipt_number (unique per tenant, `GRN-000001`...),
+  purchase_order_id (FK, restrict), vendor_id (FK, restrict), received_date, received_by_user_id, notes
+- `material_receipt_lines`: id, tenant_id, material_receipt_id (FK, cascade), purchase_order_line_id (FK,
+  restrict), received_quantity
+- `materials`: id, tenant_id, sku (unique per tenant), name, unit_of_measure, category, current_quantity,
+  minimum_quantity, is_active — a construction-materials catalog, kept entirely separate from
+  `inventory_units` (real-estate plot/unit inventory); the two are never mixed
+- `stock_movements`: id, tenant_id, material_id (FK, restrict), type (Receipt/Issue/Adjustment), quantity
+  (signed regardless of type), reference_type, reference_id, notes — a receipt auto-creates one of these
+  per received line; manual Issue/Adjustment movements go through the same table for a single audit trail
+- `expenses`: id, tenant_id, project_id (FK, restrict), work_package_id (FK, restrict, nullable),
+  category, amount, expense_date, vendor_id (FK, restrict, nullable), reference_number, notes, status,
+  created_by_user_id, journal_entry_id (nullable — set only once Approved)
+
+### Accounting mapping: Construction expenses
+Approving a construction `Expense` posts one journal entry in the same transaction as the approval (see
+`IConstructionFinancePostingService`, implemented by `ConstructionFinancePostingService`, called from
+Construction's `ExpenseService` before its `SaveChangesAsync`): Dr **Construction Expenses** (5200), Cr
+**Accounts Payable** (2200), for the expense amount. This is accrual recognition — the obligation to pay
+the vendor is recognized on approval, not on actual cash payment — which is the mirror image of Milestone
+5's cash-basis Sales posting; reconciling the vendor payable against an actual cash disbursement is left
+to a future accounts-payable/payment milestone. Rejecting an expense posts no journal entry at all.
+
+Later milestones extend this file per-module (Property,
 Facility, Documents, Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds
 the migration.

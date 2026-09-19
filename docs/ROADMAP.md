@@ -10,7 +10,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ✅ |
 | 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ✅ |
 | 5 | Finance: chart of accounts, journals, receivables/payables, reports | ✅ |
-| 6 | Construction: phases, BOQ, procurement, vendors, materials, workforce | ⬜ |
+| 6 | Construction & Procurement: work packages, tasks, vendors, purchase requests/orders, receiving, materials, expenses | ✅ |
 | 7 | Property/Rental: properties, tenants, leases, rent, maintenance | ⬜ |
 | 8 | Facility: mall, coworking, facility management | ⬜ |
 | 9 | Portals: customer/tenant/member portals | ⬜ |
@@ -131,6 +131,58 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 - [x] Live end-to-end verification: Customer -> Booking -> Payment Plan -> Installment -> Payment ->
       Financial Journal -> Receivable -> Dashboard/Trial Balance run against the real API, every figure
       reconciling exactly
+
+## Milestone 6 — Construction & Procurement ✅
+- [x] Work packages: extend Projects (by reference, not modification) with phase/work-package name/code,
+      planned/actual dates, budget, assigned manager, progress percent; status lifecycle Planned ->
+      InProgress/OnHold -> Completed/Cancelled (`WorkPackageStatusRules`), tenant-unique code per project
+- [x] Construction tasks: title/description/priority/assignee/dates/progress under a work package, status
+      lifecycle Planned -> InProgress -> Blocked/Completed/Cancelled (`ConstructionTaskStatusRules`), a
+      single-predecessor dependency foundation (`DependsOnTaskId`), server-computed delay detection
+- [x] Vendors: standalone procurement-side profile (name/contact/address/tax registration/active/notes) —
+      deliberately not merged with the existing CRM `Customer` model
+- [x] Purchase requests: numbered (`PR-000001`...), project/work-package scoped, line items (material,
+      qty, estimated unit price), status lifecycle Draft -> Submitted -> Approved/Rejected/Cancelled
+      (`PurchaseRequestStatusRules`) with approval gated behind a separate permission from creation
+- [x] Purchase orders: numbered (`PO-000001`...), vendor + optional linked purchase request, line items,
+      subtotal/discount/tax/total always computed server-side (never trusted from the client), status
+      lifecycle Draft -> PendingApproval -> Approved -> Sent -> PartiallyReceived/Received, Cancelled
+      reachable from any non-terminal state (`PurchaseOrderStatusRules`)
+- [x] Material receipts (GRN): partial receiving supported and reconciled against ordered quantity two
+      ways — an application-level pre-check (friendly 409) and a DB-level CHECK constraint
+      (`ReceivedQuantity <= Quantity`) as a race-condition safety net; PO status auto-derives to
+      PartiallyReceived/Received through the same status-rule gate used for manual transitions
+- [x] Materials/inventory foundation: SKU-coded items with current/minimum quantity, kept entirely
+      separate from the real-estate `InventoryUnit`/plot inventory; stock movements (Receipt/Issue/
+      Adjustment) give a full audit trail, receiving auto-posts a Receipt movement, manual Issue/
+      Adjustment movements reject anything that would take quantity negative
+- [x] Expenses: project/work-package scoped, categorized (Labor/Materials/Equipment/Subcontractor/Other),
+      created Pending, Approve/Reject only (no edit-after-creation) — payroll expenses out of scope
+- [x] Finance integration: `IConstructionFinancePostingService` posts Dr Construction Expenses / Cr
+      Accounts Payable on expense approval, inside the same transaction as the approval itself (mirrors
+      the Milestone 5 Sales -> Finance pattern exactly); two new system accounts (`2200` Accounts
+      Payable, `5200` Construction Expenses) are seeded per tenant alongside the Milestone 5 accounts.
+      See `docs/DATABASE.md` for the accounting mapping.
+- [x] Construction dashboard: active projects, work packages (+ in-progress), tasks (+ delayed/completed),
+      purchase requests pending approval, open purchase orders, total budget vs. actual expenses, recent
+      work packages — all tenant-scoped
+- [x] Procurement dashboard: purchase requests pending approval, total/pending/partially-received purchase
+      orders, active vendors, total procurement value, recent purchase orders — all tenant-scoped
+- [x] Frontend: construction dashboard, work package/task list+detail, vendor list+detail, purchase
+      request list/create/detail with approval actions, purchase order list/create/detail with a
+      receiving dialog, materials list+detail with stock-movement recording, expense list/create with
+      approve/reject, procurement dashboard, new sidebar sections and routes — reusing the existing
+      table/dialog/form/permission-gate patterns rather than introducing new UI primitives
+- [x] Unit/integration tests: 14 new integration tests covering vendor/work-package/task CRUD and status
+      transitions, the full purchase request and purchase order lifecycles, PO total calculation, partial
+      receiving, over-receiving rejection, material stock movement (including negative-stock rejection),
+      expense approval posting a balanced journal entry (and rejection posting none), tenant isolation,
+      RBAC, dashboard scoping, and audit logging — all passing alongside the existing suite (94 total:
+      12 unit + 82 integration)
+- [x] Live end-to-end verification: Project -> Work Package -> Purchase Request -> Approval -> Vendor ->
+      Purchase Order -> Partial Receipt -> Over-receive rejection -> Final Receipt -> Material Stock ->
+      Expense -> Finance Journal -> Dashboards, run against the real API, every figure reconciling exactly
+      (PO subtotal/total, received quantities, material stock, journal Dr/Cr, dashboard aggregates)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

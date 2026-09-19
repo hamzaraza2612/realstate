@@ -6,12 +6,20 @@ namespace RealEstateErp.Infrastructure.Services.Finance;
 
 /// <summary>
 /// Seeds the minimum chart-of-accounts entries a tenant needs for existing workflows to post against
-/// (currently just Sales payment collection). Called once per tenant at creation time — from
-/// OrganizationService (real tenants) and DemoDataSeeder (the demo tenant) — not from the global
+/// (Sales payment collection, Construction expense approval). Called once per tenant at creation time —
+/// from OrganizationService (real tenants) and DemoDataSeeder (the demo tenant) — not from the global
 /// DbSeeder, since accounts are tenant-owned data, not a platform-wide catalog like Permissions.
 /// </summary>
 public static class SystemAccountSeeder
 {
+    private static readonly (string Code, string Name, AccountType Type)[] SystemAccounts =
+    {
+        (FinanceConstants.CashAndBankAccountCode, "Cash and Bank", AccountType.Asset),
+        (FinanceConstants.AccountsPayableAccountCode, "Accounts Payable", AccountType.Liability),
+        (FinanceConstants.SalesRevenueAccountCode, "Sales Revenue", AccountType.Revenue),
+        (FinanceConstants.ConstructionExpenseAccountCode, "Construction Expenses", AccountType.Expense),
+    };
+
     public static async Task SeedAsync(AppDbContext db, Guid tenantId, CancellationToken ct = default)
     {
         var existingCodes = await db.Accounts
@@ -20,28 +28,10 @@ public static class SystemAccountSeeder
             .Select(a => a.Code)
             .ToListAsync(ct);
 
-        if (!existingCodes.Contains(FinanceConstants.CashAndBankAccountCode))
+        foreach (var (code, name, type) in SystemAccounts)
         {
-            db.Accounts.Add(new Account
-            {
-                TenantId = tenantId,
-                Code = FinanceConstants.CashAndBankAccountCode,
-                Name = "Cash and Bank",
-                Type = AccountType.Asset,
-                IsSystem = true
-            });
-        }
-
-        if (!existingCodes.Contains(FinanceConstants.SalesRevenueAccountCode))
-        {
-            db.Accounts.Add(new Account
-            {
-                TenantId = tenantId,
-                Code = FinanceConstants.SalesRevenueAccountCode,
-                Name = "Sales Revenue",
-                Type = AccountType.Revenue,
-                IsSystem = true
-            });
+            if (existingCodes.Contains(code)) continue;
+            db.Accounts.Add(new Account { TenantId = tenantId, Code = code, Name = name, Type = type, IsSystem = true });
         }
     }
 }

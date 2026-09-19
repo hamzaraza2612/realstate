@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
+using RealEstateErp.Domain.Construction;
 using RealEstateErp.Domain.Crm;
 using RealEstateErp.Domain.Finance;
+using RealEstateErp.Domain.Materials;
+using RealEstateErp.Domain.Procurement;
 using RealEstateErp.Domain.Projects;
 using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
@@ -46,6 +49,18 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<JournalLine> JournalLines => Set<JournalLine>();
     public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
+    public DbSet<WorkPackage> WorkPackages => Set<WorkPackage>();
+    public DbSet<ConstructionTask> ConstructionTasks => Set<ConstructionTask>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Vendor> Vendors => Set<Vendor>();
+    public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
+    public DbSet<PurchaseRequestLine> PurchaseRequestLines => Set<PurchaseRequestLine>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    public DbSet<MaterialReceipt> MaterialReceipts => Set<MaterialReceipt>();
+    public DbSet<MaterialReceiptLine> MaterialReceiptLines => Set<MaterialReceiptLine>();
+    public DbSet<Material> Materials => Set<Material>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

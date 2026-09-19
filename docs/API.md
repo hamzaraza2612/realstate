@@ -99,4 +99,36 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
 - `GET /api/v1/finance/dashboard` (tenant-scoped revenue/collections/receivables/balance-sheet summary)
 - `GET /api/v1/finance/reports/trial-balance`, `GET /api/v1/finance/reports/income-summary?from=&to=`
 
+## Milestone 6 endpoints (Construction & Procurement)
+- `GET/POST/PUT/DELETE /api/v1/construction/work-packages` (filterable by `projectId`, `status`,
+  `managerUserId`, `search`; delete blocked while the work package has tasks, expenses, or purchase
+  orders — `409 Conflict`), `POST /api/v1/construction/work-packages/{id}/status` (enforces
+  `WorkPackageStatusRules`)
+- `GET/POST/PUT/DELETE /api/v1/construction/tasks` (filterable by `workPackageId`, `status`,
+  `assignedToUserId`, `search`), `POST /api/v1/construction/tasks/{id}/status` (enforces
+  `ConstructionTaskStatusRules`; completing a task auto-sets progress to 100%)
+- `GET/POST/PUT/DELETE /api/v1/procurement/vendors` (delete blocked while the vendor has purchase
+  orders — `409 Conflict`)
+- `GET/POST/PUT /api/v1/procurement/purchase-requests` (`PUT` only while `Draft`, replaces all lines),
+  `POST /api/v1/procurement/purchase-requests/{id}/submit|approve|reject|cancel` (enforces
+  `PurchaseRequestStatusRules`; approve/reject requires a separate permission from create/submit)
+- `GET/POST/PUT /api/v1/procurement/purchase-orders` (`PUT` only while `Draft`; `subtotal`/`total` are
+  always computed server-side from line quantity × unit price, discount, and tax — never trusted from
+  the client), `POST /api/v1/procurement/purchase-orders/{id}/submit|approve|send|cancel` (enforces
+  `PurchaseOrderStatusRules`)
+- `GET/POST /api/v1/procurement/purchase-orders/{purchaseOrderId}/receipts` (`POST` records a goods
+  receipt against one or more PO lines; rejects with `409 over_receiving` if the requested quantity
+  would exceed the line's outstanding ordered quantity — enforced both in the application layer and by
+  a DB `CHECK` constraint; auto-transitions the PO to `PartiallyReceived`/`Received` and, for lines with
+  a linked material, increments that material's stock and records a `StockMovement`)
+- `GET/POST/PUT/DELETE /api/v1/materials` (filterable by `category`, `isActive`, `search`; delete
+  blocked while the material has stock movement history), `GET/POST /api/v1/materials/{id}/movements`
+  (`POST` records a manual Receipt/Issue/Adjustment; rejects with `400 insufficient_stock` if it would
+  take current quantity negative)
+- `GET/POST /api/v1/construction/expenses` (no update endpoint — an expense is created `Pending` and
+  only ever approved or rejected, never edited), `POST /api/v1/construction/expenses/{id}/approve|reject`
+  (`approve` posts a balanced journal entry — Dr Construction Expenses, Cr Accounts Payable — in the
+  same transaction as the status change; `reject` posts nothing)
+- `GET /api/v1/construction/dashboard`, `GET /api/v1/procurement/dashboard` (tenant-scoped)
+
 Further modules append their endpoint list here as they ship.
