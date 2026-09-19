@@ -9,6 +9,18 @@ const labels: Record<string, string> = {
   platform: 'Platform Admin',
   organizations: 'Organizations',
   'subscription-plans': 'Subscription Plans',
+  crm: 'CRM',
+  leads: 'Leads',
+  customers: 'Customers',
+  projects: 'Projects',
+  inventory: 'Inventory',
+  sales: 'Sales',
+  bookings: 'Bookings',
+  finance: 'Finance',
+  accounts: 'Chart of Accounts',
+  journal: 'Journal',
+  receivables: 'Receivables',
+  'trial-balance': 'Trial Balance',
 }
 
 export function Breadcrumbs() {

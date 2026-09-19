@@ -46,6 +46,8 @@ public static class Permissions
         public const string LeadDelete = "crm.lead.delete";
         public const string CustomerView = "crm.customer.view";
         public const string CustomerManage = "crm.customer.manage";
+        public const string ActivityView = "crm.activity.view";
+        public const string ActivityManage = "crm.activity.manage";
     }
 
     public static class Sales
@@ -62,6 +64,7 @@ public static class Permissions
         public const string InvoiceCreate = "finance.invoice.create";
         public const string PaymentApprove = "finance.payment.approve";
         public const string ReportsView = "finance.reports.view";
+        public const string Manage = "finance.manage";
     }
 
     public static class Projects
@@ -78,6 +81,7 @@ public static class Permissions
 
     public static class Construction
     {
+        public const string View = "construction.view";
         public const string ProjectManage = "construction.project.manage";
     }
 
@@ -88,7 +92,10 @@ public static class Permissions
 
     public static class Procurement
     {
+        public const string View = "procurement.view";
         public const string RequestCreate = "procurement.request.create";
+        public const string RequestApprove = "procurement.request.approve";
+        public const string OrderManage = "procurement.order.manage";
         public const string OrderApprove = "procurement.order.approve";
     }
 

@@ -4,6 +4,13 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
+using RealEstateErp.Domain.Construction;
+using RealEstateErp.Domain.Crm;
+using RealEstateErp.Domain.Finance;
+using RealEstateErp.Domain.Materials;
+using RealEstateErp.Domain.Procurement;
+using RealEstateErp.Domain.Projects;
+using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
@@ -28,6 +35,32 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Activity> Activities => Set<Activity>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
+    public DbSet<InventoryUnit> InventoryUnits => Set<InventoryUnit>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<PaymentPlan> PaymentPlans => Set<PaymentPlan>();
+    public DbSet<Installment> Installments => Set<Installment>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+    public DbSet<JournalLine> JournalLines => Set<JournalLine>();
+    public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
+    public DbSet<WorkPackage> WorkPackages => Set<WorkPackage>();
+    public DbSet<ConstructionTask> ConstructionTasks => Set<ConstructionTask>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Vendor> Vendors => Set<Vendor>();
+    public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
+    public DbSet<PurchaseRequestLine> PurchaseRequestLines => Set<PurchaseRequestLine>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    public DbSet<MaterialReceipt> MaterialReceipts => Set<MaterialReceipt>();
+    public DbSet<MaterialReceiptLine> MaterialReceiptLines => Set<MaterialReceiptLine>();
+    public DbSet<Material> Materials => Set<Material>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

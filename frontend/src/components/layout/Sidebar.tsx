@@ -6,6 +6,21 @@ import {
   Users,
   Landmark,
   CreditCard,
+  Contact,
+  UserSquare2,
+  FolderKanban,
+  Boxes,
+  ReceiptText,
+  Wallet,
+  BookOpen,
+  HandCoins,
+  Scale,
+  HardHat,
+  ClipboardCheck,
+  Wrench,
+  ShoppingCart,
+  Truck,
+  Package,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -21,6 +36,27 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/crm', label: 'CRM Dashboard', icon: LayoutDashboard, permission: 'crm.lead.view' },
+  { to: '/crm/leads', label: 'Leads', icon: Contact, permission: 'crm.lead.view' },
+  { to: '/crm/customers', label: 'Customers', icon: UserSquare2, permission: 'crm.customer.view' },
+  { to: '/projects', label: 'Projects', icon: FolderKanban, permission: 'projects.view' },
+  { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
+  { to: '/sales', label: 'Sales Dashboard', icon: LayoutDashboard, permission: 'sales.booking.view' },
+  { to: '/sales/bookings', label: 'Bookings', icon: ReceiptText, permission: 'sales.booking.view' },
+  { to: '/construction', label: 'Construction Dashboard', icon: LayoutDashboard, permission: 'construction.view' },
+  { to: '/construction/work-packages', label: 'Work Packages', icon: HardHat, permission: 'construction.view' },
+  { to: '/construction/tasks', label: 'Tasks', icon: ClipboardCheck, permission: 'construction.view' },
+  { to: '/construction/expenses', label: 'Expenses', icon: Wrench, permission: 'construction.view' },
+  { to: '/procurement', label: 'Procurement Dashboard', icon: LayoutDashboard, permission: 'procurement.view' },
+  { to: '/procurement/vendors', label: 'Vendors', icon: Truck, permission: 'procurement.view' },
+  { to: '/procurement/purchase-requests', label: 'Purchase Requests', icon: ClipboardList, permission: 'procurement.view' },
+  { to: '/procurement/purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, permission: 'procurement.view' },
+  { to: '/procurement/materials', label: 'Materials', icon: Package, permission: 'procurement.view' },
+  { to: '/finance', label: 'Finance Dashboard', icon: Wallet, permission: 'finance.reports.view' },
+  { to: '/finance/accounts', label: 'Chart of Accounts', icon: BookOpen, permission: 'finance.reports.view' },
+  { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
+  { to: '/finance/receivables', label: 'Receivables', icon: HandCoins, permission: 'finance.reports.view' },
+  { to: '/finance/trial-balance', label: 'Trial Balance', icon: Scale, permission: 'finance.reports.view' },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },
@@ -76,7 +112,7 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/'}
+      end={item.to === '/' || item.to === '/crm' || item.to === '/sales' || item.to === '/construction' || item.to === '/procurement' || item.to === '/finance'}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',

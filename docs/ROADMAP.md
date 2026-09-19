@@ -6,11 +6,11 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 |---|---|---|
 | 0 | Discovery + docs | ✅ |
 | 1 | Foundation: solution structure, DB, tenancy, auth, RBAC, org mgmt, audit log, API conventions, frontend shell | ✅ |
-| 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ⬜ |
-| 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ⬜ |
-| 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ⬜ |
-| 5 | Finance: chart of accounts, journals, receivables/payables, reports | ⬜ |
-| 6 | Construction: phases, BOQ, procurement, vendors, materials, workforce | ⬜ |
+| 2 | CRM: leads, sources, campaigns, pipeline, activities, conversion | ✅ |
+| 3 | Projects + Inventory: projects, societies, blocks, units, mapping | ✅ |
+| 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ✅ |
+| 5 | Finance: chart of accounts, journals, receivables/payables, reports | ✅ |
+| 6 | Construction & Procurement: work packages, tasks, vendors, purchase requests/orders, receiving, materials, expenses | ✅ |
 | 7 | Property/Rental: properties, tenants, leases, rent, maintenance | ⬜ |
 | 8 | Facility: mall, coworking, facility management | ⬜ |
 | 9 | Portals: customer/tenant/member portals | ⬜ |
@@ -42,6 +42,147 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 - [x] Seed script: Super Admin + demo organization (`acme-builders`) with demo users per role
 - [x] Unit/integration tests: 12 unit + 13 integration (real Postgres, real HTTP pipeline) covering
       login, refresh rotation, tenant isolation, and RBAC enforcement — all passing
+
+## Milestone 2 — CRM ✅
+- [x] Leads: source/status/priority, assignment, notes, tenant-scoped CRUD
+- [x] Customers: profile, address, conversion link back to originating lead
+- [x] Activities: calls/meetings/notes/follow-ups, due dates, completion, linked to a lead or customer
+- [x] Lead → Customer conversion (transactional, one-way, guarded against double-conversion)
+- [x] CRM dashboard: totals, pipeline by stage, follow-ups pending/overdue, conversion rate
+- [x] Frontend: dashboard, lead list/detail/create/edit, customer list/detail, reusable activity log
+- [x] Unit/integration tests: 7 new integration tests (CRUD, conversion, RBAC, tenant isolation,
+      dashboard scoping) — all passing alongside the existing Milestone 1 suite
+
+## Milestone 3 — Projects + Inventory ✅
+- [x] Projects: type (Society/Building/Town Planning/Construction/Commercial/Other), code, address,
+      status, start/end dates, map anchor (lat/lng + optional GeoJSON)
+- [x] Project hierarchy: a single self-referencing `ProjectNode` table (Phase/Zone/Block/Building/Floor)
+      so each project type can nest only the levels it actually needs, instead of fixed tables per level
+- [x] Inventory units: plots/apartments/offices/shops/houses/commercial/other, project-scoped unique
+      code, area + unit (SqFt/SqYd/SqM/Marla/Kanal/Acre), optional hierarchy-node placement, map point
+- [x] Inventory status lifecycle (`InventoryStatusRules`): Available → Reserved/Booked/Blocked/
+      UnderConstruction → Sold → HandedOver, with invalid transitions rejected server-side
+- [x] Relationship guards: a project/node can't be deleted while it still has children; an inventory
+      unit can only be hard-deleted while `Available` (its identity is safe to reuse once booking exists)
+- [x] Search/filtering API: by project, hierarchy node, type, status, area range, code/number
+- [x] Map foundation: lat/lng + GeoJSON columns on both projects and inventory units, plus a practical
+      first map view (lightweight bounding-box scatter plot, no external GIS dependency yet)
+- [x] Frontend: project list/detail/create/edit, hierarchy tree management, inventory list/detail/
+      create/edit with list+map toggle and filters, reusing the CRM module's design patterns
+- [x] Unit/integration tests: 14 new integration tests (project/hierarchy/inventory CRUD, uniqueness,
+      status transitions, relationship guards, filtering, tenant isolation, RBAC, coordinate
+      persistence) — all passing alongside the existing suite (46 total)
+
+## Milestone 4 — Sales Booking & Payment Plans ✅
+- [x] Booking: number/reference, customer, agent, project, inventory unit, date, status, total/discount/net
+      price, notes — status lifecycle Draft → PendingApproval → Confirmed, Cancelled reachable from any
+      non-terminal state, invalid transitions rejected (`BookingStatusRules`)
+- [x] Double-booking protection is a real database constraint, not just an app-level check: a partial
+      unique index on `bookings.InventoryUnitId` (active statuses only) — verified under genuine
+      concurrent requests, not just sequential ones
+- [x] Inventory integration: only `Available` units can be booked; Confirmed moves the unit to `Booked`;
+      Cancelled releases it back to `Available` and cancels any still-open installments
+- [x] Payment plans: booking amount + down payment + N periodic installments, both percentage-based and
+      fixed-amount custom schedules, auto-generated even schedules, all reconciled exactly against the
+      booking's net price (rounding remainder absorbed by the last installment)
+- [x] Installments: Pending/PartiallyPaid/Paid/Cancelled are persisted; Overdue is computed at read time
+      from due date + grace period, so nothing needs a background job to keep it in sync
+- [x] Payments: receipt-numbered, partial payments accumulate on an installment, overpayment beyond the
+      outstanding amount is rejected outright (no credit-balance/overpayment handling in this milestone —
+      documented limitation, not an oversight)
+- [x] Sales dashboard: booking counts by status, inventory availability summary, total booking value,
+      collected/outstanding amounts, overdue installment count, recent bookings — all tenant-scoped
+- [x] Frontend: sales dashboard, booking list/create/detail, payment plan configuration (even-split or
+      custom schedule builder), installment schedule table, payment recording, status action buttons
+- [x] Unit/integration tests: 18 new integration tests covering booking/customer/inventory relationships,
+      unavailable-inventory rejection, genuine concurrent double-booking, status transitions, cancellation
+      side effects, schedule reconciliation (both plan types), partial payments, overpayment rejection,
+      overdue computation, tenant isolation, RBAC, dashboard scoping, and audit logging — all passing
+      alongside the existing suite (64 total)
+
+## Milestone 5 — Finance & Accounting Foundation ✅
+- [x] Chart of accounts: Asset/Liability/Equity/Revenue/Expense types, self-referencing hierarchy with
+      cycle rejection, tenant-unique codes, system-vs-user-defined accounts; the two minimum accounts a
+      tenant needs (Cash and Bank, Sales Revenue) are seeded automatically at tenant creation — not from
+      the global DbSeeder, since accounts are tenant-owned data
+- [x] Double-entry journal: JournalEntry + JournalLine, balance enforced server-side both at draft
+      creation and again at posting (never persisted unbalanced), Draft -> Posted -> immutable (no edit
+      endpoint — a wrong draft is cancelled and recreated), Draft -> Cancelled
+- [x] FinancialDocument: a reusable invoice/receipt/credit-note/debit-note envelope shared across future
+      modules — no tax engine, no line items yet, just the numbering/status/reference shell
+- [x] Sales integration: `ISalesPaymentPostingService` adds the journal entry (Dr Cash and Bank, Cr Sales
+      Revenue) and a Receipt document to the same DbContext Sales' PaymentService already uses, inside the
+      same transaction — one SaveChanges, so the payment and its ledger postings commit or roll back
+      together; a per-tenant unique index on (ReferenceType, ReferenceId) plus a payment-level
+      IdempotencyKey stop a retried request from ever posting twice. See docs/DATABASE.md for the mapping.
+- [x] Receivables: a projection over Sales installments (no new source-of-truth table), by customer, with
+      outstanding amount and computed overdue status
+- [x] Finance dashboard: revenue, collected, receivable/overdue, expenses, asset/liability/equity
+      summary, recent journal entries — all tenant-scoped
+- [x] Reports: trial balance (reconciles by construction — every posted entry balances, so the aggregate
+      does too) and an income summary (revenue − expenses) over an optional date range
+- [x] Frontend: finance dashboard, chart of accounts list/create, journal list/detail with post/cancel
+      actions and a manual-entry builder, receivables list, trial balance view
+- [x] Unit/integration tests: 16 new integration tests covering account CRUD, hierarchy + circular-hierarchy
+      rejection, system-account protection, balanced/unbalanced journal entries, posted-entry immutability,
+      automatic Sales -> Finance posting, overpayment creating no journal entry, idempotent duplicate
+      payments, receivable calculation, tenant-scoped dashboards, trial balance reconciliation, RBAC, and
+      audit logging — all passing alongside the existing suite (80 total)
+- [x] Live end-to-end verification: Customer -> Booking -> Payment Plan -> Installment -> Payment ->
+      Financial Journal -> Receivable -> Dashboard/Trial Balance run against the real API, every figure
+      reconciling exactly
+
+## Milestone 6 — Construction & Procurement ✅
+- [x] Work packages: extend Projects (by reference, not modification) with phase/work-package name/code,
+      planned/actual dates, budget, assigned manager, progress percent; status lifecycle Planned ->
+      InProgress/OnHold -> Completed/Cancelled (`WorkPackageStatusRules`), tenant-unique code per project
+- [x] Construction tasks: title/description/priority/assignee/dates/progress under a work package, status
+      lifecycle Planned -> InProgress -> Blocked/Completed/Cancelled (`ConstructionTaskStatusRules`), a
+      single-predecessor dependency foundation (`DependsOnTaskId`), server-computed delay detection
+- [x] Vendors: standalone procurement-side profile (name/contact/address/tax registration/active/notes) —
+      deliberately not merged with the existing CRM `Customer` model
+- [x] Purchase requests: numbered (`PR-000001`...), project/work-package scoped, line items (material,
+      qty, estimated unit price), status lifecycle Draft -> Submitted -> Approved/Rejected/Cancelled
+      (`PurchaseRequestStatusRules`) with approval gated behind a separate permission from creation
+- [x] Purchase orders: numbered (`PO-000001`...), vendor + optional linked purchase request, line items,
+      subtotal/discount/tax/total always computed server-side (never trusted from the client), status
+      lifecycle Draft -> PendingApproval -> Approved -> Sent -> PartiallyReceived/Received, Cancelled
+      reachable from any non-terminal state (`PurchaseOrderStatusRules`)
+- [x] Material receipts (GRN): partial receiving supported and reconciled against ordered quantity two
+      ways — an application-level pre-check (friendly 409) and a DB-level CHECK constraint
+      (`ReceivedQuantity <= Quantity`) as a race-condition safety net; PO status auto-derives to
+      PartiallyReceived/Received through the same status-rule gate used for manual transitions
+- [x] Materials/inventory foundation: SKU-coded items with current/minimum quantity, kept entirely
+      separate from the real-estate `InventoryUnit`/plot inventory; stock movements (Receipt/Issue/
+      Adjustment) give a full audit trail, receiving auto-posts a Receipt movement, manual Issue/
+      Adjustment movements reject anything that would take quantity negative
+- [x] Expenses: project/work-package scoped, categorized (Labor/Materials/Equipment/Subcontractor/Other),
+      created Pending, Approve/Reject only (no edit-after-creation) — payroll expenses out of scope
+- [x] Finance integration: `IConstructionFinancePostingService` posts Dr Construction Expenses / Cr
+      Accounts Payable on expense approval, inside the same transaction as the approval itself (mirrors
+      the Milestone 5 Sales -> Finance pattern exactly); two new system accounts (`2200` Accounts
+      Payable, `5200` Construction Expenses) are seeded per tenant alongside the Milestone 5 accounts.
+      See `docs/DATABASE.md` for the accounting mapping.
+- [x] Construction dashboard: active projects, work packages (+ in-progress), tasks (+ delayed/completed),
+      purchase requests pending approval, open purchase orders, total budget vs. actual expenses, recent
+      work packages — all tenant-scoped
+- [x] Procurement dashboard: purchase requests pending approval, total/pending/partially-received purchase
+      orders, active vendors, total procurement value, recent purchase orders — all tenant-scoped
+- [x] Frontend: construction dashboard, work package/task list+detail, vendor list+detail, purchase
+      request list/create/detail with approval actions, purchase order list/create/detail with a
+      receiving dialog, materials list+detail with stock-movement recording, expense list/create with
+      approve/reject, procurement dashboard, new sidebar sections and routes — reusing the existing
+      table/dialog/form/permission-gate patterns rather than introducing new UI primitives
+- [x] Unit/integration tests: 14 new integration tests covering vendor/work-package/task CRUD and status
+      transitions, the full purchase request and purchase order lifecycles, PO total calculation, partial
+      receiving, over-receiving rejection, material stock movement (including negative-stock rejection),
+      expense approval posting a balanced journal entry (and rejection posting none), tenant isolation,
+      RBAC, dashboard scoping, and audit logging — all passing alongside the existing suite (94 total:
+      12 unit + 82 integration)
+- [x] Live end-to-end verification: Project -> Work Package -> Purchase Request -> Approval -> Vendor ->
+      Purchase Order -> Partial Receipt -> Over-receive rejection -> Final Receipt -> Material Stock ->
+      Expense -> Finance Journal -> Dashboards, run against the real API, every figure reconciling exactly
+      (PO subtotal/total, received quantities, material stock, journal Dr/Cr, dashboard aggregates)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
