@@ -10,6 +10,7 @@ using RealEstateErp.Domain.Finance;
 using RealEstateErp.Domain.Materials;
 using RealEstateErp.Domain.Procurement;
 using RealEstateErp.Domain.Projects;
+using RealEstateErp.Domain.Property;
 using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Domain.Tenancy;
@@ -61,6 +62,14 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<MaterialReceiptLine> MaterialReceiptLines => Set<MaterialReceiptLine>();
     public DbSet<Material> Materials => Set<Material>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Property> Properties => Set<Property>();
+    public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
+    public DbSet<RentalTenant> RentalTenants => Set<RentalTenant>();
+    public DbSet<Lease> Leases => Set<Lease>();
+    public DbSet<RentSchedule> RentSchedules => Set<RentSchedule>();
+    public DbSet<RentPayment> RentPayments => Set<RentPayment>();
+    public DbSet<SecurityDeposit> SecurityDeposits => Set<SecurityDeposit>();
+    public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

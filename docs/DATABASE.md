@@ -61,8 +61,9 @@ Never edit production schema by hand — always via `dotnet ef migrations add`.
 ## Milestone 5 schema (Finance & Accounting Foundation)
 - `accounts`: id, tenant_id, code (unique per tenant), name, type (Asset/Liability/Equity/Revenue/Expense),
   parent_account_id (self-FK, restrict), is_active, is_system; the system accounts a tenant needs for
-  operational posting (`1000` Cash and Bank, `4000` Sales Revenue, plus `2200` Accounts Payable and
-  `5200` Construction Expenses added in Milestone 6) are seeded once per tenant, at tenant creation — see
+  operational posting (`1000` Cash and Bank, `4000` Sales Revenue, `2200` Accounts Payable and
+  `5200` Construction Expenses added in Milestone 6, and `4100` Rental Revenue added in Milestone 7) are
+  seeded once per tenant, at tenant creation — see
   `SystemAccountSeeder`, called from `OrganizationService` and `DemoDataSeeder`, not from the global
   `DbSeeder` (accounts are tenant-owned, not a platform-wide catalog); `SystemAccountSeeder` loops a
   table of (code, name, type) and adds only what's missing, so it also backfills new system accounts for
@@ -134,7 +135,47 @@ the vendor is recognized on approval, not on actual cash payment — which is th
 5's cash-basis Sales posting; reconciling the vendor payable against an actual cash disbursement is left
 to a future accounts-payable/payment milestone. Rejecting an expense posts no journal entry at all.
 
-Later milestones extend this file per-module (Property,
+## Milestone 7 schema (Property & Rental Management)
+- `properties`: id, tenant_id, code (unique per tenant), name, type, status, description, address_line,
+  city, state, country, postal_code, owner_name, owner_contact — kept separate from `projects`
+- `property_units`: id, tenant_id, property_id (FK, restrict), building_block (free text), unit_number
+  (unique per property), type, floor, area_size, area_unit (free text), bedrooms, status, market_rent_rate,
+  metadata_json — kept entirely separate from `inventory_units` (sales inventory); status transitions are
+  enforced in the application layer (`PropertyUnitStatusRules`), and `Occupied` specifically is only ever
+  set by `LeaseService` on activation/termination, never a direct manual transition
+- `rental_tenants`: id, tenant_id, customer_id (FK to `customers`, restrict, unique per tenant — one
+  rental-tenant overlay per Customer), is_company, identification_number, is_active, notes — name/email/
+  phone/address live on `customers`, not duplicated here
+- `leases`: id, tenant_id, lease_number (unique per tenant), property_id (FK, restrict), unit_id (FK,
+  restrict), rental_tenant_id (FK, restrict), start_date, end_date, rent_amount, security_deposit,
+  payment_frequency, grace_period_days, status, terms, notes; a **partial unique index on unit_id
+  (`WHERE "Status" < 3`, i.e. Draft/PendingApproval/Active)** is the actual conflicting-lease guard, not
+  application logic — mirrors Sales' double-booking partial unique index exactly
+- `rent_schedules`: id, tenant_id, lease_id (FK, cascade), period_number (unique per lease), period_start,
+  period_end, due_date, amount, paid_amount, status; generated once, deterministically, when a lease
+  becomes Active — "Overdue" is never written here, it's computed at read time from due_date + the
+  lease's grace_period_days vs. today, exactly like Sales' `InstallmentStatus`
+- `rent_payments`: id, tenant_id, receipt_number (unique per tenant, `RNT-000001`...), lease_id (FK,
+  restrict), rent_schedule_id (FK, restrict), amount, payment_date, method (reuses `Sales.PaymentMethod`),
+  reference_number, notes, recorded_by_user_id, idempotency_key (unique per tenant, nullable)
+- `security_deposits`: id, tenant_id, lease_id (FK, cascade, unique — one deposit per lease), amount,
+  received_date, status, refunded_amount, refund_date, notes — auto-created at lease creation when the
+  lease's security_deposit amount is greater than zero
+- `maintenance_requests`: id, tenant_id, request_number (unique per tenant, `MR-000001`...), property_id
+  (FK, restrict), unit_id (FK, restrict, nullable), rental_tenant_id (FK, restrict, nullable), category,
+  priority, description, reported_date, assigned_to_user_id (no FK — AppUser lives in Infrastructure),
+  assigned_vendor_id (FK to the existing `vendors` table, restrict — no second vendor concept), status,
+  resolution_notes, completion_date
+
+### Accounting mapping: Rental payments
+Each rent `RentPayment` posts one journal entry in the same transaction it's recorded in (see
+`IRentalPaymentPostingService`, implemented by `RentalPaymentPostingService`, called from Property's
+`RentPaymentService` before its `SaveChangesAsync`): Dr **Cash and Bank** (1000), Cr **Rental Revenue**
+(4100), for the payment amount — cash-basis recognition, the same convention as Milestone 5's Sales
+posting. Duplicate-posting protection reuses the existing (TenantId, ReferenceType, ReferenceId) unique
+index on `journal_entries` from Milestone 5 (ReferenceType `"RentalPayment"`) — no new constraint needed.
+
+Later milestones extend this file per-module (
 Facility, Documents, Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds
 the migration.

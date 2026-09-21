@@ -11,7 +11,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 4 | Sales: bookings, pricing, installments, approvals, payments, receipts | ✅ |
 | 5 | Finance: chart of accounts, journals, receivables/payables, reports | ✅ |
 | 6 | Construction & Procurement: work packages, tasks, vendors, purchase requests/orders, receiving, materials, expenses | ✅ |
-| 7 | Property/Rental: properties, tenants, leases, rent, maintenance | ⬜ |
+| 7 | Property/Rental: properties, units, tenants, leases, rent schedule/payments, security deposits, maintenance | ✅ |
 | 8 | Facility: mall, coworking, facility management | ⬜ |
 | 9 | Portals: customer/tenant/member portals | ⬜ |
 | 10 | Documents + Notifications + approval workflows | ⬜ |
@@ -183,6 +183,64 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
       Purchase Order -> Partial Receipt -> Over-receive rejection -> Final Receipt -> Material Stock ->
       Expense -> Finance Journal -> Dashboards, run against the real API, every figure reconciling exactly
       (PO subtotal/total, received quantities, material stock, journal Dr/Cr, dashboard aggregates)
+
+## Milestone 7 — Property & Rental Management ✅
+- [x] Properties: code/name/type (Building/ApartmentComplex/CommercialProperty/OfficeBuilding/
+      ShoppingProperty/House/Other)/status/description/address/owner-information foundation,
+      tenant-unique code, kept fully separate from Projects.Project (a development/sales project is not
+      an operating rental asset)
+- [x] Property units: rentable units under a property with an optional free-text building/block
+      reference, type, floor, area, bedrooms, market rent rate; occupancy status (Available/Reserved/
+      Occupied/Maintenance/Inactive) is a distinct enum from Projects.InventoryUnitStatus — Occupied is
+      only ever set/cleared by lease activation/termination, never a manual transition
+- [x] Rental tenants: a thin overlay (company flag, identification number, active flag, notes) on the
+      existing CRM `Customer` for name/contact/address — reuses Customer rather than duplicating it; a
+      tenant can attach to an existing customer or create a new one in the same request
+- [x] Leases: property/unit/tenant, dates, rent amount, security deposit, payment frequency (Monthly/
+      Quarterly/Yearly foundation), grace period, status lifecycle Draft -> PendingApproval -> Active ->
+      Expired/Terminated, Cancelled reachable only before Active (`LeaseStatusRules`); a **partial unique
+      index on `leases.UnitId` (`WHERE "Status" < 3`)** is the actual conflicting-lease guard, mirroring
+      Sales' double-booking constraint — only one non-terminal lease per unit at a time, enforced at the
+      database level, not just in application code
+- [x] Rent schedule: generated deterministically from a lease's dates/frequency the moment it becomes
+      Active (same dates + frequency always produce the same periods), not hand-configured like Sales'
+      payment plans — a deliberately separate, simpler model from `Installment`; "Overdue" is computed at
+      read time from due date + grace period, never persisted, mirroring `InstallmentStatus`'s convention
+- [x] Rent payments: partial payments accumulate per schedule line, overpayment rejected server-side,
+      idempotency-key protected against duplicate submission, reuses `Sales.PaymentMethod` rather than a
+      new enum — the whole recording flow mirrors Sales' `PaymentService` pattern line for line
+- [x] Finance integration: `IRentalPaymentPostingService` posts Dr Cash and Bank / Cr Rental Revenue in
+      the same transaction as the payment, atomically; a new system account (`4100` Rental Revenue) is
+      seeded per tenant alongside the existing ones; the existing (TenantId, ReferenceType, ReferenceId)
+      unique index on `journal_entries` (from Milestone 5) already blocks a duplicate posting for the same
+      payment without any new schema. See `docs/DATABASE.md` for the mapping.
+- [x] Security deposits: one per lease (auto-created at lease creation when the deposit amount is > 0),
+      Pending -> Held (received) -> Refunded/PartiallyRefunded/Forfeited, over-refund rejected server-side
+      — no escrow/interest/legal rules yet, deliberately
+- [x] Maintenance requests: property/unit/tenant, category, priority, status lifecycle Open -> Assigned ->
+      InProgress -> Resolved (OnHold as a detour, Cancelled from any non-terminal state), vendor
+      assignment reuses the existing Procurement `Vendor` table by FK — no second vendor concept, no
+      second procurement workflow
+- [x] Property dashboard: properties/units/occupancy, active/expiring leases, monthly rental income
+      (frequency-normalized), outstanding/overdue rent, open maintenance requests, per-property
+      performance summary — all tenant-scoped
+- [x] Rental dashboard: active leases, upcoming expirations, rent due/collected/outstanding, overdue
+      obligation count, occupancy summary, recent payments — all tenant-scoped
+- [x] Frontend: property/unit/tenant list+detail+forms, a lease detail page combining status actions,
+      rent schedule, payment recording and history, and the security deposit card in one place,
+      maintenance list/detail with vendor assignment, both dashboards, new sidebar/routing — reusing the
+      Construction/Procurement module's table/dialog/form/permission-gate patterns
+- [x] Unit/integration tests: 16 new integration tests covering property/unit CRUD, tenant-customer
+      reuse and duplicate-link rejection, lease date validation, the full lease lifecycle (rent schedule
+      generation + unit occupancy), conflicting-lease rejection, termination releasing the unit, partial/
+      overpayment/idempotent rent payments with finance posting, overdue computation, the security
+      deposit receive/refund/over-refund lifecycle, the full maintenance lifecycle with vendor assignment,
+      tenant isolation, RBAC, dashboard scoping, and audit logging — all passing alongside the existing
+      suite (110 total: 12 unit + 98 integration)
+- [x] Live end-to-end verification: Property -> Unit -> Tenant -> Lease -> Rent Schedule -> Rent Payment
+      -> Finance Journal -> Dashboards, and separately Unit -> Maintenance Request -> Vendor -> Resolution,
+      run against the real API, every figure reconciling exactly (rent schedule totals, partial/
+      over-payment handling, deposit amount, journal Dr/Cr, dashboard aggregates)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

@@ -29,6 +29,16 @@ using RealEstateErp.Application.Procurement.PurchaseOrders;
 using RealEstateErp.Application.Procurement.PurchaseRequests;
 using RealEstateErp.Application.Procurement.Receiving;
 using RealEstateErp.Application.Procurement.Vendors;
+using RealEstateErp.Application.Property.Dashboard;
+using RealEstateErp.Application.Property.Leases;
+using RealEstateErp.Application.Property.Maintenance;
+using RealEstateErp.Application.Property.Payments;
+using RealEstateErp.Application.Property.Properties;
+using RealEstateErp.Application.Property.RentalDashboard;
+using RealEstateErp.Application.Property.RentSchedules;
+using RealEstateErp.Application.Property.SecurityDeposits;
+using RealEstateErp.Application.Property.Tenants;
+using RealEstateErp.Application.Property.Units;
 using RealEstateErp.Application.Projects.Hierarchy;
 using RealEstateErp.Application.Projects.Projects;
 using RealEstateErp.Application.Roles;
@@ -47,6 +57,7 @@ using RealEstateErp.Infrastructure.Services.Finance;
 using RealEstateErp.Infrastructure.Services.Inventory;
 using RealEstateErp.Infrastructure.Services.Materials;
 using RealEstateErp.Infrastructure.Services.Procurement;
+using RealEstateErp.Infrastructure.Services.Property;
 using RealEstateErp.Infrastructure.Services.Projects;
 using RealEstateErp.Infrastructure.Services.Sales;
 
@@ -119,6 +130,17 @@ public static class DependencyInjection
         services.AddScoped<IReceiptService, ReceiptService>();
         services.AddScoped<IProcurementDashboardService, ProcurementDashboardService>();
         services.AddScoped<IMaterialService, MaterialService>();
+        services.AddScoped<IPropertyService, PropertyService>();
+        services.AddScoped<IPropertyUnitService, PropertyUnitService>();
+        services.AddScoped<IRentalTenantService, RentalTenantService>();
+        services.AddScoped<ILeaseService, LeaseService>();
+        services.AddScoped<IRentScheduleService, RentScheduleService>();
+        services.AddScoped<IRentPaymentService, RentPaymentService>();
+        services.AddScoped<ISecurityDepositService, SecurityDepositService>();
+        services.AddScoped<IMaintenanceService, MaintenanceService>();
+        services.AddScoped<IPropertyDashboardService, PropertyDashboardService>();
+        services.AddScoped<IRentalDashboardService, RentalDashboardService>();
+        services.AddScoped<IRentalPaymentPostingService, RentalPaymentPostingService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

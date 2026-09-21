@@ -131,4 +131,33 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
   same transaction as the status change; `reject` posts nothing)
 - `GET /api/v1/construction/dashboard`, `GET /api/v1/procurement/dashboard` (tenant-scoped)
 
+## Milestone 7 endpoints (Property & Rental Management)
+- `GET/POST/PUT/DELETE /api/v1/property/properties` (filterable by `type`, `status`, `search`; delete
+  blocked while the property still has units — `409 Conflict`)
+- `GET/POST/PUT/DELETE /api/v1/property/units` (filterable by `propertyId`, `type`, `status`, `search`),
+  `POST /api/v1/property/units/{id}/status` (enforces `PropertyUnitStatusRules`; `Occupied` cannot be
+  set or cleared through this endpoint — it's exclusively driven by lease activation/termination —
+  `400 invalid_transition` otherwise)
+- `GET/POST/PUT/DELETE /api/v1/property/tenants` (filterable by `isActive`, `search`; `POST` accepts
+  either an existing `customerId` or a `fullName`/contact set to create a new Customer in the same call;
+  delete blocked while the tenant has lease history)
+- `GET/POST/PUT /api/v1/property/leases` (filterable by `propertyId`, `unitId`, `rentalTenantId`,
+  `status`, `search`; no delete — cancellation is a status transition; `PUT` only while `Draft`),
+  `POST /api/v1/property/leases/{id}/submit|approve|expire|terminate|cancel` (enforces
+  `LeaseStatusRules`; `approve` is what generates the rent schedule and occupies the unit; creating a
+  lease on a unit that already has a non-terminal lease returns `409 unit_has_active_lease`)
+- `GET /api/v1/property/leases/{id}/rent-schedule` (generated deterministically at lease approval, never
+  hand-edited), `GET/POST /api/v1/property/leases/{id}/payments` (`POST` rejects amounts beyond a
+  schedule line's outstanding balance with `400 overpayment_not_allowed`, honors an `idempotencyKey` to
+  make retried submissions safe, and posts a Finance journal entry atomically with the payment),
+  `GET /api/v1/property/leases/{id}/security-deposit`
+- `POST /api/v1/property/security-deposits/{id}/receive|refund|forfeit` (enforces
+  `SecurityDepositStatusRules`; `refund` rejects amounts beyond the remaining held balance with
+  `400 overrefund_not_allowed`)
+- `GET/POST /api/v1/property/maintenance-requests` (filterable by `propertyId`, `unitId`, `status`,
+  `priority`, `search`), `POST /api/v1/property/maintenance-requests/{id}/assign` (vendor assignment
+  reuses the existing `procurement/vendors` catalog by id — no new vendor endpoint),
+  `POST /api/v1/property/maintenance-requests/{id}/status` (enforces `MaintenanceStatusRules`)
+- `GET /api/v1/property/dashboard`, `GET /api/v1/property/rental-dashboard` (tenant-scoped)
+
 Further modules append their endpoint list here as they ship.

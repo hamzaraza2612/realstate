@@ -87,7 +87,12 @@ public static class Permissions
 
     public static class Property
     {
+        public const string View = "property.view";
+        public const string Manage = "property.manage";
         public const string LeaseManage = "property.lease.manage";
+        public const string LeaseApprove = "property.lease.approve";
+        public const string PaymentRecord = "property.payment.record";
+        public const string MaintenanceManage = "property.maintenance.manage";
     }
 
     public static class Procurement
