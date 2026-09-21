@@ -269,6 +269,62 @@ posting stays traceable to its source record; duplicate-posting protection reuse
 (TenantId, ReferenceType, ReferenceId) unique index on `journal_entries` from Milestone 5 — no new
 constraint needed for any of the five subtypes.
 
+## Milestone 9 schema fix (role-name uniqueness)
+`roles.NormalizedName` carried ASP.NET Core Identity's own default **global** unique index
+(`RoleNameIndex`), which meant no two tenants could ever create a custom role with the same name — the
+very first tenant to name a role "Manager" would permanently block every other tenant from doing the
+same. Migration `FixRoleNameUniquePerTenant` makes `RoleNameIndex` non-unique and makes the existing
+`(tenant_id, normalized_name)` index the real unique constraint instead — role names are now unique per
+tenant, not platform-wide, which is correct multi-tenant behavior (system roles, `tenant_id IS NULL`,
+remain shared by name across all tenants, unaffected by this change since there's still only one row per
+system role name).
+
+## Milestone 10 schema (Security & Finance Hardening)
+- `fiscal_periods`: id, tenant_id, name, start_date, end_date, status (Open/Closed), closed_at,
+  closed_by_user_id; a genuine Postgres **range-EXCLUDE constraint**
+  (`EX_fiscal_periods_no_overlap`, `EXCLUDE USING gist` over tenant_id and
+  `daterange(start_date, end_date, '[]')`, reusing the `btree_gist` extension enabled in Milestone 8) —
+  no two periods for the same tenant may ever overlap, enforced at the database level, not just in
+  application code. Periods are opt-in: a journal entry dated outside every defined period for its
+  tenant is always allowed through — a tenant that never creates one sees no behavior change.
+- `journal_entries` gained two nullable/default columns, additively: `is_reversed` (bool, default false)
+  and `reversal_of_entry_id` (self-FK, restrict). A reversal entry reuses the existing
+  `(tenant_id, reference_type, reference_id)` unique index from Milestone 5 with `reference_type =
+  "Reversal"` and `reference_id` = the original entry's id — the same index that caps a source event at
+  one journal entry now also caps an original entry at one reversal, with no new constraint needed.
+- `expenses` gained one additive column: `paid_amount` (numeric(18,2), default 0) — the running total of
+  `expense_payments` recorded against it, mirroring how `RentSchedule.PaidAmount` and
+  `ServiceChargeCharge.PaidAmount` already track payments against their own obligation rows elsewhere in
+  the schema.
+- `expense_payments`: id, tenant_id, receipt_number (unique per tenant, `EXP-PMT-000001`...), expense_id
+  (FK to `expenses`, restrict), amount, payment_date, reference_number, notes, recorded_by_user_id,
+  idempotency_key (unique per tenant, nullable), journal_entry_id — mirrors the `rent_payments`/
+  `facility_payments` source-row-per-posting pattern exactly, since one Expense can be paid across
+  several installments and each needs its own row for the duplicate-posting index above to work.
+
+**Fiscal-period enforcement** is centralized in one static helper (`FiscalPeriodGuard.IsClosedAsync`),
+called from all five journal-entry-creation paths — `JournalService.CreateAsync` (manual entries) and
+all four system posting services (`SalesPaymentPostingService`, `RentalPaymentPostingService`,
+`FacilityFinancePostingService`, `ConstructionFinancePostingService`, the last of which also gained the
+new `PostExpensePaymentAsync` method for AP clearing below) — so "don't post into a closed period" can
+never drift out of sync between them.
+
+### Accounting mapping: AP clearing (vendor payments)
+Each `ExpensePayment` posts one journal entry in the same transaction it's recorded in (see
+`IConstructionFinancePostingService.PostExpensePaymentAsync`, called from `ExpenseService.PayAsync`
+before its `SaveChangesAsync`): Dr **Accounts Payable** (2200), Cr **Cash and Bank** (1000), for the
+payment amount — the reverse of the Dr Expense / Cr AP posting Milestone 6 made at expense approval, so
+approving then fully paying an expense nets Accounts Payable back to zero for that expense. Overpayment
+beyond the expense's outstanding balance (`amount - paid_amount`) is rejected the same way
+`RentPaymentService` already rejects overpayment against a rent schedule line.
+
+### Accounting mapping: journal reversal
+`JournalService.ReverseAsync` posts a new entry with every line's debit and credit swapped relative to
+the original, dated either today or an explicitly supplied reversal date (also checked against
+`FiscalPeriodGuard`), and marks the original `is_reversed = true`. The original is never edited or
+deleted — reversal is purely additive, preserving full auditability of what was originally posted and
+when it was corrected.
+
 Later milestones extend this file per-module (
 Documents, Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds

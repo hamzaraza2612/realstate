@@ -212,4 +212,40 @@ Coworking (built on the shared foundation):
   constraint in addition to an application-level pre-check)
 - `GET /api/v1/facility/coworking/dashboard?facilityId=` (`facilityId` optional)
 
+## Milestone 10 endpoints (Security & Finance Hardening)
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` now also reject a Suspended/Cancelled tenant's
+  user with `401 Unauthorized` (`tenant_suspended`/`tenant_cancelled`) — same status code and shape as
+  an invalid-credentials failure, so a client can't distinguish "wrong password" from "tenant suspended"
+  without reading the error message (deliberate — don't leak tenant state pre-authentication). Every
+  other protected endpoint now also returns `403 Forbidden` for a request carrying an otherwise-valid
+  token whose tenant has since been suspended/cancelled (enforced by `TenantStatusMiddleware`, not
+  per-controller — no controller code changed).
+- `GET/POST /api/v1/finance/fiscal-periods`, `POST /api/v1/finance/fiscal-periods/{id}/close`,
+  `POST /api/v1/finance/fiscal-periods/{id}/reopen` — `POST` (create) rejects an overlapping range with
+  `400 overlapping_period`; close/reopen reject an already-closed/already-open period with
+  `400 already_closed`/`400 already_open`. Permission: `finance.reports.view` to list, `finance.manage`
+  to create/close/reopen (same permissions the existing Journal Entries endpoints already use).
+- `POST /api/v1/finance/journal-entries/{id}/reverse` body `{ reversalDate?, reason? }` — only a Posted
+  entry can be reversed (`400 invalid_state` otherwise); a second reversal attempt is rejected with
+  `400 already_reversed`; a reversal dated into a closed fiscal period is rejected with
+  `400 period_closed` exactly like any other posting. `GET`/list responses for `journal-entries` now
+  also include `isReversed` and `reversalOfEntryId` on every entry.
+- `GET /api/v1/construction/expenses/{id}/payments`, `POST /api/v1/construction/expenses/{id}/payments`
+  body `{ amount, paymentDate, referenceNumber?, notes?, idempotencyKey? }` — AP clearing against an
+  Approved expense; rejects `400 expense_not_approved` if the expense isn't Approved yet, and
+  `400 overpayment_not_allowed` beyond the outstanding balance (`amount - paidAmount`), honoring
+  `idempotencyKey` for safe retries exactly like the existing Rent/Facility payment endpoints. The
+  existing `GET /api/v1/construction/expenses`/`{id}` responses now also include `paidAmount`.
+- `GET /api/v1/finance/reports/balance-sheet?asOf=` (optional, defaults to today), returning Assets/
+  Liabilities/Equity broken down by account plus `netIncome` and a `totalLiabilitiesAndEquity` that
+  always equals `totalAssets` by double-entry construction (`totalAssets = totalLiabilities + totalEquity
+  + netIncome` — verified live, not just asserted).
+- `GET /api/v1/finance/reports/profit-and-loss?from=&to=` (both optional), returning revenue/expense
+  lines broken down by account alongside the existing, unmodified `income-summary` endpoint's totals-only
+  view.
+- `GET /api/v1/finance/reports/cash-flow?from=&to=` (both optional), returning cash inflows/outflows
+  grouped by the posting's `referenceType`, with `openingCash + netChange == closingCash` (verified live).
+  All three new report endpoints share the existing `finance.reports.view` permission with Trial Balance/
+  Income Summary.
+
 Further modules append their endpoint list here as they ship.

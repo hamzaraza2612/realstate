@@ -14,14 +14,14 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 7 | Property/Rental: properties, units, tenants, leases, rent schedule/payments, security deposits, maintenance | ✅ |
 | 8 | Facility Management + Mall + Coworking: shared spaces/utilities/service requests, mall shops/service charges/parking/events/notices, coworking memberships/desks/rooms/bookings | ✅ |
 | 9 | Product Gap Audit: full commercial-readiness audit against the platform's business/architecture/finance/security/frontend/reporting/SaaS/portal/production targets — see `PRODUCT_GAP_AUDIT.md` | ✅ |
-| 10 | Security & Finance Hardening: enforce tenant status at the API boundary, AP clearing, fiscal-period closing, journal reversal, transactional email, confirm-dialogs on destructive status actions, close the two Facility/Mall status-transition gaps | ⬜ |
+| 10 | Security & Finance Hardening: tenant-status enforcement at login/refresh/every protected API call, a re-verification authorization pass, AP clearing, fiscal-period close/reopen, journal reversal, Balance Sheet/P&L/Cash Flow reports | ✅ |
 | 11 | Reporting: cross-module dashboards (AR/AP aging, today's sales, project profitability, agent performance), exports, wire up `recharts` | ⬜ |
-| 12 | Documents + Notifications + approval workflows (depends on Milestone 10's email capability + already-provisioned upload storage) | ⬜ |
-| 13 | Portals: customer/owner/tenant/member/vendor/agent portals (depends on Milestone 10's email capability) | ⬜ |
+| 12 | Documents + Notifications + transactional email + approval workflows (email is a hard prerequisite for every portal; already-provisioned upload storage) | ⬜ |
+| 13 | Portals: customer/owner/tenant/member/vendor/agent portals (depends on Milestone 12's email capability) | ⬜ |
 | 14 | SaaS: subscription lifecycle automation, platform billing/invoicing, self-service signup, feature-entitlement enforcement | ⬜ |
-| 15 | Production hardening: TLS/reverse-proxy guidance, observability, backups, multi-currency, credit/debit notes, tax engine, optimistic concurrency | ⬜ |
+| 15 | Production hardening: TLS/reverse-proxy guidance, observability, backups, multi-currency, credit/debit notes, tax engine, optimistic concurrency, confirm-dialogs on the remaining older destructive status actions (Sales/Coworking/Maintenance cancel), the two Facility/Mall status-transition gaps | ⬜ |
 
-Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13 as Portals→Documents→Reporting→SaaS→Production): tenant-status enforcement and core accounting integrity are prerequisites every later module silently inherits, and email (added in Milestone 10) is a hard prerequisite for Documents/Notifications and every portal.
+Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13 as Portals→Documents→Reporting→SaaS→Production): tenant-status enforcement and core accounting integrity are prerequisites every later module silently inherits. Transactional email moved from Milestone 10 into Milestone 12 (Documents + Notifications) once Milestone 10 was actually scoped down to security + finance only — it remains a hard prerequisite for Documents/Notifications and every portal, just introduced one milestone later than the Milestone 9 audit originally sketched.
 
 ## Milestone 1 — Foundation ✅
 - [x] Repo/docs scaffold
@@ -320,6 +320,63 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       Facility → Maintenance/Service Request → Vendor → Resolution workflow — every figure reconciling
       exactly (deterministic service-charge and booking-price calculations, balanced Finance journals on
       the new Facility Revenue account, dashboard aggregates)
+
+## Milestone 10 — Security & Finance Hardening ✅
+- [x] Tenant-status enforcement: a Suspended/Cancelled tenant's users can no longer log in or refresh
+      their token (`AuthService`), and a per-request `TenantStatusMiddleware` (after `UseAuthentication`,
+      before `UseAuthorization`) rejects an already-issued, still-cryptographically-valid JWT the moment
+      its tenant is suspended — closing the exact gap `PRODUCT_GAP_AUDIT.md` §9 flagged (`TenantStatus`
+      existed as a column but was never enforced anywhere). Reactivating a tenant restores access
+      immediately with no other state change needed. Super Admin (no `TenantId`) is never affected.
+- [x] Authorization re-verification pass (no new defects found beyond the three fixed in Milestone 9):
+      permission-attribute coverage, IDOR, refresh-token handling, rate limiting, and audit logging were
+      all re-checked against the Milestone 9 audit's findings and remain solid.
+- [x] Fiscal periods: a new opt-in `FiscalPeriod` entity (Open/Closed) with a genuine Postgres
+      range-EXCLUDE constraint preventing overlapping periods per tenant (reusing the `btree_gist`
+      extension enabled in Milestone 8) — a date with no defined period is always unrestricted, so a
+      tenant that never creates one sees no behavior change. A shared `FiscalPeriodGuard` helper is
+      called from all five journal-entry-creation paths (manual entries plus all four system posting
+      services) to reject a post dated into a Closed period.
+- [x] Journal reversal: `POST /finance/journal-entries/{id}/reverse` posts a new, fully Debit/Credit-
+      swapped entry against a Posted one and marks the original `IsReversed` — the original is never
+      edited or deleted. Reuses the existing `(TenantId, ReferenceType, ReferenceId)` unique index (new
+      `ReferenceType = "Reversal"`, `ReferenceId` = the original entry's id) for double-reversal
+      protection at the database level, not just in application code.
+- [x] AP clearing: a new `ExpensePayment` entity (mirrors the `RentPayment`/`FacilityPayment` source-
+      row-per-posting pattern) lets an Approved Construction Expense be paid down, partially or in full,
+      via `IConstructionFinancePostingService.PostExpensePaymentAsync` (Dr Accounts Payable, Cr Cash) —
+      closing the "AP only ever grows, never clears" gap from `PRODUCT_GAP_AUDIT.md` §5. Overpayment
+      beyond the outstanding balance is rejected the same way `RentPaymentService` already does.
+- [x] Financial statements: `GET /finance/reports/balance-sheet`, `/profit-and-loss`, and `/cash-flow`
+      added alongside the existing Trial Balance/Income Summary — Balance Sheet includes a computed Net
+      Income line so `TotalAssets = TotalLiabilities + TotalEquity + NetIncome` always holds by
+      double-entry construction (verified live and in tests, not just asserted); Cash Flow groups postings
+      to the Cash account by `ReferenceType` and verifies `OpeningCash + NetChange = ClosingCash`.
+- [x] UAE/global-readiness check (no implementation, per the milestone's own scope): confirmed no
+      Pakistan-specific hardcoding exists anywhere in money/date handling; the `en-US`/`$`-hardcoded
+      dashboard formatting already flagged in `PRODUCT_GAP_AUDIT.md` §7 remains a known, deferred
+      multi-currency item, not touched here.
+- [x] Frontend: a new Fiscal Periods page (create/close/reopen, each close/reopen gated by
+      `ConfirmDialog`); a "Reverse" action on the Journal Entry detail page (reason dialog doubles as the
+      confirmation step, destructive-styled submit); a "Record payment" dialog on the Expenses page for
+      AP clearing; three new report pages (Balance Sheet, Profit & Loss, Cash Flow) modeled on the
+      existing Trial Balance page's layout and loading/error/empty conventions.
+- [x] Unit/integration tests: 16 new integration tests covering suspended/cancelled-tenant login and
+      refresh rejection, an already-issued token being blocked mid-session, reactivation restoring
+      access, Super Admin being unaffected, same-named custom roles now succeeding independently per
+      tenant, fiscal-period close/reopen/overlap-rejection, closed-period posting rejection with an
+      unrestricted-when-no-period-defined control case, journal reversal (debit/credit swap verified
+      line-by-line, double-reversal rejected, Draft entries cannot be reversed), AP clearing (pre-approval
+      payment rejected, partial payment, overpayment rejected, final payment), and the Balance
+      Sheet/Profit & Loss/Cash Flow reconciliation identities — all passing alongside the existing suite
+      (141 total: 12 unit + 129 integration), with zero regressions in the 113 pre-existing tests.
+- [x] Live end-to-end verification against the real running API: suspend → login blocked (401) → an
+      already-issued token blocked on a protected endpoint (403) → reactivate → login restored; fiscal
+      period created → closed → backdated post rejected (400) → reopened → retry succeeds (201); journal
+      entry posted → reversed (debit/credit swap confirmed) → double-reversal rejected (400); expense
+      created → approved → paid in full via AP clearing (`journalEntryId` set, `paidAmount` updated); all
+      three financial statements fetched and their reconciliation identities held exactly on real,
+      non-trivial numbers.
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

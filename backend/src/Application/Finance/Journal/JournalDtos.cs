@@ -24,6 +24,8 @@ public record JournalEntryDto(
     decimal TotalDebit,
     decimal TotalCredit,
     IReadOnlyList<JournalLineDto> Lines,
+    bool IsReversed,
+    Guid? ReversalOfEntryId,
     DateTimeOffset CreatedAt);
 
 public record CreateJournalLineRequest(Guid AccountId, decimal Debit, decimal Credit, string? Description);
@@ -31,3 +33,5 @@ public record CreateJournalLineRequest(Guid AccountId, decimal Debit, decimal Cr
 public record CreateJournalEntryRequest(DateOnly EntryDate, string? Description, IReadOnlyList<CreateJournalLineRequest> Lines);
 
 public record JournalEntryFilter(JournalEntryStatus? Status, string? ReferenceType, string? Search);
+
+public record ReverseJournalEntryRequest(DateOnly? ReversalDate, string? Reason);

@@ -17,7 +17,23 @@ public record ExpenseDto(
     string? Notes,
     ExpenseStatus Status,
     Guid? JournalEntryId,
+    decimal PaidAmount,
     DateTimeOffset CreatedAt);
+
+public record ExpensePaymentDto(
+    Guid Id,
+    string ReceiptNumber,
+    Guid ExpenseId,
+    decimal Amount,
+    DateOnly PaymentDate,
+    string? ReferenceNumber,
+    string? Notes,
+    Guid RecordedByUserId,
+    string? RecordedByUserName,
+    Guid? JournalEntryId,
+    DateTimeOffset CreatedAt);
+
+public record PayExpenseRequest(decimal Amount, DateOnly PaymentDate, string? ReferenceNumber, string? Notes, string? IdempotencyKey);
 
 public record CreateExpenseRequest(
     Guid ProjectId,

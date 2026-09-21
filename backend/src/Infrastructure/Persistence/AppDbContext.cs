@@ -58,9 +58,11 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<JournalLine> JournalLines => Set<JournalLine>();
     public DbSet<FinancialDocument> FinancialDocuments => Set<FinancialDocument>();
+    public DbSet<FiscalPeriod> FiscalPeriods => Set<FiscalPeriod>();
     public DbSet<WorkPackage> WorkPackages => Set<WorkPackage>();
     public DbSet<ConstructionTask> ConstructionTasks => Set<ConstructionTask>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<ExpensePayment> ExpensePayments => Set<ExpensePayment>();
     public DbSet<Vendor> Vendors => Set<Vendor>();
     public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
     public DbSet<PurchaseRequestLine> PurchaseRequestLines => Set<PurchaseRequestLine>();

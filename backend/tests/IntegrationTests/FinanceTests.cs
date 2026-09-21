@@ -426,6 +426,191 @@ public class FinanceTests : TestBase
     }
 
     [Fact]
+    public async Task FiscalPeriod_ClosedPeriodRejectsBackdatedPostings_AndReopenRestoresIt()
+    {
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("fp-close", 50_000m);
+        var lastMonthDate = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1);
+
+        var (createPeriodSuccess, periodBody, _) = await PostAsync("/api/v1/finance/fiscal-periods", new
+        {
+            name = "Last month", startDate = lastMonthDate.AddDays(-15), endDate = lastMonthDate.AddDays(15)
+        }, token);
+        createPeriodSuccess.Should().BeTrue();
+        var periodId = periodBody.GetProperty("data").GetProperty("id").GetString()!;
+
+        var (closeSuccess, closeBody, _) = await PostAsync($"/api/v1/finance/fiscal-periods/{periodId}/close", new { }, token);
+        closeSuccess.Should().BeTrue();
+        closeBody.GetProperty("data").GetProperty("status").GetInt32().Should().Be(1); // Closed
+
+        var (paySuccess, _, payStatus) = await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 50_000m, paymentDate = lastMonthDate,
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+        paySuccess.Should().BeFalse();
+        payStatus.Should().Be(HttpStatusCode.BadRequest);
+
+        var (reopenSuccess, reopenBody, _) = await PostAsync($"/api/v1/finance/fiscal-periods/{periodId}/reopen", new { }, token);
+        reopenSuccess.Should().BeTrue();
+        reopenBody.GetProperty("data").GetProperty("status").GetInt32().Should().Be(0); // Open
+
+        var (retrySuccess, _, _) = await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 50_000m, paymentDate = lastMonthDate,
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+        retrySuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FiscalPeriod_DatesOutsideAnyDefinedPeriod_AreUnrestricted()
+    {
+        // No fiscal period is ever created for this tenant — posting must behave exactly as before this milestone.
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("fp-none", 30_000m);
+
+        var (success, _, _) = await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 30_000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+        success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FiscalPeriod_OverlappingPeriodIsRejected()
+    {
+        var (token, _, _) = await CreateOrganizationAsync("fp-overlap");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var (firstSuccess, _, _) = await PostAsync("/api/v1/finance/fiscal-periods", new { name = "Q1", startDate = today, endDate = today.AddDays(30) }, token);
+        firstSuccess.Should().BeTrue();
+
+        var (overlapSuccess, _, overlapStatus) = await PostAsync("/api/v1/finance/fiscal-periods", new
+        {
+            name = "Overlapping", startDate = today.AddDays(15), endDate = today.AddDays(45)
+        }, token);
+        overlapSuccess.Should().BeFalse();
+        overlapStatus.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task JournalEntry_ReversalSwapsDebitsAndCredits_AndCannotBeReversedTwice()
+    {
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("je-reverse", 40_000m);
+        var (_, payBody, _) = await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 40_000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+        var originalEntryId = payBody.GetProperty("data").GetProperty("journalEntryId").GetString()!;
+
+        var (reverseSuccess, reverseBody, _) = await PostAsync($"/api/v1/finance/journal-entries/{originalEntryId}/reverse", new
+        {
+            reversalDate = (DateOnly?)null, reason = "Correcting a test entry"
+        }, token);
+        reverseSuccess.Should().BeTrue();
+        var reversalLines = reverseBody.GetProperty("data").GetProperty("lines").EnumerateArray().ToList();
+        reverseBody.GetProperty("data").GetProperty("totalDebit").GetDecimal().Should().Be(40_000m);
+        reverseBody.GetProperty("data").GetProperty("totalCredit").GetDecimal().Should().Be(40_000m);
+        reverseBody.GetProperty("data").GetProperty("reversalOfEntryId").GetString().Should().Be(originalEntryId);
+
+        var (_, originalAfterBody, _) = await GetAsync($"/api/v1/finance/journal-entries/{originalEntryId}", token);
+        originalAfterBody.GetProperty("data").GetProperty("isReversed").GetBoolean().Should().BeTrue();
+        var originalLines = originalAfterBody.GetProperty("data").GetProperty("lines").EnumerateArray().ToList();
+        foreach (var originalLine in originalLines)
+        {
+            var swapped = reversalLines.First(l => l.GetProperty("accountId").GetString() == originalLine.GetProperty("accountId").GetString());
+            swapped.GetProperty("debit").GetDecimal().Should().Be(originalLine.GetProperty("credit").GetDecimal());
+            swapped.GetProperty("credit").GetDecimal().Should().Be(originalLine.GetProperty("debit").GetDecimal());
+        }
+
+        var (secondReverseSuccess, _, secondReverseStatus) = await PostAsync($"/api/v1/finance/journal-entries/{originalEntryId}/reverse", new
+        {
+            reversalDate = (DateOnly?)null, reason = (string?)null
+        }, token);
+        secondReverseSuccess.Should().BeFalse();
+        secondReverseStatus.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task JournalEntry_DraftEntryCannotBeReversed()
+    {
+        var (token, _, _) = await CreateOrganizationAsync("je-reverse-draft");
+        var (_, accountsBody, _) = await GetAsync("/api/v1/finance/accounts?pageSize=50", token);
+        var cashId = accountsBody.GetProperty("data").EnumerateArray().First(a => a.GetProperty("code").GetString() == "1000").GetProperty("id").GetString();
+        var revenueId = accountsBody.GetProperty("data").EnumerateArray().First(a => a.GetProperty("code").GetString() == "4000").GetProperty("id").GetString();
+
+        var (_, entryBody, _) = await PostAsync("/api/v1/finance/journal-entries", new
+        {
+            entryDate = DateOnly.FromDateTime(DateTime.UtcNow), description = "Still draft",
+            lines = new[]
+            {
+                new { accountId = Guid.Parse(cashId!), debit = 100m, credit = 0m, description = (string?)null },
+                new { accountId = Guid.Parse(revenueId!), debit = 0m, credit = 100m, description = (string?)null }
+            }
+        }, token);
+        var entryId = entryBody.GetProperty("data").GetProperty("id").GetString()!;
+
+        var (reverseSuccess, _, reverseStatus) = await PostAsync($"/api/v1/finance/journal-entries/{entryId}/reverse", new { reversalDate = (DateOnly?)null, reason = (string?)null }, token);
+        reverseSuccess.Should().BeFalse();
+        reverseStatus.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task BalanceSheet_AssetsEqualLiabilitiesPlusEquityPlusNetIncome()
+    {
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("bs-reconcile", 120_000m);
+        await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 120_000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+
+        var (success, body, _) = await GetAsync("/api/v1/finance/reports/balance-sheet", token);
+        success.Should().BeTrue();
+        var data = body.GetProperty("data");
+        data.GetProperty("totalAssets").GetDecimal().Should().Be(120_000m);
+        data.GetProperty("netIncome").GetDecimal().Should().Be(120_000m);
+        data.GetProperty("totalAssets").GetDecimal().Should().Be(data.GetProperty("totalLiabilitiesAndEquity").GetDecimal());
+    }
+
+    [Fact]
+    public async Task ProfitAndLoss_BreaksDownRevenueAndExpenseByAccount()
+    {
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("pnl-lines", 75_000m);
+        await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 75_000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+
+        var (success, body, _) = await GetAsync("/api/v1/finance/reports/profit-and-loss", token);
+        success.Should().BeTrue();
+        var data = body.GetProperty("data");
+        data.GetProperty("totalRevenue").GetDecimal().Should().Be(75_000m);
+        data.GetProperty("netIncome").GetDecimal().Should().Be(75_000m);
+        data.GetProperty("revenueLines").EnumerateArray().Should().Contain(l => l.GetProperty("code").GetString() == "4000");
+    }
+
+    [Fact]
+    public async Task CashFlow_OpeningPlusNetChangeEqualsClosingCash()
+    {
+        var (token, bookingId, installmentId) = await SetupPayableBookingAsync("cf-reconcile", 90_000m);
+        await PostAsync($"/api/v1/sales/bookings/{bookingId}/payments", new
+        {
+            installmentId = Guid.Parse(installmentId), amount = 90_000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            method = 0, referenceNumber = (string?)null, notes = (string?)null
+        }, token);
+
+        var (success, body, _) = await GetAsync("/api/v1/finance/reports/cash-flow", token);
+        success.Should().BeTrue();
+        var data = body.GetProperty("data");
+        data.GetProperty("totalInflows").GetDecimal().Should().Be(90_000m);
+        data.GetProperty("closingCash").GetDecimal().Should().Be(data.GetProperty("openingCash").GetDecimal() + data.GetProperty("netChange").GetDecimal());
+        data.GetProperty("closingCash").GetDecimal().Should().Be(90_000m);
+    }
+
+    [Fact]
     public async Task AuditLog_RecordsFinanceModuleActions()
     {
         var (token, _, _) = await CreateOrganizationAsync("fin-audit");

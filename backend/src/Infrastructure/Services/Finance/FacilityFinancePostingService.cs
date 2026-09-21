@@ -25,6 +25,9 @@ public class FacilityFinancePostingService : IFacilityFinancePostingService
             return Result.Failure("Finance system accounts are not configured for this tenant.", "accounts_not_configured");
         }
 
+        if (await FiscalPeriodGuard.IsClosedAsync(_db, paymentDate, ct))
+            return Result.Failure($"The fiscal period covering {paymentDate:yyyy-MM-dd} is closed.", "period_closed");
+
         var entrySequence = await _db.JournalEntries.CountAsync(ct) + 1;
         var journalEntry = new JournalEntry
         {

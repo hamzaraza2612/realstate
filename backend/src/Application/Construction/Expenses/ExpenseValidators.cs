@@ -13,3 +13,14 @@ public class CreateExpenseRequestValidator : AbstractValidator<CreateExpenseRequ
         RuleFor(x => x.Notes).MaximumLength(2000);
     }
 }
+
+public class PayExpenseRequestValidator : AbstractValidator<PayExpenseRequest>
+{
+    public PayExpenseRequestValidator()
+    {
+        RuleFor(x => x.Amount).GreaterThan(0);
+        RuleFor(x => x.ReferenceNumber).MaximumLength(100);
+        RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.IdempotencyKey).MaximumLength(100);
+    }
+}

@@ -1,9 +1,9 @@
 # Product Gap Audit — Milestone 9
 
-**Date:** 2026-09-21
+**Date:** 2026-09-21 (original audit) · updated 2026-09-21 after Milestone 10 (Security & Finance Hardening)
 **Scope:** Full repository audit (backend, frontend, database, docs) against a worldwide-commercial Real Estate ERP/SaaS target, broadly comparable in functional breadth to established real-estate ERP platforms.
 **Method:** Direct code/schema/frontend inspection (not documentation review alone). No proprietary third-party code, UI, text, or branding was referenced or copied.
-**Baseline:** Milestones 0–8 complete. Backend `051fd8c`, frontend `f26ff00`.
+**Baseline:** Milestones 0–8 complete at the time of the original audit. Backend `051fd8c`, frontend `f26ff00`. This document has been updated in place (not rewritten) after Milestone 10 closed several of the P0 items originally found here — sections below are marked accordingly rather than silently rewritten, so the audit trail of what was found vs. later fixed stays visible.
 
 This document is the single source of truth for what is real, what is partial, and what is missing, and it sequences the remaining work by commercial launch risk — not by feature novelty.
 
@@ -16,10 +16,10 @@ The platform is a genuinely substantial, well-structured multi-tenant ERP coveri
 It is **not yet commercially launch-ready**, for three independent reasons, each addressed below:
 
 1. **Three compounding, confirmed bugs in role/login handling**, found while writing a single regression test for the first: (a) `AuthService.BuildAuthResultAsync` resolved a login's permissions by matching custom role names across **all tenants** (`IgnoreQueryFilters()` with no `TenantId` re-check) — a cross-tenant privilege leak; (b) a database-level global-unique index (`RoleNameIndex`, on `NormalizedName` alone) meant no two tenants could ever create a role with the same name in the first place, a real SaaS-usability blocker that had also been silently masking how exploitable (a) actually was; and (c) the deepest one — role resolution at login/refresh used `UserManager.GetRolesAsync`, which is itself subject to `AppRole`'s tenant query filter, and since login/refresh run **before** any tenant context exists (they're the endpoints that issue the JWT), that filter collapsed to "system roles only," meaning **any user assigned solely a custom tenant role got zero roles and zero permissions on every login and every refresh** — a plain functional break, invisible until now because every pre-existing test happened to use only seeded system roles (e.g. "Sales Agent"). **All three have been fixed and regression-tested in this milestone** (see §4, §6, §15).
-2. **Finance is transaction-capable but not accounting-complete**: no accounts-payable clearing, no bank reconciliation, no fiscal-period locking, no multi-currency, no formal Balance Sheet/Cash Flow statements, no credit/debit notes, and revenue is recognized only on cash receipt. Fine for recording money movements; not sufficient for audited financial statements or investor/lender due diligence.
-3. **SaaS commercial infrastructure is scaffolded, not functional**: tenant `Status` (Trial/Suspended/Cancelled) and plan limits exist as columns but are never enforced anywhere at runtime; there is no self-service signup, no platform billing/invoicing of tenants, no trial-expiry automation (Hangfire is wired but zero jobs are registered), and no email capability at all (no password reset, no notifications).
+2. **Finance is transaction-capable but not accounting-complete**: ~~no accounts-payable clearing~~, no bank reconciliation, ~~no fiscal-period locking~~, no multi-currency, ~~no formal Balance Sheet/Cash Flow statements~~, no credit/debit notes, and revenue is recognized only on cash receipt. **Updated by Milestone 10**: AP clearing, fiscal-period close/reopen, journal reversal, and Balance Sheet/Profit & Loss/Cash Flow reports are now implemented and tested (see §5 and the Milestone 10 addendum below). Bank reconciliation, multi-currency, and credit/debit notes remain open — fine for recording money movements in a single currency; not yet sufficient for multi-currency operations or formal credit-note-based corrections.
+3. **SaaS commercial infrastructure is scaffolded, not functional**: ~~tenant `Status` (Trial/Suspended/Cancelled)~~ and plan limits exist as columns but are never enforced anywhere at runtime; there is no self-service signup, no platform billing/invoicing of tenants, no trial-expiry automation (Hangfire is wired but zero jobs are registered), and no email capability at all (no password reset, no notifications). **Updated by Milestone 10**: `TenantStatus` is now fully enforced — a Suspended/Cancelled tenant can no longer log in, refresh, or use an already-issued token against any protected API. Plan-limit enforcement, self-service signup, trial-expiry automation, platform billing, and email remain open.
 
-None of these are architecture failures — they are scope gaps in modules that were deliberately deferred to later milestones per the existing `ROADMAP.md`. The recommended next milestone (§13) is **Security & Finance Hardening**, not a new feature module, because the two hardest-to-retrofit gaps (accounting integrity and tenant-status enforcement) compound with every module built on top of them.
+None of these are architecture failures — they are scope gaps in modules that were deliberately deferred to later milestones per the existing `ROADMAP.md`. The recommended next milestone (§13) was **Security & Finance Hardening** — that milestone (10) is now complete; see the addendum after §15 for what it closed and what remains.
 
 ---
 
@@ -88,15 +88,15 @@ No dangerous circular dependencies were found between modules; the module-folder
 
 The ledger itself is well-built: postings are immutable once created (`JournalEntriesController`/`JournalService` only expose Create(Draft)→Post/Cancel, no Update/Edit endpoint exists), every system-generated entry carries a `(TenantId, ReferenceType, ReferenceId)` unique index that hard-blocks duplicate postings at the database level, and audit logging covers every journal lifecycle action. That said, it is a **cash-movement ledger, not a complete accounting system**:
 
-**Confirmed gaps, in order of commercial impact:**
-1. **No AP clearing** — Accounts Payable (2200) is only ever credited (Construction Expense approval); nothing in the codebase ever debits it. Vendor payables can be recorded but never paid off in the GL.
-2. **Cash-only revenue recognition, no deferred revenue** — every revenue posting (Sales/Rental/Facility) fires at cash receipt, not at invoice/booking time. A multi-year installment sale reports revenue only as cash arrives, not as earned — materially wrong for real-estate developer accounting.
-3. **No bank reconciliation and only one hardcoded cash/bank account (`1000`)** — `PaymentMethod` is captured on payments but never used to route to different bank accounts; nothing lets an operator reconcile the ledger against an actual bank statement.
-4. **No fiscal-period or period-closing mechanism** — any journal entry can be backdated into any prior period indefinitely; there is no way to lock a closed month/year.
-5. **No journal reversal for posted entries** — only Draft entries can be cancelled; correcting a posted error requires a brand-new, system-unlinked manual offsetting entry.
-6. **No multi-currency** — every `Amount` is a bare `decimal`; there is no `Currency` field anywhere in the domain.
-7. **Only two report endpoints exist** — Trial Balance and a basic Income Summary (Revenue − Expenses, no line items). No Balance Sheet endpoint (despite the dashboard already computing Assets/Liabilities/Equity internally — it's just not exposed as a report), no Cash Flow Statement.
-8. **No credit/debit notes** — the `FinancialDocumentType` enum defines them but the code that would ever instantiate one does not exist.
+**Confirmed gaps, in order of commercial impact (status after Milestone 10 noted inline):**
+1. ~~**No AP clearing**~~ — **Fixed in Milestone 10.** A new `ExpensePayment` entity + `IConstructionFinancePostingService.PostExpensePaymentAsync` (Dr Accounts Payable, Cr Cash) lets an Approved expense be paid down partially or in full, live-verified to zero the AP balance. Still only covers the Construction Expense path (the only place AP was ever credited) — Procurement PO/Receipt still doesn't post to Finance at all (unchanged, separate gap).
+2. **Cash-only revenue recognition, no deferred revenue** — unchanged. Every revenue posting (Sales/Rental/Facility) fires at cash receipt, not at invoice/booking time. A multi-year installment sale reports revenue only as cash arrives, not as earned — materially wrong for real-estate developer accounting.
+3. **No bank reconciliation and only one hardcoded cash/bank account (`1000`)** — unchanged. `PaymentMethod` is captured on payments but never used to route to different bank accounts; nothing lets an operator reconcile the ledger against an actual bank statement.
+4. ~~**No fiscal-period or period-closing mechanism**~~ — **Fixed in Milestone 10.** An opt-in `FiscalPeriod` entity (Open/Closed, non-overlapping per tenant via a Postgres EXCLUDE constraint) is checked by every journal-entry-creation path; a Closed period rejects any post dated into it, live-verified with a 400 on a backdated post and success after reopening. Periods must be explicitly created — a tenant that never defines one sees unrestricted posting exactly as before.
+5. ~~**No journal reversal for posted entries**~~ — **Fixed in Milestone 10.** `POST /finance/journal-entries/{id}/reverse` posts a fully swapped-Debit/Credit entry against a Posted one and marks the original `IsReversed`; the original is never edited or deleted, and double-reversal is rejected (enforced at the DB level via the existing duplicate-posting unique index, not just in application code).
+6. **No multi-currency** — unchanged, explicitly out of scope for Milestone 10 per its own instructions. Every `Amount` is a bare `decimal`; there is no `Currency` field anywhere in the domain.
+7. ~~**Only two report endpoints exist**~~ — **Partially fixed in Milestone 10.** `GET /finance/reports/balance-sheet`, `/profit-and-loss`, and `/cash-flow` now exist alongside Trial Balance/Income Summary, each broken down by account/category with verified reconciliation identities (Assets = Liabilities + Equity + Net Income; Opening + Net Change = Closing Cash). Not yet a period-close-driven formal statement set (no retained-earnings rollup at year-end — Net Income is always computed fresh as of the requested date, not carried forward as a closed balance).
+8. **No credit/debit notes** — unchanged. The `FinancialDocumentType` enum defines them but the code that would ever instantiate one does not exist.
 9. **No tax engine** — `PurchaseOrder.TaxAmount` is a free-entered number, never posted to a tax account; no tax field exists anywhere else.
 10. **No refund/reversal flow for Sales or Rental payments** — only `SecurityDeposit` supports a refund, and even that adjusts the deposit row directly with no journal entry.
 11. **No customer-advance mechanism** — `PaymentService.RecordAsync` explicitly rejects any payment exceeding the specific installment's outstanding balance, so a booking-token/advance payment ahead of a formal payment plan cannot be recorded.
@@ -179,7 +179,7 @@ Per-module dashboards are genuinely tenant-scoped and real (not mocked), but a m
 
 The scaffolding is more built-out than a typical Milestone-8-stage product (a `Tenant` entity with `Trial/Active/Suspended/Cancelled` status and `TrialEndsAt`, a `SubscriptionPlan`/`PlanFeature`/`TenantFeatureEntitlement` catalog, `PlatformOrganizationsController` for Super Admin tenant management) — but **none of it is wired to actually govern anything**:
 
-- `TenantStatus.Suspended`/`Cancelled` can be set via `POST /platform/organizations/{id}/status`, but no middleware, filter, or auth check anywhere blocks a suspended tenant's users from continuing to use the API normally.
+- ~~`TenantStatus.Suspended`/`Cancelled` can be set via `POST /platform/organizations/{id}/status`, but no middleware, filter, or auth check anywhere blocks a suspended tenant's users from continuing to use the API normally.~~ **Fixed in Milestone 10**: login/refresh reject a Suspended/Cancelled tenant outright, and a new `TenantStatusMiddleware` blocks an already-issued token from any protected endpoint the moment its tenant is suspended — live-verified (401 on login, 403 on a previously-valid token, restored on reactivation).
 - `UserLimit`/`ProjectLimit`/`StorageLimitMb` on `SubscriptionPlan` are stored but never read by any user/project-creation code path.
 - `TenantFeatureEntitlement` rows can be created but nothing checks them before exposing a module/feature.
 - No `IHostedService`/background job exists anywhere (Hangfire is wired with zero jobs registered) — `TrialEndsAt` is never checked, so trials never expire automatically.
@@ -216,16 +216,16 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 ## 12. P0 / P1 / P2 Roadmap
 
 **P0 — required before serious commercial launch** (data-integrity or trust-breaking if absent):
-- ~~Cross-tenant role/permission leak~~ — **fixed in this milestone.**
-- Enforce `TenantStatus` (Suspended/Cancelled tenants must be blocked at the API boundary, not just flaggable in the DB).
-- Transactional email capability (minimum: password reset, tenant-suspension notice) — this is also the hard prerequisite for any portal work.
-- AP clearing (vendor payments must be able to reduce the AP balance — right now it only ever grows).
-- Fiscal-period closing (prevent silent backdated postings into a closed period) — required for any customer who will be audited.
-- TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed).
+- ~~Cross-tenant role/permission leak~~ — **fixed in Milestone 9.**
+- ~~Enforce `TenantStatus`~~ — **fixed in Milestone 10** (Suspended/Cancelled tenants are blocked at login, refresh, and every protected API call).
+- Transactional email capability (minimum: password reset, tenant-suspension notice) — this is also the hard prerequisite for any portal work. **Still open** — moved to Milestone 12 in `ROADMAP.md`.
+- ~~AP clearing~~ — **fixed in Milestone 10** (vendor payments now reduce the AP balance via `ExpensePayment`).
+- ~~Fiscal-period closing~~ — **fixed in Milestone 10** (Closed periods reject backdated postings; opt-in, no behavior change for tenants that don't define one).
+- TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed). **Still open.**
 
 **P1 — important shortly after launch:**
-- Cross-module reporting: today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the single most commonly asked "can the ERP tell me X" questions today's answer is no to.
-- Journal reversal for posted entries (not just Draft cancellation).
+- Cross-module reporting: today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the single most commonly asked "can the ERP tell me X" questions today's answer is no to. (Balance Sheet/P&L/Cash Flow are now available as of Milestone 10, which covers part of this — today's-sales/aging/profitability/agent-performance remain open, scheduled for Milestone 11.)
+- ~~Journal reversal for posted entries~~ — **fixed in Milestone 10.**
 - Bank reconciliation and multi-bank-account support (`PaymentMethod` already captured, just not routed).
 - Documents/attachments (leases, maintenance photos, KYC) — infra (`uploads-data` volume, `Storage:LocalPath`) is already provisioned.
 - Confirmation dialogs on destructive status transitions (Cancel booking/membership/request) — cheap, mechanical, closes a real UX gap.
@@ -278,7 +278,7 @@ HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campa
 
 ---
 
-## Verification performed this milestone
+## Verification performed in Milestone 9
 
 - **Backend tests:** 12/12 unit + 113/113 integration passed (112 pre-existing + 1 new regression test for the fixed cross-tenant role leak), 0 failures, 0 regressions, with both fixes applied.
 - **Frontend build:** `npm run build` — 0 errors (`✓ 2357 modules transformed`).
@@ -286,3 +286,28 @@ HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campa
 - **`docker compose config`:** exits 0 with `.env.example` values.
 - **Docker runtime verification:** not exercised — this sandbox's network policy blocks Docker Hub image pulls, consistent with every prior milestone's report.
 - **Fix scope:** two production files changed (`AuthService.cs` — role resolution in `BuildAuthResultAsync` rewritten to be tenant-safe; `IdentityConfigurations.cs` — index definition) plus one migration (`FixRoleNameUniquePerTenant`) and one new regression test (`TenantIsolationTests.cs`) — no architecture change, no new module.
+
+---
+
+## Milestone 10 addendum — Security & Finance Hardening
+
+Milestone 10 closed six of the items this audit originally flagged (see the strikethrough markers throughout §5, §9, §12): tenant-status enforcement, AP clearing, fiscal-period close/reopen, journal reversal, and Balance Sheet/Profit & Loss/Cash Flow reports. It also re-ran an authorization pass against every finding in §6 and found no new defects.
+
+**What was implemented:**
+- `TenantStatusMiddleware` (per-request enforcement of already-issued tokens) plus `AuthService.LoginAsync`/`RefreshAsync` checks (enforcement at the point of issuance) — both share one `TenantStatusExtensions.IsUsable()` helper so the two enforcement points can never drift out of sync.
+- `FiscalPeriod` (opt-in, non-overlapping via a Postgres EXCLUDE constraint) + `FiscalPeriodGuard`, called from all five journal-entry-creation paths (manual + four system posting services).
+- `JournalService.ReverseAsync` — a new, fully swapped entry against a Posted one; the original is never mutated.
+- `ExpensePayment` (AP clearing) — mirrors the existing `RentPayment`/`FacilityPayment` source-row-per-posting convention exactly, including the idempotency-key and retry-on-`23505` patterns.
+- `GetBalanceSheetAsync`/`GetProfitAndLossAsync`/`GetCashFlowAsync` on the existing `FinanceReportService`, alongside (not replacing) Trial Balance/Income Summary.
+
+**What was deliberately not touched, per the milestone's own scope:** multi-currency, a tax engine, credit/debit notes, bank reconciliation, the older Sales/Coworking/Maintenance missing-confirm-dialog UX gap, and the `FacilityEventService`/`TenantNoticeService` status-transition gaps — all remain open and are now scheduled into Milestones 11–15 in `ROADMAP.md` rather than this one.
+
+### Verification performed in Milestone 10
+
+- **Backend tests:** 12/12 unit + 129/129 integration passed (113 pre-existing + 16 new), 0 failures, 0 regressions.
+- **Frontend build:** `npm run build` — 0 errors.
+- **Migration/schema:** one new migration, `AddSecurityFinanceHardening` (`JournalEntry.IsReversed`/`ReversalOfEntryId`, `Expense.PaidAmount`, new `expense_payments` and `fiscal_periods` tables including a Postgres EXCLUDE constraint on `fiscal_periods` for tenant-scoped non-overlap) — applied and schema-verified via `psql \d` against the dev database.
+- **`docker compose config`:** exits 0 with `.env.example` values.
+- **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.
+- **Live verification against the real running API:** suspend → login blocked (401) → an already-issued token blocked on a protected endpoint (403) → reactivate → login restored; fiscal period created → closed → backdated post rejected (400) → reopened → retry succeeds (201); journal entry posted → reversed (debit/credit swap confirmed line-by-line) → double-reversal rejected (400); expense created → approved → paid in full via AP clearing; Balance Sheet (`TotalAssets == TotalLiabilitiesAndEquity`), Profit & Loss, and Cash Flow (`OpeningCash + NetChange == ClosingCash`) all fetched and their reconciliation identities held exactly on real, non-trivial numbers.
+- **Fix scope:** ~15 backend files (2 new entities, 1 new service, 1 new middleware, 1 new controller, extensions to `AuthService`/`JournalService`/`ConstructionFinancePostingService`/`ExpenseService`/`FinanceReportService`/the three other posting services), 1 migration, 3 new/extended test files — additive throughout, no existing endpoint's request/response shape was changed, no existing test was modified.

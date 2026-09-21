@@ -49,6 +49,7 @@ public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         b.ToTable("expenses");
         b.HasKey(x => x.Id);
         b.Property(x => x.Amount).HasColumnType("numeric(18,2)");
+        b.Property(x => x.PaidAmount).HasColumnType("numeric(18,2)");
         b.Property(x => x.ReferenceNumber).HasMaxLength(100);
         b.Property(x => x.Notes).HasMaxLength(2000);
 
@@ -58,5 +59,25 @@ public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
 
         b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<WorkPackage>().WithMany().HasForeignKey(x => x.WorkPackageId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class ExpensePaymentConfiguration : IEntityTypeConfiguration<ExpensePayment>
+{
+    public void Configure(EntityTypeBuilder<ExpensePayment> b)
+    {
+        b.ToTable("expense_payments");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ReceiptNumber).HasMaxLength(30).IsRequired();
+        b.Property(x => x.Amount).HasColumnType("numeric(18,2)");
+        b.Property(x => x.ReferenceNumber).HasMaxLength(100);
+        b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.IdempotencyKey).HasMaxLength(100);
+
+        b.HasIndex(x => new { x.TenantId, x.ReceiptNumber }).IsUnique();
+        b.HasIndex(x => new { x.TenantId, x.ExpenseId });
+        b.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        b.HasOne<Expense>().WithMany().HasForeignKey(x => x.ExpenseId).OnDelete(DeleteBehavior.Restrict);
     }
 }

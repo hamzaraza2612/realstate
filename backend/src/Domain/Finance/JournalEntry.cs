@@ -27,4 +27,11 @@ public class JournalEntry : TenantEntity
     public Guid? ReferenceId { get; set; }
 
     public JournalEntryStatus Status { get; set; } = JournalEntryStatus.Draft;
+
+    /// <summary>True once a reversing entry has been posted against this one — a Posted entry can only
+    /// ever be reversed once (the reversal itself, not this flag, is what a human reads to see why).</summary>
+    public bool IsReversed { get; set; }
+
+    /// <summary>Set only on a reversal entry, pointing back at the original Posted entry it reverses.</summary>
+    public Guid? ReversalOfEntryId { get; set; }
 }

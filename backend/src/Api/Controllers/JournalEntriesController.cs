@@ -59,4 +59,12 @@ public class JournalEntriesController : ApiControllerBase
         var result = await _journalService.CancelAsync(id, ct);
         return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
     }
+
+    [HttpPost("{id:guid}/reverse")]
+    [RequirePermission(Permissions.Finance.Manage)]
+    public async Task<IActionResult> Reverse(Guid id, ReverseJournalEntryRequest request, CancellationToken ct)
+    {
+        var result = await _journalService.ReverseAsync(id, request, ct);
+        return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
+    }
 }

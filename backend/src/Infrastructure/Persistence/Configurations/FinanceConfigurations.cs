@@ -35,7 +35,25 @@ public class JournalEntryConfiguration : IEntityTypeConfiguration<JournalEntry>
         b.HasIndex(x => new { x.TenantId, x.Status });
 
         // Guarantees at most one journal entry per source event (e.g. one per Sales Payment) — the DB-level half of duplicate-posting protection.
+        // A reversal entry uses ReferenceType "Reversal" + ReferenceId = the original entry's Id, so this
+        // same index also guarantees at most one reversal per original entry (double-reversal protection).
         b.HasIndex(x => new { x.TenantId, x.ReferenceType, x.ReferenceId }).IsUnique().HasFilter("\"ReferenceId\" IS NOT NULL");
+
+        b.HasOne<JournalEntry>().WithMany().HasForeignKey(x => x.ReversalOfEntryId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class FiscalPeriodConfiguration : IEntityTypeConfiguration<FiscalPeriod>
+{
+    public void Configure(EntityTypeBuilder<FiscalPeriod> b)
+    {
+        b.ToTable("fiscal_periods");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(100).IsRequired();
+
+        b.HasIndex(x => new { x.TenantId, x.Status });
+
+        b.ToTable(t => t.HasCheckConstraint("CK_fiscal_periods_valid_range", "\"EndDate\" >= \"StartDate\""));
     }
 }
 

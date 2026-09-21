@@ -34,4 +34,8 @@ public class Expense : TenantEntity
     public string? Notes { get; set; }
     public ExpenseStatus Status { get; set; } = ExpenseStatus.Pending;
     public Guid? JournalEntryId { get; set; }
+
+    /// <summary>Sum of ExpensePayment amounts recorded against this expense — the Accounts Payable
+    /// clearing this expense's approval posting created. Only meaningful once Approved.</summary>
+    public decimal PaidAmount { get; set; }
 }

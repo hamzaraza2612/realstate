@@ -28,6 +28,7 @@ using ISalesBookingService = RealEstateErp.Application.Sales.Bookings.IBookingSe
 using RealEstateErp.Application.Finance;
 using RealEstateErp.Application.Finance.Accounts;
 using RealEstateErp.Application.Finance.Dashboard;
+using RealEstateErp.Application.Finance.FiscalPeriods;
 using RealEstateErp.Application.Finance.Journal;
 using RealEstateErp.Application.Finance.Receivables;
 using RealEstateErp.Application.Finance.Reports;
@@ -134,6 +135,7 @@ public static class DependencyInjection
         services.AddScoped<IReceivableService, ReceivableService>();
         services.AddScoped<IFinanceDashboardService, FinanceDashboardService>();
         services.AddScoped<IFinanceReportService, FinanceReportService>();
+        services.AddScoped<IFiscalPeriodService, FiscalPeriodService>();
         services.AddScoped<IWorkPackageService, WorkPackageService>();
         services.AddScoped<IConstructionTaskService, ConstructionTaskService>();
         services.AddScoped<IExpenseService, ExpenseService>();
