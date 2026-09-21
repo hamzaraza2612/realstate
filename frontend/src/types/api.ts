@@ -1092,3 +1092,388 @@ export interface ProcurementDashboardDto {
   totalProcurementValue: number
   recentPurchaseOrders: RecentPurchaseOrderDto[]
 }
+
+// --- Property & Rental Management ---
+
+export const PropertyType = {
+  Building: 0,
+  ApartmentComplex: 1,
+  CommercialProperty: 2,
+  OfficeBuilding: 3,
+  ShoppingProperty: 4,
+  House: 5,
+  Other: 6,
+} as const
+export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType]
+
+export const PropertyTypeLabel: Record<PropertyType, string> = {
+  [PropertyType.Building]: 'Building',
+  [PropertyType.ApartmentComplex]: 'Apartment Complex',
+  [PropertyType.CommercialProperty]: 'Commercial Property',
+  [PropertyType.OfficeBuilding]: 'Office Building',
+  [PropertyType.ShoppingProperty]: 'Shopping Property',
+  [PropertyType.House]: 'House',
+  [PropertyType.Other]: 'Other',
+}
+
+export const PropertyStatus = {
+  Active: 0,
+  Inactive: 1,
+  UnderRenovation: 2,
+} as const
+export type PropertyStatus = (typeof PropertyStatus)[keyof typeof PropertyStatus]
+
+export const PropertyStatusLabel: Record<PropertyStatus, string> = {
+  [PropertyStatus.Active]: 'Active',
+  [PropertyStatus.Inactive]: 'Inactive',
+  [PropertyStatus.UnderRenovation]: 'Under Renovation',
+}
+
+export interface PropertyDto {
+  id: string
+  code: string
+  name: string
+  type: PropertyType
+  status: PropertyStatus
+  description: string | null
+  addressLine: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+  postalCode: string | null
+  ownerName: string | null
+  ownerContact: string | null
+  unitCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const PropertyUnitType = {
+  Apartment: 0,
+  Office: 1,
+  Shop: 2,
+  House: 3,
+  Commercial: 4,
+  Other: 5,
+} as const
+export type PropertyUnitType = (typeof PropertyUnitType)[keyof typeof PropertyUnitType]
+
+export const PropertyUnitTypeLabel: Record<PropertyUnitType, string> = {
+  [PropertyUnitType.Apartment]: 'Apartment',
+  [PropertyUnitType.Office]: 'Office',
+  [PropertyUnitType.Shop]: 'Shop',
+  [PropertyUnitType.House]: 'House',
+  [PropertyUnitType.Commercial]: 'Commercial',
+  [PropertyUnitType.Other]: 'Other',
+}
+
+export const PropertyUnitStatus = {
+  Available: 0,
+  Reserved: 1,
+  Occupied: 2,
+  Maintenance: 3,
+  Inactive: 4,
+} as const
+export type PropertyUnitStatus = (typeof PropertyUnitStatus)[keyof typeof PropertyUnitStatus]
+
+export const PropertyUnitStatusLabel: Record<PropertyUnitStatus, string> = {
+  [PropertyUnitStatus.Available]: 'Available',
+  [PropertyUnitStatus.Reserved]: 'Reserved',
+  [PropertyUnitStatus.Occupied]: 'Occupied',
+  [PropertyUnitStatus.Maintenance]: 'Maintenance',
+  [PropertyUnitStatus.Inactive]: 'Inactive',
+}
+
+export interface PropertyUnitDto {
+  id: string
+  propertyId: string
+  propertyName: string
+  buildingBlock: string | null
+  unitNumber: string
+  type: PropertyUnitType
+  floor: string | null
+  areaSize: number | null
+  areaUnit: string | null
+  bedrooms: number | null
+  status: PropertyUnitStatus
+  marketRentRate: number | null
+  metadataJson: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface RentalTenantDto {
+  id: string
+  customerId: string
+  customerName: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  isCompany: boolean
+  identificationNumber: string | null
+  isActive: boolean
+  notes: string | null
+  activeLeaseCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const LeaseStatus = {
+  Draft: 0,
+  PendingApproval: 1,
+  Active: 2,
+  Expired: 3,
+  Terminated: 4,
+  Cancelled: 5,
+} as const
+export type LeaseStatus = (typeof LeaseStatus)[keyof typeof LeaseStatus]
+
+export const LeaseStatusLabel: Record<LeaseStatus, string> = {
+  [LeaseStatus.Draft]: 'Draft',
+  [LeaseStatus.PendingApproval]: 'Pending Approval',
+  [LeaseStatus.Active]: 'Active',
+  [LeaseStatus.Expired]: 'Expired',
+  [LeaseStatus.Terminated]: 'Terminated',
+  [LeaseStatus.Cancelled]: 'Cancelled',
+}
+
+export const LeasePaymentFrequency = {
+  Monthly: 0,
+  Quarterly: 1,
+  Yearly: 2,
+} as const
+export type LeasePaymentFrequency = (typeof LeasePaymentFrequency)[keyof typeof LeasePaymentFrequency]
+
+export const LeasePaymentFrequencyLabel: Record<LeasePaymentFrequency, string> = {
+  [LeasePaymentFrequency.Monthly]: 'Monthly',
+  [LeasePaymentFrequency.Quarterly]: 'Quarterly',
+  [LeasePaymentFrequency.Yearly]: 'Yearly',
+}
+
+export interface LeaseDto {
+  id: string
+  leaseNumber: string
+  propertyId: string
+  propertyName: string
+  unitId: string
+  unitNumber: string
+  rentalTenantId: string
+  rentalTenantName: string
+  startDate: string
+  endDate: string
+  rentAmount: number
+  securityDeposit: number | null
+  paymentFrequency: LeasePaymentFrequency
+  gracePeriodDays: number
+  status: LeaseStatus
+  terms: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const RentScheduleStatus = {
+  Pending: 0,
+  PartiallyPaid: 1,
+  Paid: 2,
+  Overdue: 3,
+  Cancelled: 4,
+} as const
+export type RentScheduleStatus = (typeof RentScheduleStatus)[keyof typeof RentScheduleStatus]
+
+export const RentScheduleStatusLabel: Record<RentScheduleStatus, string> = {
+  [RentScheduleStatus.Pending]: 'Pending',
+  [RentScheduleStatus.PartiallyPaid]: 'Partially Paid',
+  [RentScheduleStatus.Paid]: 'Paid',
+  [RentScheduleStatus.Overdue]: 'Overdue',
+  [RentScheduleStatus.Cancelled]: 'Cancelled',
+}
+
+export interface RentScheduleDto {
+  id: string
+  leaseId: string
+  leaseNumber: string
+  periodNumber: number
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  amount: number
+  paidAmount: number
+  status: RentScheduleStatus
+  isOverdue: boolean
+}
+
+export interface RentPaymentDto {
+  id: string
+  receiptNumber: string
+  leaseId: string
+  leaseNumber: string
+  rentScheduleId: string
+  rentSchedulePeriodNumber: number
+  amount: number
+  paymentDate: string
+  method: PaymentMethod
+  referenceNumber: string | null
+  notes: string | null
+  recordedByUserId: string
+  recordedByUserName: string | null
+  journalEntryId: string | null
+  createdAt: string
+}
+
+export const SecurityDepositStatus = {
+  Pending: 0,
+  Held: 1,
+  PartiallyRefunded: 2,
+  Refunded: 3,
+  Forfeited: 4,
+} as const
+export type SecurityDepositStatus = (typeof SecurityDepositStatus)[keyof typeof SecurityDepositStatus]
+
+export const SecurityDepositStatusLabel: Record<SecurityDepositStatus, string> = {
+  [SecurityDepositStatus.Pending]: 'Pending',
+  [SecurityDepositStatus.Held]: 'Held',
+  [SecurityDepositStatus.PartiallyRefunded]: 'Partially Refunded',
+  [SecurityDepositStatus.Refunded]: 'Refunded',
+  [SecurityDepositStatus.Forfeited]: 'Forfeited',
+}
+
+export interface SecurityDepositDto {
+  id: string
+  leaseId: string
+  leaseNumber: string
+  amount: number
+  status: SecurityDepositStatus
+  receivedDate: string | null
+  refundedAmount: number
+  refundDate: string | null
+  notes: string | null
+}
+
+export const MaintenanceCategory = {
+  Plumbing: 0,
+  Electrical: 1,
+  Hvac: 2,
+  Structural: 3,
+  Appliance: 4,
+  Other: 5,
+} as const
+export type MaintenanceCategory = (typeof MaintenanceCategory)[keyof typeof MaintenanceCategory]
+
+export const MaintenanceCategoryLabel: Record<MaintenanceCategory, string> = {
+  [MaintenanceCategory.Plumbing]: 'Plumbing',
+  [MaintenanceCategory.Electrical]: 'Electrical',
+  [MaintenanceCategory.Hvac]: 'HVAC',
+  [MaintenanceCategory.Structural]: 'Structural',
+  [MaintenanceCategory.Appliance]: 'Appliance',
+  [MaintenanceCategory.Other]: 'Other',
+}
+
+export const MaintenancePriority = {
+  Low: 0,
+  Medium: 1,
+  High: 2,
+  Urgent: 3,
+} as const
+export type MaintenancePriority = (typeof MaintenancePriority)[keyof typeof MaintenancePriority]
+
+export const MaintenancePriorityLabel: Record<MaintenancePriority, string> = {
+  [MaintenancePriority.Low]: 'Low',
+  [MaintenancePriority.Medium]: 'Medium',
+  [MaintenancePriority.High]: 'High',
+  [MaintenancePriority.Urgent]: 'Urgent',
+}
+
+export const MaintenanceStatus = {
+  Open: 0,
+  Assigned: 1,
+  InProgress: 2,
+  OnHold: 3,
+  Resolved: 4,
+  Cancelled: 5,
+} as const
+export type MaintenanceStatus = (typeof MaintenanceStatus)[keyof typeof MaintenanceStatus]
+
+export const MaintenanceStatusLabel: Record<MaintenanceStatus, string> = {
+  [MaintenanceStatus.Open]: 'Open',
+  [MaintenanceStatus.Assigned]: 'Assigned',
+  [MaintenanceStatus.InProgress]: 'In Progress',
+  [MaintenanceStatus.OnHold]: 'On Hold',
+  [MaintenanceStatus.Resolved]: 'Resolved',
+  [MaintenanceStatus.Cancelled]: 'Cancelled',
+}
+
+export interface MaintenanceRequestDto {
+  id: string
+  requestNumber: string
+  propertyId: string
+  propertyName: string
+  unitId: string | null
+  unitNumber: string | null
+  rentalTenantId: string | null
+  rentalTenantName: string | null
+  category: MaintenanceCategory
+  priority: MaintenancePriority
+  description: string
+  reportedDate: string
+  assignedToUserId: string | null
+  assignedToUserName: string | null
+  assignedVendorId: string | null
+  assignedVendorName: string | null
+  status: MaintenanceStatus
+  resolutionNotes: string | null
+  completionDate: string | null
+  createdAt: string
+}
+
+export interface PropertyPerformanceDto {
+  propertyId: string
+  propertyName: string
+  totalUnits: number
+  occupiedUnits: number
+  monthlyRentalIncome: number
+  outstandingRent: number
+}
+
+export interface PropertyDashboardDto {
+  totalProperties: number
+  totalUnits: number
+  occupiedUnits: number
+  availableUnits: number
+  occupancyRate: number
+  activeLeases: number
+  expiringLeases: number
+  monthlyRentalIncome: number
+  outstandingRent: number
+  overdueRent: number
+  openMaintenanceRequests: number
+  propertyPerformance: PropertyPerformanceDto[]
+}
+
+export interface UpcomingLeaseExpirationDto {
+  leaseId: string
+  leaseNumber: string
+  unitNumber: string
+  tenantName: string
+  endDate: string
+}
+
+export interface RecentRentPaymentDto {
+  id: string
+  receiptNumber: string
+  leaseNumber: string
+  amount: number
+  paymentDate: string
+}
+
+export interface RentalDashboardDto {
+  activeLeases: number
+  upcomingExpirations: UpcomingLeaseExpirationDto[]
+  rentDue: number
+  collectedRent: number
+  outstandingRent: number
+  overdueObligations: number
+  totalUnits: number
+  occupiedUnits: number
+  recentPayments: RecentRentPaymentDto[]
+}

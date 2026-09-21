@@ -29,6 +29,15 @@ import { PurchaseOrdersPage } from '@/modules/procurement/purchaseOrders/Purchas
 import { PurchaseOrderDetailPage } from '@/modules/procurement/purchaseOrders/PurchaseOrderDetailPage'
 import { MaterialsPage } from '@/modules/procurement/materials/MaterialsPage'
 import { MaterialDetailPage } from '@/modules/procurement/materials/MaterialDetailPage'
+import { PropertyDashboardPage } from '@/modules/property/dashboard/PropertyDashboardPage'
+import { RentalDashboardPage } from '@/modules/property/rentalDashboard/RentalDashboardPage'
+import { PropertiesPage } from '@/modules/property/properties/PropertiesPage'
+import { UnitsPage } from '@/modules/property/units/UnitsPage'
+import { TenantsPage } from '@/modules/property/tenants/TenantsPage'
+import { LeasesPage } from '@/modules/property/leases/LeasesPage'
+import { LeaseDetailPage } from '@/modules/property/leases/LeaseDetailPage'
+import { MaintenanceRequestsPage } from '@/modules/property/maintenance/MaintenanceRequestsPage'
+import { MaintenanceRequestDetailPage } from '@/modules/property/maintenance/MaintenanceRequestDetailPage'
 import { FinanceDashboardPage } from '@/modules/finance/dashboard/FinanceDashboardPage'
 import { ChartOfAccountsPage } from '@/modules/finance/accounts/ChartOfAccountsPage'
 import { JournalPage } from '@/modules/finance/journal/JournalPage'
@@ -260,6 +269,78 @@ export default function App() {
           element={
             <PermissionRoute permission="procurement.view">
               <MaterialDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property"
+          element={
+            <PermissionRoute permission="property.view">
+              <PropertyDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/rental-dashboard"
+          element={
+            <PermissionRoute permission="property.view">
+              <RentalDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/properties"
+          element={
+            <PermissionRoute permission="property.view">
+              <PropertiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/units"
+          element={
+            <PermissionRoute permission="property.view">
+              <UnitsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/tenants"
+          element={
+            <PermissionRoute permission="property.view">
+              <TenantsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/leases"
+          element={
+            <PermissionRoute permission="property.view">
+              <LeasesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/leases/:id"
+          element={
+            <PermissionRoute permission="property.view">
+              <LeaseDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/maintenance"
+          element={
+            <PermissionRoute permission="property.view">
+              <MaintenanceRequestsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/maintenance/:id"
+          element={
+            <PermissionRoute permission="property.view">
+              <MaintenanceRequestDetailPage />
             </PermissionRoute>
           }
         />

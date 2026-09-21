@@ -21,6 +21,12 @@ import {
   ShoppingCart,
   Truck,
   Package,
+  Home,
+  Building,
+  DoorOpen,
+  UserRound,
+  FileSignature,
+  Hammer,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -52,6 +58,13 @@ const navItems: NavItem[] = [
   { to: '/procurement/purchase-requests', label: 'Purchase Requests', icon: ClipboardList, permission: 'procurement.view' },
   { to: '/procurement/purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, permission: 'procurement.view' },
   { to: '/procurement/materials', label: 'Materials', icon: Package, permission: 'procurement.view' },
+  { to: '/property', label: 'Property Dashboard', icon: LayoutDashboard, permission: 'property.view' },
+  { to: '/property/rental-dashboard', label: 'Rental Dashboard', icon: Home, permission: 'property.view' },
+  { to: '/property/properties', label: 'Properties', icon: Building, permission: 'property.view' },
+  { to: '/property/units', label: 'Units', icon: DoorOpen, permission: 'property.view' },
+  { to: '/property/tenants', label: 'Tenants', icon: UserRound, permission: 'property.view' },
+  { to: '/property/leases', label: 'Leases', icon: FileSignature, permission: 'property.view' },
+  { to: '/property/maintenance', label: 'Maintenance', icon: Hammer, permission: 'property.view' },
   { to: '/finance', label: 'Finance Dashboard', icon: Wallet, permission: 'finance.reports.view' },
   { to: '/finance/accounts', label: 'Chart of Accounts', icon: BookOpen, permission: 'finance.reports.view' },
   { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
@@ -112,7 +125,15 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/' || item.to === '/crm' || item.to === '/sales' || item.to === '/construction' || item.to === '/procurement' || item.to === '/finance'}
+      end={
+        item.to === '/' ||
+        item.to === '/crm' ||
+        item.to === '/sales' ||
+        item.to === '/construction' ||
+        item.to === '/procurement' ||
+        item.to === '/property' ||
+        item.to === '/finance'
+      }
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
