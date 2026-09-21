@@ -78,3 +78,23 @@ function useJournalAction(action: 'post' | 'cancel') {
 
 export const usePostJournalEntry = () => useJournalAction('post')
 export const useCancelJournalEntry = () => useJournalAction('cancel')
+
+export interface ReverseJournalEntryRequest {
+  id: string
+  reversalDate: string | null
+  reason: string | null
+}
+
+export function useReverseJournalEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, reversalDate, reason }: ReverseJournalEntryRequest) => {
+      const response = await apiClient.post<ApiEnvelope<JournalEntryDto>>(`/finance/journal-entries/${id}/reverse`, {
+        reversalDate,
+        reason,
+      })
+      return response.data.data
+    },
+    onSuccess: () => invalidateJournal(queryClient),
+  })
+}

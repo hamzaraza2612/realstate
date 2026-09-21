@@ -44,6 +44,10 @@ import { JournalPage } from '@/modules/finance/journal/JournalPage'
 import { JournalEntryDetailPage } from '@/modules/finance/journal/JournalEntryDetailPage'
 import { ReceivablesPage } from '@/modules/finance/receivables/ReceivablesPage'
 import { TrialBalancePage } from '@/modules/finance/reports/TrialBalancePage'
+import { BalanceSheetPage } from '@/modules/finance/reports/BalanceSheetPage'
+import { ProfitAndLossPage } from '@/modules/finance/reports/ProfitAndLossPage'
+import { CashFlowPage } from '@/modules/finance/reports/CashFlowPage'
+import { FiscalPeriodsPage } from '@/modules/finance/fiscalPeriods/FiscalPeriodsPage'
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
@@ -605,6 +609,38 @@ export default function App() {
           element={
             <PermissionRoute permission="finance.reports.view">
               <TrialBalancePage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/balance-sheet"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <BalanceSheetPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/profit-and-loss"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <ProfitAndLossPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/cash-flow"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <CashFlowPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/fiscal-periods"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <FiscalPeriodsPage />
             </PermissionRoute>
           }
         />

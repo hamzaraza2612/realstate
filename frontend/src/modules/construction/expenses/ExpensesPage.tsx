@@ -10,9 +10,10 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateV
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
-import { ExpenseCategory, ExpenseCategoryLabel, ExpenseStatus, ExpenseStatusLabel } from '@/types/api'
+import { ExpenseCategory, ExpenseCategoryLabel, ExpenseStatus, ExpenseStatusLabel, type ExpenseDto } from '@/types/api'
 import { useApproveExpense, useExpenses, useRejectExpense } from './api'
 import { ExpenseFormDialog } from './ExpenseFormDialog'
+import { PayExpenseDialog } from './PayExpenseDialog'
 
 const ALL = 'all'
 
@@ -27,6 +28,7 @@ export function ExpensesPage() {
   const [status, setStatus] = useState<string>(ALL)
   const [category, setCategory] = useState<string>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
+  const [payTarget, setPayTarget] = useState<ExpenseDto | null>(null)
 
   const { data, isLoading, isError, refetch } = useExpenses(page, {
     status: status === ALL ? undefined : (Number(status) as ExpenseStatus),
@@ -139,7 +141,14 @@ export function ExpensesPage() {
                   <TableCell className="text-muted-foreground">{e.workPackageName ?? '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{ExpenseCategoryLabel[e.category]}</TableCell>
                   <TableCell className="text-muted-foreground">{e.vendorName ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">${e.amount.toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    ${e.amount.toLocaleString()}
+                    {e.status === ExpenseStatus.Approved && e.paidAmount > 0 && (
+                      <Badge variant="outline" className="ml-2">
+                        ${e.paidAmount.toLocaleString()} of ${e.amount.toLocaleString()} paid
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[e.status]}>{ExpenseStatusLabel[e.status]}</Badge>
                   </TableCell>
@@ -154,6 +163,13 @@ export function ExpensesPage() {
                             Reject
                           </Button>
                         </div>
+                      </PermissionGate>
+                    )}
+                    {e.status === ExpenseStatus.Approved && e.paidAmount < e.amount && (
+                      <PermissionGate permission="finance.manage">
+                        <Button size="sm" onClick={() => setPayTarget(e)}>
+                          Record payment
+                        </Button>
                       </PermissionGate>
                     )}
                   </TableCell>
@@ -179,6 +195,7 @@ export function ExpensesPage() {
       )}
 
       <ExpenseFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <PayExpenseDialog open={!!payTarget} onOpenChange={(open) => !open && setPayTarget(null)} expense={payTarget} />
     </div>
   )
 }

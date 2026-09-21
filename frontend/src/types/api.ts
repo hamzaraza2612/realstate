@@ -667,6 +667,29 @@ export interface JournalEntryDto {
   totalCredit: number
   lines: JournalLineDto[]
   createdAt: string
+  isReversed: boolean
+  reversalOfEntryId: string | null
+}
+
+// --- Finance: Fiscal Periods ---
+
+export const FiscalPeriodStatus = { Open: 0, Closed: 1 } as const
+export type FiscalPeriodStatus = (typeof FiscalPeriodStatus)[keyof typeof FiscalPeriodStatus]
+export const FiscalPeriodStatusLabel: Record<FiscalPeriodStatus, string> = {
+  [FiscalPeriodStatus.Open]: 'Open',
+  [FiscalPeriodStatus.Closed]: 'Closed',
+}
+
+export interface FiscalPeriodDto {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+  status: FiscalPeriodStatus
+  closedAt: string | null
+  closedByUserId: string | null
+  closedByUserName: string | null
+  createdAt: string
 }
 
 export interface ReceivableDto {
@@ -719,6 +742,54 @@ export interface TrialBalanceDto {
   lines: TrialBalanceLineDto[]
   totalDebit: number
   totalCredit: number
+}
+
+// --- Finance: Financial statements ---
+
+export interface FinancialStatementLineDto {
+  accountId: string
+  code: string
+  name: string
+  amount: number
+}
+
+export interface BalanceSheetDto {
+  asOf: string
+  assets: FinancialStatementLineDto[]
+  totalAssets: number
+  liabilities: FinancialStatementLineDto[]
+  totalLiabilities: number
+  equity: FinancialStatementLineDto[]
+  totalEquity: number
+  netIncome: number
+  totalLiabilitiesAndEquity: number
+}
+
+export interface ProfitAndLossDto {
+  from: string | null
+  to: string | null
+  revenueLines: FinancialStatementLineDto[]
+  totalRevenue: number
+  expenseLines: FinancialStatementLineDto[]
+  totalExpenses: number
+  netIncome: number
+}
+
+export interface CashFlowCategoryDto {
+  referenceType: string
+  amount: number
+}
+
+export interface CashFlowDto {
+  from: string | null
+  to: string | null
+  openingCash: number
+  inflows: CashFlowCategoryDto[]
+  totalInflows: number
+  outflows: CashFlowCategoryDto[]
+  totalOutflows: number
+  netChange: number
+  closingCash: number
 }
 
 // ===== Construction & Procurement =====
@@ -856,6 +927,21 @@ export interface ExpenseDto {
   referenceNumber: string | null
   notes: string | null
   status: ExpenseStatus
+  journalEntryId: string | null
+  paidAmount: number
+  createdAt: string
+}
+
+export interface ExpensePaymentDto {
+  id: string
+  receiptNumber: string
+  expenseId: string
+  amount: number
+  paymentDate: string
+  referenceNumber: string | null
+  notes: string | null
+  recordedByUserId: string
+  recordedByUserName: string | null
   journalEntryId: string | null
   createdAt: string
 }

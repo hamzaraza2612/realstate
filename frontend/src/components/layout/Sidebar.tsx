@@ -41,6 +41,9 @@ import {
   Armchair,
   DoorClosed,
   CalendarClock,
+  FileBarChart,
+  TrendingUp,
+  Banknote,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -104,6 +107,10 @@ const navItems: NavItem[] = [
   { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
   { to: '/finance/receivables', label: 'Receivables', icon: HandCoins, permission: 'finance.reports.view' },
   { to: '/finance/trial-balance', label: 'Trial Balance', icon: Scale, permission: 'finance.reports.view' },
+  { to: '/finance/balance-sheet', label: 'Balance Sheet', icon: FileBarChart, permission: 'finance.reports.view' },
+  { to: '/finance/profit-and-loss', label: 'Profit & Loss', icon: TrendingUp, permission: 'finance.reports.view' },
+  { to: '/finance/cash-flow', label: 'Cash Flow', icon: Banknote, permission: 'finance.reports.view' },
+  { to: '/finance/fiscal-periods', label: 'Fiscal Periods', icon: CalendarClock, permission: 'finance.reports.view' },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },

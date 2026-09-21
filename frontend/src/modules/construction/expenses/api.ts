@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/apiClient'
-import type { ApiEnvelope, ExpenseCategory, ExpenseDto, ExpenseStatus, PageMeta } from '@/types/api'
+import type { ApiEnvelope, ExpenseCategory, ExpenseDto, ExpensePaymentDto, ExpenseStatus, PageMeta } from '@/types/api'
 
 const EXPENSES_KEY = ['construction', 'expenses']
 
@@ -82,5 +82,39 @@ export function useRejectExpense() {
       return response.data.data
     },
     onSuccess: () => invalidateExpenses(queryClient),
+  })
+}
+
+export function useExpensePayments(id: string | undefined) {
+  return useQuery({
+    queryKey: [...EXPENSES_KEY, id, 'payments'],
+    queryFn: async () => {
+      const response = await apiClient.get<ApiEnvelope<ExpensePaymentDto[]>>(`/construction/expenses/${id}/payments`)
+      return response.data.data
+    },
+    enabled: !!id,
+  })
+}
+
+export interface PayExpenseRequest {
+  id: string
+  amount: number
+  paymentDate: string
+  referenceNumber: string | null
+  notes: string | null
+  idempotencyKey: string | null
+}
+
+export function usePayExpense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: PayExpenseRequest) => {
+      const response = await apiClient.post<ApiEnvelope<ExpensePaymentDto>>(`/construction/expenses/${id}/payments`, payload)
+      return response.data.data
+    },
+    onSuccess: (_data, variables) => {
+      invalidateExpenses(queryClient)
+      queryClient.invalidateQueries({ queryKey: [...EXPENSES_KEY, variables.id, 'payments'] })
+    },
   })
 }
