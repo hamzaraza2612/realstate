@@ -12,7 +12,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 5 | Finance: chart of accounts, journals, receivables/payables, reports | ✅ |
 | 6 | Construction & Procurement: work packages, tasks, vendors, purchase requests/orders, receiving, materials, expenses | ✅ |
 | 7 | Property/Rental: properties, units, tenants, leases, rent schedule/payments, security deposits, maintenance | ✅ |
-| 8 | Facility: mall, coworking, facility management | ⬜ |
+| 8 | Facility Management + Mall + Coworking: shared spaces/utilities/service requests, mall shops/service charges/parking/events/notices, coworking memberships/desks/rooms/bookings | ✅ |
 | 9 | Portals: customer/tenant/member portals | ⬜ |
 | 10 | Documents + Notifications + approval workflows | ⬜ |
 | 11 | Reporting: dashboards, exports | ⬜ |
@@ -241,6 +241,81 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
       -> Finance Journal -> Dashboards, and separately Unit -> Maintenance Request -> Vendor -> Resolution,
       run against the real API, every figure reconciling exactly (rent schedule totals, partial/
       over-payment handling, deposit amount, journal Dr/Cr, dashboard aggregates)
+
+## Milestone 8 — Facility Management, Shopping Mall & Coworking ✅
+- [x] Built as one shared Facility Management foundation (Facility, Space, UtilityReading,
+      ServiceRequest, FacilityPayment) with Mall and Coworking as specializations on top — not three
+      independent systems; a Facility always references an existing Property, and a Space optionally
+      bridges to an existing PropertyUnit (`Space.PropertyUnitId`) rather than duplicating it
+- [x] Facilities: code/property/type (ShoppingMall/Coworking/OfficeBuilding/CommercialBuilding/
+      MixedUse/Other)/operating status/manager/description, tenant-unique code
+- [x] Spaces: generic rentable/usable areas (shop/office/coworking-area/parking-area/common-area),
+      occupancy status kept as its own enum — distinct from both Projects.InventoryUnitStatus and
+      Property.PropertyUnitStatus, never conflated; Occupied is only ever set by the owning workflow
+      (lease activation for a mall shop), never a manual transition
+- [x] Mall: a shop is a Space (Type=Shop) whose creation auto-creates the backing PropertyUnit in the
+      same call; shop assignment/leasing is the **existing** `Property.Lease`/`RentalTenant` completely
+      unmodified — `LeaseService` was extended (additively) to also sync a shop's linked Space status
+      alongside the PropertyUnit's when a lease activates/terminates, so the two stay consistent without
+      duplicating lease logic in the Facility module. Service charges (fixed or per-area-unit,
+      deterministic calculation verified byte-for-byte in tests), parking (space + allocation, one
+      active allocation per space enforced by a partial unique index), events, and tenant notices round
+      out the mall-specific layer
+- [x] Coworking: `CoworkingMember` mirrors `RentalTenant`'s design (an overlay on the existing CRM
+      Customer, not a new customer concept); membership plans, memberships (Active/Expired/Cancelled,
+      no reactivation), desks and meeting rooms under a coworking Space, and bookings with a price
+      computed deterministically from the resource's rate × duration
+- [x] Bookings: "no overlapping resource bookings" is enforced at the database level with a genuine
+      Postgres range-EXCLUDE constraint (`EXCLUDE USING gist`, requiring the `btree_gist` extension) on
+      (tenant, resource type, resource id, time range) for non-cancelled bookings — not just a unique
+      index, since bookings overlap on a continuous time axis — backed by an application-level pre-check
+      for a friendly error message; verified under both paths
+- [x] Utilities: a cumulative-meter-reading foundation (Electricity/Water/Gas/Other) — a reading below
+      the previous one for the same meter is rejected as physically invalid; consumption and billable
+      amount are computed and stored at reading time, no smart-meter integration
+- [x] Facility maintenance/service requests: **extended** the existing `Property.MaintenanceRequest`
+      additively (nullable FacilityId/SpaceId/SlaHours/SlaDueAt) instead of a parallel "facility
+      maintenance" entity; a separate but structurally identical `ServiceRequest` entity covers
+      operational asks (cleaning/security/IT/front-desk) and deliberately reuses
+      `Property.MaintenancePriority`/`MaintenanceStatus`/`MaintenanceStatusRules` rather than
+      redefining an equivalent vocabulary; vendor assignment on both reuses the existing Procurement
+      `Vendor` table — no second vendor concept, no second procurement workflow
+- [x] Finance integration: one shared `IFacilityFinancePostingService`/`FacilityPaymentService` handles
+      billing for every subtype (service charges, parking, coworking memberships, coworking bookings,
+      utility charges) — each chargeable record just needs an Amount/PaidAmount pair, avoiding five
+      near-duplicate payment entities; Dr Cash and Bank / Cr **Facility Revenue** (`4200`, new system
+      account) posted atomically with the payment; duplicate-posting protection reuses the existing
+      (TenantId, ReferenceType, ReferenceId) unique index on `journal_entries` from Milestone 5, tagging
+      each subtype with its own ReferenceType (e.g. `FacilityServiceCharge`) for traceability — no new
+      schema needed. See `docs/DATABASE.md` for the mapping.
+- [x] Facility dashboard: facilities/spaces/occupancy, active tenants-or-members, open maintenance/
+      service requests, total revenue and outstanding receivables (summed across all five billing
+      subtypes), utility consumption/amount by type, upcoming events — all tenant-scoped
+- [x] Mall dashboard and Coworking dashboard: shop/desk occupancy, rent/service-charge/membership
+      figures, parking usage, upcoming bookings/events, utilization — both optionally scoped to one
+      facility or aggregated across all facilities of that type, and always tenant-scoped
+- [x] Frontend: a "Facility" section (dashboard, facilities, spaces, service requests, utilities) plus
+      "Mall" and "Coworking" sections built on top of it, mirroring the backend's shared-foundation
+      structure; one reusable "Record Payment" dialog/hook shared across all five billing subtypes
+      instead of five separate payment UIs; the existing Maintenance Request form was extended
+      (not duplicated) with optional Facility/Space fields
+- [x] Unit/integration tests: 14 new integration tests covering facility/space CRUD, the full mall
+      workflow (shop creation → existing-Lease assignment → deterministic service-charge generation →
+      duplicate-charge rejection → payment → Finance posting), parking allocation lifecycle (including
+      the one-active-allocation-per-space guard), event/notice lifecycle, coworking membership lifecycle
+      with Finance posting, booking creation with overlap rejection then a non-overlapping booking
+      succeeding, idempotent payment retry, utility reading validation (decrease rejected) and
+      consumption/amount calculation, the generic service-request lifecycle (reusing
+      `MaintenanceStatusRules`), facility maintenance via the extended existing infrastructure, tenant
+      isolation, RBAC, dashboard scoping, and audit logging — all passing alongside the existing suite
+      (124 total: 12 unit + 112 integration)
+- [x] Live end-to-end verification, run against the real API: the full Mall workflow (Property → Mall
+      Facility → Shop → Tenant → Lease → Service Charge → Payment → Finance journal → Mall Dashboard),
+      the full Coworking workflow (Facility → Membership Plan → Member → Desk/Room → Booking → Payment →
+      Finance journal → Coworking Dashboard, including a live 409 on an overlapping booking), and the
+      Facility → Maintenance/Service Request → Vendor → Resolution workflow — every figure reconciling
+      exactly (deterministic service-charge and booking-price calculations, balanced Finance journals on
+      the new Facility Revenue account, dashboard aggregates)
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

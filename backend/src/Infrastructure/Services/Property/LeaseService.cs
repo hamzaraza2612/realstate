@@ -4,6 +4,7 @@ using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Property.Leases;
 using RealEstateErp.Domain.Property;
 using RealEstateErp.Infrastructure.Persistence;
+using FacilitySpaceStatus = RealEstateErp.Domain.Facility.SpaceStatus;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
 
@@ -150,6 +151,10 @@ public class LeaseService : ILeaseService
             return Result.Failure<LeaseDto>($"Cannot transition lease from {lease.Status} to {request.Status}.", "invalid_transition");
 
         var unit = await _db.PropertyUnits.FirstAsync(u => u.Id == lease.UnitId, ct);
+        // A mall shop's Space (Facility Management, Milestone 8) links to this same PropertyUnit via
+        // Space.PropertyUnitId — kept in sync here rather than duplicating lease/occupancy logic in the
+        // Facility module. The two status enums share identical underlying values by design.
+        var linkedSpace = await _db.Spaces.FirstOrDefaultAsync(s => s.PropertyUnitId == unit.Id, ct);
         var before = lease.Status;
         lease.Status = request.Status;
 
@@ -159,10 +164,12 @@ public class LeaseService : ILeaseService
             if (!alreadyGenerated) GenerateRentSchedule(lease);
 
             unit.Status = PropertyUnitStatus.Occupied;
+            if (linkedSpace is not null) linkedSpace.Status = FacilitySpaceStatus.Occupied;
         }
         else if (request.Status is LeaseStatus.Expired or LeaseStatus.Terminated)
         {
             if (unit.Status == PropertyUnitStatus.Occupied) unit.Status = PropertyUnitStatus.Available;
+            if (linkedSpace is not null && linkedSpace.Status == FacilitySpaceStatus.Occupied) linkedSpace.Status = FacilitySpaceStatus.Available;
 
             var openSchedules = await _db.RentSchedules
                 .Where(r => r.LeaseId == lease.Id && r.Status != RentScheduleStatus.Paid && r.Status != RentScheduleStatus.Cancelled)

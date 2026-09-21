@@ -9,6 +9,10 @@ public record MaintenanceRequestDto(
     string PropertyName,
     Guid? UnitId,
     string? UnitNumber,
+    Guid? FacilityId,
+    string? FacilityName,
+    Guid? SpaceId,
+    string? SpaceCode,
     Guid? RentalTenantId,
     string? RentalTenantName,
     MaintenanceCategory Category,
@@ -22,18 +26,26 @@ public record MaintenanceRequestDto(
     MaintenanceStatus Status,
     string? ResolutionNotes,
     DateOnly? CompletionDate,
+    int? SlaHours,
+    DateTimeOffset? SlaDueAt,
     DateTimeOffset CreatedAt);
 
+/// <summary>Exactly one of PropertyId/FacilityId must be given; when FacilityId is given, PropertyId is
+/// derived from Facility.PropertyId server-side (Facility Management reuses this infrastructure rather
+/// than duplicating it — see MaintenanceRequest.FacilityId/SpaceId).</summary>
 public record CreateMaintenanceRequestRequest(
-    Guid PropertyId,
+    Guid? PropertyId,
     Guid? UnitId,
+    Guid? FacilityId,
+    Guid? SpaceId,
     Guid? RentalTenantId,
     MaintenanceCategory Category,
     MaintenancePriority Priority,
     string Description,
     DateOnly ReportedDate,
     Guid? AssignedToUserId,
-    Guid? AssignedVendorId);
+    Guid? AssignedVendorId,
+    int? SlaHours);
 
 public record AssignMaintenanceRequestRequest(Guid? AssignedToUserId, Guid? AssignedVendorId);
 

@@ -8,4 +8,5 @@ public static class FinanceConstants
     public const string SalesRevenueAccountCode = "4000";
     public const string ConstructionExpenseAccountCode = "5200";
     public const string RentalRevenueAccountCode = "4100";
+    public const string FacilityRevenueAccountCode = "4200";
 }

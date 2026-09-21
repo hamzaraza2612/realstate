@@ -7,6 +7,7 @@ public class CreateMaintenanceRequestRequestValidator : AbstractValidator<Create
     public CreateMaintenanceRequestRequestValidator()
     {
         RuleFor(x => x.Description).NotEmpty().MaximumLength(2000);
-        RuleFor(x => x.PropertyId).NotEmpty();
+        RuleFor(x => x).Must(x => x.PropertyId.HasValue || x.FacilityId.HasValue)
+            .WithMessage("Either a property or a facility must be specified.");
     }
 }

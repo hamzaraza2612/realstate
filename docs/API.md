@@ -160,4 +160,56 @@ Query params: `page`, `pageSize` (default 20, max 100), `sortBy`, `sortDir`
   `POST /api/v1/property/maintenance-requests/{id}/status` (enforces `MaintenanceStatusRules`)
 - `GET /api/v1/property/dashboard`, `GET /api/v1/property/rental-dashboard` (tenant-scoped)
 
+## Milestone 8 endpoints (Facility Management, Shopping Mall & Coworking)
+Shared foundation:
+- `GET/POST/PUT/DELETE /api/v1/facilities` (filterable by `type`, `status`, `search`; delete blocked
+  while the facility still has spaces — `409 Conflict`)
+- `GET/POST/PUT/DELETE /api/v1/facility/spaces` (filterable by `facilityId`, `type`, `status`, `search`),
+  `POST /api/v1/facility/spaces/{id}/status` (`Occupied` cannot be set/cleared here — it's driven
+  exclusively by lease activation/termination for mall shops — `400 invalid_transition` otherwise)
+- `GET/POST /api/v1/facility/utility-readings` (filterable by `facilityId`, `propertyId`, `type`,
+  `meterReference`; `POST` rejects a reading lower than the previous one for the same meter with
+  `400 invalid_reading`; consumption/amount are computed and stored at reading time)
+- `GET/POST /api/v1/facility/service-requests`, `POST /api/v1/facility/service-requests/{id}/status`
+  (a generic operational request — cleaning/security/IT/front-desk — that reuses
+  `Property.MaintenancePriority`/`MaintenanceStatus`/`MaintenanceStatusRules`)
+- `GET /api/v1/facility/payments?sourceType=&sourceId=`, `POST /api/v1/facility/payments` — one shared
+  payment endpoint for every billing subtype (`sourceType`: ServiceCharge/Parking/CoworkingMembership/
+  CoworkingBooking/Utility); rejects overpayment with `400 overpayment_not_allowed` and posts to Finance
+  atomically; honors an `idempotencyKey` for safe retries
+- `GET /api/v1/facility/dashboard` (tenant-scoped)
+- `POST /api/v1/property/maintenance-requests` was extended (additively) to accept optional
+  `facilityId`/`spaceId`/`slaHours` alongside its existing `propertyId`/`unitId` — either `propertyId`
+  or `facilityId` must be given; `propertyId` is derived from the facility when omitted
+
+Mall (built on the shared foundation, not a parallel system):
+- `GET/POST/PUT /api/v1/facility/mall/shops` (`POST` creates the backing PropertyUnit and the Space
+  together in one call; shop leasing itself is the existing `POST /api/v1/property/leases`, unmodified)
+- `GET/POST /api/v1/facility/mall/service-charges/definitions`,
+  `PUT /api/v1/facility/mall/service-charges/definitions/{id}`,
+  `GET /api/v1/facility/mall/service-charges/charges`,
+  `POST /api/v1/facility/mall/service-charges/charges/generate` (amount is always server-computed,
+  deterministically, from the definition; `409 duplicate_charge` if that definition/lease/period was
+  already generated)
+- `GET/POST /api/v1/facility/mall/parking/spaces`, `GET/POST /api/v1/facility/mall/parking/allocations`,
+  `POST /api/v1/facility/mall/parking/allocations/{id}/end` (`400 space_not_available` if the space
+  isn't free; a partial unique index allows only one Active allocation per parking space)
+- `GET/POST /api/v1/facility/mall/events`, `POST /api/v1/facility/mall/events/{id}/status`
+- `GET/POST /api/v1/facility/mall/notices`, `POST /api/v1/facility/mall/notices/{id}/status`
+- `GET /api/v1/facility/mall/dashboard?facilityId=` (`facilityId` optional — omit to aggregate all mall
+  facilities)
+
+Coworking (built on the shared foundation):
+- `GET/POST/PUT /api/v1/facility/coworking/members` (overlays the existing CRM Customer, same pattern
+  as Property's RentalTenant)
+- `GET/POST/PUT /api/v1/facility/coworking/plans`
+- `GET/POST /api/v1/facility/coworking/memberships`, `POST /api/v1/facility/coworking/memberships/{id}/status`
+  (Active → Expired/Cancelled, both terminal — no reactivation)
+- `GET/POST/PUT /api/v1/facility/coworking/desks`, `GET/POST/PUT /api/v1/facility/coworking/rooms`
+- `GET/POST /api/v1/facility/coworking/bookings`, `POST /api/v1/facility/coworking/bookings/{id}/status`
+  (price is always server-computed from the resource's rate × duration; `409 overlapping_booking` if the
+  resource is already booked for an overlapping time range — enforced by a Postgres range-EXCLUDE
+  constraint in addition to an application-level pre-check)
+- `GET /api/v1/facility/coworking/dashboard?facilityId=` (`facilityId` optional)
+
 Further modules append their endpoint list here as they ship.

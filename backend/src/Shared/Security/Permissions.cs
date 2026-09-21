@@ -107,6 +107,11 @@ public static class Permissions
     public static class Facility
     {
         public const string WorkOrderManage = "facility.work_order.manage";
+        public const string View = "facility.view";
+        public const string Manage = "facility.manage";
+        public const string MallManage = "facility.mall.manage";
+        public const string CoworkingManage = "facility.coworking.manage";
+        public const string PaymentRecord = "facility.payment.record";
     }
 
     public static class Hr

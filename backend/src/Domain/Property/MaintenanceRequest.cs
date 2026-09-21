@@ -32,12 +32,17 @@ public enum MaintenanceStatus
 
 /// <summary>A maintenance/repair request for a Property or PropertyUnit. Vendors are referenced from the
 /// existing Procurement.Vendor table (see AssignedVendorId) — this module does not define its own vendor
-/// concept or a second procurement workflow.</summary>
+/// concept or a second procurement workflow. FacilityId/SpaceId (added in Milestone 8) let this same
+/// entity also serve Facility/Mall/Coworking maintenance — Facility Management deliberately reuses this
+/// infrastructure instead of duplicating it; PropertyId is still always populated (from Facility.PropertyId
+/// when raised against a facility) so every existing property-only query keeps working unchanged.</summary>
 public class MaintenanceRequest : TenantEntity
 {
     public string RequestNumber { get; set; } = default!;
     public Guid PropertyId { get; set; }
     public Guid? UnitId { get; set; }
+    public Guid? FacilityId { get; set; }
+    public Guid? SpaceId { get; set; }
 
     /// <summary>FK to RentalTenant — named RentalTenantId (not TenantId) to avoid colliding with the inherited SaaS-tenant TenantEntity.TenantId.</summary>
     public Guid? RentalTenantId { get; set; }
@@ -54,6 +59,11 @@ public class MaintenanceRequest : TenantEntity
     public MaintenanceStatus Status { get; set; } = MaintenanceStatus.Open;
     public string? ResolutionNotes { get; set; }
     public DateOnly? CompletionDate { get; set; }
+
+    /// <summary>SLA foundation — a plain due-by timestamp derived from SlaHours at creation, not a full
+    /// escalation/breach engine.</summary>
+    public int? SlaHours { get; set; }
+    public DateTimeOffset? SlaDueAt { get; set; }
 }
 
 /// <summary>Valid maintenance status transitions: Open -> Assigned -> InProgress -> Resolved, with

@@ -46,14 +46,32 @@ public class MaintenanceService : IMaintenanceService
 
     public async Task<Result<MaintenanceRequestDto>> CreateAsync(CreateMaintenanceRequestRequest request, CancellationToken ct = default)
     {
-        var property = await _db.Properties.FirstOrDefaultAsync(p => p.Id == request.PropertyId, ct);
-        if (property is null) return Result.Failure<MaintenanceRequestDto>("Property not found.", "not_found");
+        Guid propertyId;
+        if (request.FacilityId.HasValue)
+        {
+            var facility = await _db.Facilities.FirstOrDefaultAsync(f => f.Id == request.FacilityId, ct);
+            if (facility is null) return Result.Failure<MaintenanceRequestDto>("Facility not found.", "not_found");
+            propertyId = facility.PropertyId;
+
+            if (request.SpaceId.HasValue)
+            {
+                var space = await _db.Spaces.FirstOrDefaultAsync(s => s.Id == request.SpaceId, ct);
+                if (space is null) return Result.Failure<MaintenanceRequestDto>("Space not found.", "not_found");
+                if (space.FacilityId != request.FacilityId) return Result.Failure<MaintenanceRequestDto>("Space belongs to a different facility.", "invalid_space");
+            }
+        }
+        else
+        {
+            var property = await _db.Properties.FirstOrDefaultAsync(p => p.Id == request.PropertyId, ct);
+            if (property is null) return Result.Failure<MaintenanceRequestDto>("Property not found.", "not_found");
+            propertyId = property.Id;
+        }
 
         if (request.UnitId.HasValue)
         {
             var unit = await _db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == request.UnitId, ct);
             if (unit is null) return Result.Failure<MaintenanceRequestDto>("Unit not found.", "not_found");
-            if (unit.PropertyId != request.PropertyId) return Result.Failure<MaintenanceRequestDto>("Unit belongs to a different property.", "invalid_unit");
+            if (unit.PropertyId != propertyId) return Result.Failure<MaintenanceRequestDto>("Unit belongs to a different property.", "invalid_unit");
         }
 
         if (request.AssignedVendorId.HasValue)
@@ -66,8 +84,10 @@ public class MaintenanceService : IMaintenanceService
         var maintenance = new MaintenanceRequest
         {
             RequestNumber = $"MR-{sequence:D6}",
-            PropertyId = request.PropertyId,
+            PropertyId = propertyId,
             UnitId = request.UnitId,
+            FacilityId = request.FacilityId,
+            SpaceId = request.SpaceId,
             RentalTenantId = request.RentalTenantId,
             Category = request.Category,
             Priority = request.Priority,
@@ -75,7 +95,9 @@ public class MaintenanceService : IMaintenanceService
             ReportedDate = request.ReportedDate,
             AssignedToUserId = request.AssignedToUserId,
             AssignedVendorId = request.AssignedVendorId,
-            Status = MaintenanceStatus.Open
+            Status = MaintenanceStatus.Open,
+            SlaHours = request.SlaHours,
+            SlaDueAt = request.SlaHours.HasValue ? DateTimeOffset.UtcNow.AddHours(request.SlaHours.Value) : null
         };
         _db.MaintenanceRequests.Add(maintenance);
         await _db.SaveChangesAsync(ct);
@@ -144,14 +166,20 @@ public class MaintenanceService : IMaintenanceService
         var userNames = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
         var vendorIds = requests.Where(m => m.AssignedVendorId.HasValue).Select(m => m.AssignedVendorId!.Value).Distinct().ToList();
         var vendorNames = await _db.Vendors.Where(v => vendorIds.Contains(v.Id)).ToDictionaryAsync(v => v.Id, v => v.Name, ct);
+        var facilityIds = requests.Where(m => m.FacilityId.HasValue).Select(m => m.FacilityId!.Value).Distinct().ToList();
+        var facilityNames = await _db.Facilities.Where(f => facilityIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Name, ct);
+        var spaceIds = requests.Where(m => m.SpaceId.HasValue).Select(m => m.SpaceId!.Value).Distinct().ToList();
+        var spaceCodes = await _db.Spaces.Where(s => spaceIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.Code, ct);
 
         return requests.Select(m => new MaintenanceRequestDto(
             m.Id, m.RequestNumber, m.PropertyId, propertyNames.GetValueOrDefault(m.PropertyId, ""),
             m.UnitId, m.UnitId.HasValue ? unitNumbers.GetValueOrDefault(m.UnitId.Value) : null,
+            m.FacilityId, m.FacilityId.HasValue ? facilityNames.GetValueOrDefault(m.FacilityId.Value) : null,
+            m.SpaceId, m.SpaceId.HasValue ? spaceCodes.GetValueOrDefault(m.SpaceId.Value) : null,
             m.RentalTenantId, m.RentalTenantId.HasValue ? tenantNames.GetValueOrDefault(m.RentalTenantId.Value) : null,
             m.Category, m.Priority, m.Description, m.ReportedDate,
             m.AssignedToUserId, m.AssignedToUserId.HasValue ? userNames.GetValueOrDefault(m.AssignedToUserId.Value) : null,
             m.AssignedVendorId, m.AssignedVendorId.HasValue ? vendorNames.GetValueOrDefault(m.AssignedVendorId.Value) : null,
-            m.Status, m.ResolutionNotes, m.CompletionDate, m.CreatedAt)).ToList();
+            m.Status, m.ResolutionNotes, m.CompletionDate, m.SlaHours, m.SlaDueAt, m.CreatedAt)).ToList();
     }
 }

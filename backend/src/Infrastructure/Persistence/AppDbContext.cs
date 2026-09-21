@@ -6,6 +6,14 @@ using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
 using RealEstateErp.Domain.Construction;
 using RealEstateErp.Domain.Crm;
+using RealEstateErp.Domain.Facility;
+using RealEstateErp.Domain.Facility.Mall;
+using CoworkingBooking = RealEstateErp.Domain.Facility.Coworking.Booking;
+using CoworkingMember = RealEstateErp.Domain.Facility.Coworking.CoworkingMember;
+using Desk = RealEstateErp.Domain.Facility.Coworking.Desk;
+using MeetingRoom = RealEstateErp.Domain.Facility.Coworking.MeetingRoom;
+using Membership = RealEstateErp.Domain.Facility.Coworking.Membership;
+using MembershipPlan = RealEstateErp.Domain.Facility.Coworking.MembershipPlan;
 using RealEstateErp.Domain.Finance;
 using RealEstateErp.Domain.Materials;
 using RealEstateErp.Domain.Procurement;
@@ -70,6 +78,24 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<RentPayment> RentPayments => Set<RentPayment>();
     public DbSet<SecurityDeposit> SecurityDeposits => Set<SecurityDeposit>();
     public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
+    public DbSet<Facility> Facilities => Set<Facility>();
+    public DbSet<Space> Spaces => Set<Space>();
+    public DbSet<UtilityReading> UtilityReadings => Set<UtilityReading>();
+    public DbSet<ServiceRequest> FacilityServiceRequests => Set<ServiceRequest>();
+    public DbSet<FacilityPayment> FacilityPayments => Set<FacilityPayment>();
+    public DbSet<MallShopProfile> MallShopProfiles => Set<MallShopProfile>();
+    public DbSet<ServiceChargeDefinition> ServiceChargeDefinitions => Set<ServiceChargeDefinition>();
+    public DbSet<ServiceChargeCharge> ServiceChargeCharges => Set<ServiceChargeCharge>();
+    public DbSet<ParkingSpace> ParkingSpaces => Set<ParkingSpace>();
+    public DbSet<ParkingAllocation> ParkingAllocations => Set<ParkingAllocation>();
+    public DbSet<FacilityEvent> FacilityEvents => Set<FacilityEvent>();
+    public DbSet<TenantNotice> TenantNotices => Set<TenantNotice>();
+    public DbSet<CoworkingMember> CoworkingMembers => Set<CoworkingMember>();
+    public DbSet<MembershipPlan> MembershipPlans => Set<MembershipPlan>();
+    public DbSet<Membership> Memberships => Set<Membership>();
+    public DbSet<Desk> Desks => Set<Desk>();
+    public DbSet<MeetingRoom> MeetingRooms => Set<MeetingRoom>();
+    public DbSet<CoworkingBooking> CoworkingBookings => Set<CoworkingBooking>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

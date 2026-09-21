@@ -28,7 +28,7 @@ public static class DbSeeder
         ["Construction Manager"] = new[] { Permissions.Construction.View, Permissions.Construction.ProjectManage, Permissions.Projects.View, Permissions.Procurement.View, Permissions.Procurement.RequestCreate, Permissions.Reports.View },
         ["Procurement Officer"] = new[] { Permissions.Procurement.View, Permissions.Procurement.RequestCreate, Permissions.Procurement.RequestApprove, Permissions.Procurement.OrderManage, Permissions.Procurement.OrderApprove, Permissions.Reports.View },
         ["Property Manager"] = new[] { Permissions.Property.View, Permissions.Property.Manage, Permissions.Property.LeaseManage, Permissions.Property.LeaseApprove, Permissions.Property.PaymentRecord, Permissions.Property.MaintenanceManage, Permissions.Inventory.View, Permissions.Reports.View },
-        ["Facility Manager"] = new[] { Permissions.Facility.WorkOrderManage, Permissions.Property.MaintenanceManage, Permissions.Property.View, Permissions.Reports.View },
+        ["Facility Manager"] = new[] { Permissions.Facility.WorkOrderManage, Permissions.Facility.View, Permissions.Facility.Manage, Permissions.Facility.MallManage, Permissions.Facility.CoworkingManage, Permissions.Facility.PaymentRecord, Permissions.Property.MaintenanceManage, Permissions.Property.View, Permissions.Reports.View },
         ["Accountant"] = new[] { Permissions.Finance.InvoiceCreate, Permissions.Finance.PaymentApprove, Permissions.Finance.ReportsView, Permissions.Finance.Manage, Permissions.Reports.View },
         ["HR Manager"] = new[] { Permissions.Hr.EmployeeManage },
         ["Customer"] = Array.Empty<string>(),
