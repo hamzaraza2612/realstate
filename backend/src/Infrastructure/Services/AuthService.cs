@@ -98,12 +98,22 @@ public class AuthService : IAuthService
 
     private async Task<AuthResult> BuildAuthResultAsync(AppUser user, string? ipAddress, CancellationToken ct)
     {
-        var roles = await _userManager.GetRolesAsync(user);
-
-        var roleIds = await _db.Roles.IgnoreQueryFilters()
-            .Where(r => roles.Contains(r.Name!))
-            .Select(r => r.Id)
+        // Login/refresh run before any tenant context is established from a JWT (these are the
+        // anonymous endpoints that issue the JWT in the first place), so the ambient tenant context
+        // is null here and AppRole's global query filter would otherwise collapse to "system roles
+        // only" — silently hiding a user's own tenant-specific custom role and its permissions.
+        // Resolve role membership directly by UserId/RoleId (bypassing that filter, not the plain
+        // UserManager.GetRolesAsync helper which is subject to it) and re-scope explicitly to this
+        // user's own tenant plus system roles, so an identically-named custom role in a different
+        // tenant can never be picked up either.
+        var assignedRoles = await _db.UserRoles.IgnoreQueryFilters()
+            .Where(ur => ur.UserId == user.Id)
+            .Join(_db.Roles.IgnoreQueryFilters().Where(r => r.TenantId == null || r.TenantId == user.TenantId),
+                ur => ur.RoleId, r => r.Id, (ur, r) => r)
             .ToListAsync(ct);
+
+        var roles = assignedRoles.Select(r => r.Name!).ToList();
+        var roleIds = assignedRoles.Select(r => r.Id).ToList();
 
         var permissions = await _db.RolePermissions.IgnoreQueryFilters()
             .Where(rp => roleIds.Contains(rp.RoleId))

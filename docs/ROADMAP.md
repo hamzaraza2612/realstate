@@ -13,11 +13,15 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 6 | Construction & Procurement: work packages, tasks, vendors, purchase requests/orders, receiving, materials, expenses | ✅ |
 | 7 | Property/Rental: properties, units, tenants, leases, rent schedule/payments, security deposits, maintenance | ✅ |
 | 8 | Facility Management + Mall + Coworking: shared spaces/utilities/service requests, mall shops/service charges/parking/events/notices, coworking memberships/desks/rooms/bookings | ✅ |
-| 9 | Portals: customer/tenant/member portals | ⬜ |
-| 10 | Documents + Notifications + approval workflows | ⬜ |
-| 11 | Reporting: dashboards, exports | ⬜ |
-| 12 | SaaS: subscriptions, plans, entitlements, super-admin | ⬜ |
-| 13 | Production hardening: security, tests, Docker, CI/CD, docs | ⬜ |
+| 9 | Product Gap Audit: full commercial-readiness audit against the platform's business/architecture/finance/security/frontend/reporting/SaaS/portal/production targets — see `PRODUCT_GAP_AUDIT.md` | ✅ |
+| 10 | Security & Finance Hardening: enforce tenant status at the API boundary, AP clearing, fiscal-period closing, journal reversal, transactional email, confirm-dialogs on destructive status actions, close the two Facility/Mall status-transition gaps | ⬜ |
+| 11 | Reporting: cross-module dashboards (AR/AP aging, today's sales, project profitability, agent performance), exports, wire up `recharts` | ⬜ |
+| 12 | Documents + Notifications + approval workflows (depends on Milestone 10's email capability + already-provisioned upload storage) | ⬜ |
+| 13 | Portals: customer/owner/tenant/member/vendor/agent portals (depends on Milestone 10's email capability) | ⬜ |
+| 14 | SaaS: subscription lifecycle automation, platform billing/invoicing, self-service signup, feature-entitlement enforcement | ⬜ |
+| 15 | Production hardening: TLS/reverse-proxy guidance, observability, backups, multi-currency, credit/debit notes, tax engine, optimistic concurrency | ⬜ |
+
+Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13 as Portals→Documents→Reporting→SaaS→Production): tenant-status enforcement and core accounting integrity are prerequisites every later module silently inherits, and email (added in Milestone 10) is a hard prerequisite for Documents/Notifications and every portal.
 
 ## Milestone 1 — Foundation ✅
 - [x] Repo/docs scaffold

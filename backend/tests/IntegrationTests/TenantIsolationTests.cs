@@ -70,6 +70,51 @@ public class TenantIsolationTests : TestBase
         status.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task SameNamedCustomRoleInAnotherTenant_DoesNotLeakItsPermissionsOnLogin()
+    {
+        var (tokenA, _, _) = await CreateOrganizationAsync("leak-a");
+        var (tokenB, _, _) = await CreateOrganizationAsync("leak-b");
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        const string sharedRoleName = "Special Cashier";
+
+        var (createRoleASuccess, _, _) = await PostAsync("/api/v1/roles", new
+        {
+            name = sharedRoleName,
+            description = (string?)null,
+            permissionCodes = new[] { "roles.manage" }
+        }, tokenA);
+        createRoleASuccess.Should().BeTrue();
+
+        var (createRoleBSuccess, _, _) = await PostAsync("/api/v1/roles", new
+        {
+            name = sharedRoleName,
+            description = (string?)null,
+            permissionCodes = new[] { "users.view" }
+        }, tokenB);
+        createRoleBSuccess.Should().BeTrue();
+
+        var userEmail = $"cashier-{suffix}@leak-b.test";
+        var (createUserSuccess, _, _) = await PostAsync("/api/v1/users", new
+        {
+            email = userEmail,
+            fullName = "Tenant B Cashier",
+            password = "Cashier@12345",
+            phoneNumber = (string?)null,
+            roleNames = new[] { sharedRoleName }
+        }, tokenB);
+        createUserSuccess.Should().BeTrue();
+
+        var (_, loginBody, _) = await PostAsync("/api/v1/auth/login", new { email = userEmail, password = "Cashier@12345" });
+        var permissions = loginBody.GetProperty("data").GetProperty("user").GetProperty("permissions")
+            .EnumerateArray().Select(p => p.GetString()).ToList();
+
+        // Tenant B's own grant for this role name must be present...
+        permissions.Should().Contain("users.view");
+        // ...but Tenant A's identically-named role's permission must never leak in.
+        permissions.Should().NotContain("roles.manage");
+    }
+
     private async Task<(string Token, System.Text.Json.JsonElement Users, Guid OwnerId)> CreateOrganizationAndGetOwnerIdAsync(string prefix)
     {
         var (token, _, _) = await CreateOrganizationAsync(prefix);

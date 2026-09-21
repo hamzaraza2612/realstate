@@ -20,7 +20,13 @@ public class AppRoleConfiguration : IEntityTypeConfiguration<AppRole>
     {
         b.ToTable("roles");
         b.Property(x => x.Description).HasMaxLength(500);
-        b.HasIndex(x => new { x.TenantId, x.NormalizedName });
+        // Identity's own base configuration puts a *global* unique index on NormalizedName alone
+        // ("RoleNameIndex"), which would stop a second tenant from ever naming a custom role the
+        // same as another tenant's (e.g. both wanting "Manager") — a real multi-tenant SaaS needs
+        // role names unique per tenant, not platform-wide. Override it to non-unique and make the
+        // per-tenant compound index the real uniqueness constraint instead.
+        b.HasIndex(x => x.NormalizedName).IsUnique(false);
+        b.HasIndex(x => new { x.TenantId, x.NormalizedName }).IsUnique();
     }
 }
 
