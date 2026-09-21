@@ -50,6 +50,30 @@ import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSet
 import { AuditLogPage } from '@/modules/audit/AuditLogPage'
 import { PlatformOrganizationsPage } from '@/modules/platform/PlatformOrganizationsPage'
 import { PlatformSubscriptionPlansPage } from '@/modules/platform/PlatformSubscriptionPlansPage'
+import { FacilityDashboardPage } from '@/modules/facility/dashboard/FacilityDashboardPage'
+import { FacilitiesPage } from '@/modules/facility/facilities/FacilitiesPage'
+import { SpacesPage } from '@/modules/facility/spaces/SpacesPage'
+import { ServiceRequestsPage } from '@/modules/facility/serviceRequests/ServiceRequestsPage'
+import { ServiceRequestDetailPage } from '@/modules/facility/serviceRequests/ServiceRequestDetailPage'
+import { UtilitiesPage } from '@/modules/facility/utilities/UtilitiesPage'
+import { MallDashboardPage } from '@/modules/facility/mall/dashboard/MallDashboardPage'
+import { MallShopsPage } from '@/modules/facility/mall/shops/MallShopsPage'
+import { MallShopDetailPage } from '@/modules/facility/mall/shops/MallShopDetailPage'
+import { ServiceChargeDefinitionsPage } from '@/modules/facility/mall/serviceCharges/ServiceChargeDefinitionsPage'
+import { ServiceChargesPage } from '@/modules/facility/mall/serviceCharges/ServiceChargesPage'
+import { ParkingSpacesPage } from '@/modules/facility/mall/parking/ParkingSpacesPage'
+import { ParkingAllocationsPage } from '@/modules/facility/mall/parking/ParkingAllocationsPage'
+import { EventsPage } from '@/modules/facility/mall/events/EventsPage'
+import { NoticesPage } from '@/modules/facility/mall/notices/NoticesPage'
+import { CoworkingDashboardPage } from '@/modules/facility/coworking/dashboard/CoworkingDashboardPage'
+import { MembersPage } from '@/modules/facility/coworking/members/MembersPage'
+import { PlansPage } from '@/modules/facility/coworking/plans/PlansPage'
+import { MembershipsPage } from '@/modules/facility/coworking/memberships/MembershipsPage'
+import { MembershipDetailPage } from '@/modules/facility/coworking/memberships/MembershipDetailPage'
+import { DesksPage } from '@/modules/facility/coworking/desks/DesksPage'
+import { RoomsPage } from '@/modules/facility/coworking/rooms/RoomsPage'
+import { BookingsPage as CoworkingBookingsPage } from '@/modules/facility/coworking/bookings/BookingsPage'
+import { BookingDetailPage as CoworkingBookingDetailPage } from '@/modules/facility/coworking/bookings/BookingDetailPage'
 
 export default function App() {
   return (
@@ -341,6 +365,198 @@ export default function App() {
           element={
             <PermissionRoute permission="property.view">
               <MaintenanceRequestDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility"
+          element={
+            <PermissionRoute permission="facility.view">
+              <FacilityDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/facilities"
+          element={
+            <PermissionRoute permission="facility.view">
+              <FacilitiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/spaces"
+          element={
+            <PermissionRoute permission="facility.view">
+              <SpacesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/service-requests"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceRequestsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/service-requests/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceRequestDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/utilities"
+          element={
+            <PermissionRoute permission="facility.view">
+              <UtilitiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/shops"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallShopsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/shops/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallShopDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/service-charges/definitions"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceChargeDefinitionsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/service-charges"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceChargesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/parking"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ParkingSpacesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/parking/allocations"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ParkingAllocationsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/events"
+          element={
+            <PermissionRoute permission="facility.view">
+              <EventsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/notices"
+          element={
+            <PermissionRoute permission="facility.view">
+              <NoticesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/members"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembersPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/plans"
+          element={
+            <PermissionRoute permission="facility.view">
+              <PlansPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/memberships"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembershipsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/memberships/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembershipDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/desks"
+          element={
+            <PermissionRoute permission="facility.view">
+              <DesksPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/rooms"
+          element={
+            <PermissionRoute permission="facility.view">
+              <RoomsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/bookings"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingBookingsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/bookings/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingBookingDetailPage />
             </PermissionRoute>
           }
         />

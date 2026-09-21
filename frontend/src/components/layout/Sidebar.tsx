@@ -27,6 +27,20 @@ import {
   UserRound,
   FileSignature,
   Hammer,
+  Warehouse,
+  LayoutGrid,
+  Zap,
+  Store,
+  Receipt,
+  CircleParking,
+  PartyPopper,
+  BellRing,
+  Contact2,
+  IdCard,
+  BadgeCheck,
+  Armchair,
+  DoorClosed,
+  CalendarClock,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -65,6 +79,26 @@ const navItems: NavItem[] = [
   { to: '/property/tenants', label: 'Tenants', icon: UserRound, permission: 'property.view' },
   { to: '/property/leases', label: 'Leases', icon: FileSignature, permission: 'property.view' },
   { to: '/property/maintenance', label: 'Maintenance', icon: Hammer, permission: 'property.view' },
+  { to: '/facility', label: 'Facility Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/facilities', label: 'Facilities', icon: Warehouse, permission: 'facility.view' },
+  { to: '/facility/spaces', label: 'Spaces', icon: LayoutGrid, permission: 'facility.view' },
+  { to: '/facility/service-requests', label: 'Service Requests', icon: Wrench, permission: 'facility.view' },
+  { to: '/facility/utilities', label: 'Utilities', icon: Zap, permission: 'facility.view' },
+  { to: '/facility/mall', label: 'Mall Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/mall/shops', label: 'Mall Shops', icon: Store, permission: 'facility.view' },
+  { to: '/facility/mall/service-charges/definitions', label: 'Service Charge Definitions', icon: Receipt, permission: 'facility.view' },
+  { to: '/facility/mall/service-charges', label: 'Service Charges', icon: Receipt, permission: 'facility.view' },
+  { to: '/facility/mall/parking', label: 'Parking Spaces', icon: CircleParking, permission: 'facility.view' },
+  { to: '/facility/mall/parking/allocations', label: 'Parking Allocations', icon: CircleParking, permission: 'facility.view' },
+  { to: '/facility/mall/events', label: 'Events', icon: PartyPopper, permission: 'facility.view' },
+  { to: '/facility/mall/notices', label: 'Notices', icon: BellRing, permission: 'facility.view' },
+  { to: '/facility/coworking', label: 'Coworking Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/coworking/members', label: 'Members', icon: Contact2, permission: 'facility.view' },
+  { to: '/facility/coworking/plans', label: 'Membership Plans', icon: IdCard, permission: 'facility.view' },
+  { to: '/facility/coworking/memberships', label: 'Memberships', icon: BadgeCheck, permission: 'facility.view' },
+  { to: '/facility/coworking/desks', label: 'Desks', icon: Armchair, permission: 'facility.view' },
+  { to: '/facility/coworking/rooms', label: 'Meeting Rooms', icon: DoorClosed, permission: 'facility.view' },
+  { to: '/facility/coworking/bookings', label: 'Bookings', icon: CalendarClock, permission: 'facility.view' },
   { to: '/finance', label: 'Finance Dashboard', icon: Wallet, permission: 'finance.reports.view' },
   { to: '/finance/accounts', label: 'Chart of Accounts', icon: BookOpen, permission: 'finance.reports.view' },
   { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
@@ -132,6 +166,9 @@ function SidebarLink({ item }: { item: NavItem }) {
         item.to === '/construction' ||
         item.to === '/procurement' ||
         item.to === '/property' ||
+        item.to === '/facility' ||
+        item.to === '/facility/mall' ||
+        item.to === '/facility/coworking' ||
         item.to === '/finance'
       }
       className={({ isActive }) =>

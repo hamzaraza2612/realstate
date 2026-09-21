@@ -9,10 +9,9 @@ import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
-import { MaintenanceCategoryLabel, MaintenancePriority, MaintenancePriorityLabel, MaintenanceStatus, MaintenanceStatusLabel } from '@/types/api'
-import { useMaintenanceRequest, useUpdateMaintenanceStatus } from './api'
-import { AssignMaintenanceRequestDialog } from './AssignMaintenanceRequestDialog'
-import { ResolveMaintenanceRequestDialog } from './ResolveMaintenanceRequestDialog'
+import { MaintenancePriority, MaintenancePriorityLabel, MaintenanceStatus, MaintenanceStatusLabel, ServiceRequestCategoryLabel } from '@/types/api'
+import { useServiceRequest, useUpdateServiceRequestStatus } from './api'
+import { ServiceRequestResolveDialog } from './ServiceRequestResolveDialog'
 
 const statusVariant: Record<MaintenanceStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
   [MaintenanceStatus.Open]: 'outline',
@@ -33,7 +32,6 @@ const priorityVariant: Record<MaintenancePriority, 'default' | 'secondary' | 'su
 const simpleTransitions: Record<MaintenanceStatus, { status: MaintenanceStatus; label: string; variant?: 'destructive' | 'outline' }[]> = {
   [MaintenanceStatus.Open]: [
     { status: MaintenanceStatus.Assigned, label: 'Mark assigned' },
-    { status: MaintenanceStatus.InProgress, label: 'Start work' },
     { status: MaintenanceStatus.Cancelled, label: 'Cancel', variant: 'destructive' },
   ],
   [MaintenanceStatus.Assigned]: [
@@ -55,25 +53,24 @@ const simpleTransitions: Record<MaintenanceStatus, { status: MaintenanceStatus; 
 
 const canResolveFrom: MaintenanceStatus[] = [MaintenanceStatus.Open, MaintenanceStatus.Assigned, MaintenanceStatus.InProgress, MaintenanceStatus.OnHold]
 
-export function MaintenanceRequestDetailPage() {
+export function ServiceRequestDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: request, isLoading, isError, refetch } = useMaintenanceRequest(id)
-  const updateStatus = useUpdateMaintenanceStatus()
-  const [assignOpen, setAssignOpen] = useState(false)
+  const { data: request, isLoading, isError, refetch } = useServiceRequest(id)
+  const updateStatus = useUpdateServiceRequestStatus()
   const [resolveOpen, setResolveOpen] = useState(false)
 
   async function handleStatus(status: MaintenanceStatus) {
     if (!request) return
     try {
-      await updateStatus.mutateAsync({ id: request.id, payload: { status, resolutionNotes: null, completionDate: null } })
+      await updateStatus.mutateAsync({ id: request.id, payload: { status, resolutionNotes: null } })
       toast({ title: `Request moved to ${MaintenanceStatusLabel[status]}`, variant: 'success' })
     } catch (error) {
       toast({ title: 'Could not update status', description: extractErrorMessage(error), variant: 'destructive' })
     }
   }
 
-  if (isLoading) return <LoadingState label="Loading maintenance request…" />
-  if (isError || !request) return <ErrorState message="Could not load this maintenance request." onRetry={() => refetch()} />
+  if (isLoading) return <LoadingState label="Loading service request…" />
+  if (isError || !request) return <ErrorState message="Could not load this service request." onRetry={() => refetch()} />
 
   const transitions = simpleTransitions[request.status]
   const canResolve = canResolveFrom.includes(request.status)
@@ -82,17 +79,10 @@ export function MaintenanceRequestDetailPage() {
     <div>
       <PageHeader
         title={request.requestNumber}
-        description={
-          request.facilityId
-            ? `${request.facilityName}${request.spaceCode ? ` · ${request.spaceCode}` : ''}`
-            : `${request.propertyName}${request.unitNumber ? ` · ${request.unitNumber}` : ''}`
-        }
+        description={`${request.facilityName}${request.spaceCode ? ` · ${request.spaceCode}` : ''}`}
         actions={
-          <PermissionGate permission="property.maintenance.manage">
+          <PermissionGate permission="facility.manage">
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setAssignOpen(true)}>
-                Assign
-              </Button>
               {canResolve && <Button onClick={() => setResolveOpen(true)}>Mark resolved</Button>}
               {transitions.map((t) => (
                 <Button key={t.status} variant={t.variant} onClick={() => handleStatus(t.status)} disabled={updateStatus.isPending}>
@@ -116,13 +106,10 @@ export function MaintenanceRequestDetailPage() {
             <Field label="Priority">
               <Badge variant={priorityVariant[request.priority]}>{MaintenancePriorityLabel[request.priority]}</Badge>
             </Field>
-            <Field label="Category">{MaintenanceCategoryLabel[request.category]}</Field>
+            <Field label="Category">{ServiceRequestCategoryLabel[request.category]}</Field>
             <Field label="Reported date">{formatDate(request.reportedDate)}</Field>
-            <Field label="Tenant">{request.rentalTenantName ?? '—'}</Field>
-            <Field label="Completion date">{request.completionDate ? formatDate(request.completionDate) : '—'}</Field>
-            {request.facilityId && <Field label="Facility">{request.facilityName}</Field>}
-            {request.spaceCode && <Field label="Space">{request.spaceCode}</Field>}
-            {request.slaDueAt && <Field label="SLA due">{formatDate(request.slaDueAt)}</Field>}
+            <Field label="Requester">{request.requestedByUserName ?? request.requesterCustomerName ?? '—'}</Field>
+            <Field label="Resolved date">{request.resolvedDate ? formatDate(request.resolvedDate) : '—'}</Field>
             <div className="col-span-2">
               <p className="text-muted-foreground">Description</p>
               <p>{request.description}</p>
@@ -147,8 +134,7 @@ export function MaintenanceRequestDetailPage() {
         </Card>
       </div>
 
-      <AssignMaintenanceRequestDialog open={assignOpen} onOpenChange={setAssignOpen} request={request} />
-      <ResolveMaintenanceRequestDialog open={resolveOpen} onOpenChange={setResolveOpen} request={request} />
+      <ServiceRequestResolveDialog open={resolveOpen} onOpenChange={setResolveOpen} request={request} />
     </div>
   )
 }

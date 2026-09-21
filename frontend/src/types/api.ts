@@ -1412,6 +1412,12 @@ export interface MaintenanceRequestDto {
   unitNumber: string | null
   rentalTenantId: string | null
   rentalTenantName: string | null
+  facilityId: string | null
+  facilityName: string | null
+  spaceId: string | null
+  spaceCode: string | null
+  slaHours: number | null
+  slaDueAt: string | null
   category: MaintenanceCategory
   priority: MaintenancePriority
   description: string
@@ -1476,4 +1482,603 @@ export interface RentalDashboardDto {
   totalUnits: number
   occupiedUnits: number
   recentPayments: RecentRentPaymentDto[]
+}
+
+// --- Facility Management, Shopping Mall & Coworking ---
+
+export const FacilityType = {
+  ShoppingMall: 0,
+  Coworking: 1,
+  OfficeBuilding: 2,
+  CommercialBuilding: 3,
+  MixedUse: 4,
+  Other: 5,
+} as const
+export type FacilityType = (typeof FacilityType)[keyof typeof FacilityType]
+
+export const FacilityTypeLabel: Record<FacilityType, string> = {
+  [FacilityType.ShoppingMall]: 'Shopping Mall',
+  [FacilityType.Coworking]: 'Coworking',
+  [FacilityType.OfficeBuilding]: 'Office Building',
+  [FacilityType.CommercialBuilding]: 'Commercial Building',
+  [FacilityType.MixedUse]: 'Mixed Use',
+  [FacilityType.Other]: 'Other',
+}
+
+export const FacilityOperatingStatus = {
+  Active: 0,
+  Inactive: 1,
+  UnderMaintenance: 2,
+} as const
+export type FacilityOperatingStatus = (typeof FacilityOperatingStatus)[keyof typeof FacilityOperatingStatus]
+
+export const FacilityOperatingStatusLabel: Record<FacilityOperatingStatus, string> = {
+  [FacilityOperatingStatus.Active]: 'Active',
+  [FacilityOperatingStatus.Inactive]: 'Inactive',
+  [FacilityOperatingStatus.UnderMaintenance]: 'Under Maintenance',
+}
+
+export interface FacilityDto {
+  id: string
+  code: string
+  propertyId: string
+  propertyName: string
+  type: FacilityType
+  name: string
+  status: FacilityOperatingStatus
+  description: string | null
+  addressLine: string | null
+  city: string | null
+  managerUserId: string | null
+  managerUserName: string | null
+  spaceCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export const SpaceType = {
+  Shop: 0,
+  Office: 1,
+  CoworkingArea: 2,
+  ParkingArea: 3,
+  CommonArea: 4,
+  Other: 5,
+} as const
+export type SpaceType = (typeof SpaceType)[keyof typeof SpaceType]
+
+export const SpaceTypeLabel: Record<SpaceType, string> = {
+  [SpaceType.Shop]: 'Shop',
+  [SpaceType.Office]: 'Office',
+  [SpaceType.CoworkingArea]: 'Coworking Area',
+  [SpaceType.ParkingArea]: 'Parking Area',
+  [SpaceType.CommonArea]: 'Common Area',
+  [SpaceType.Other]: 'Other',
+}
+
+export const SpaceStatus = {
+  Available: 0,
+  Reserved: 1,
+  Occupied: 2,
+  Maintenance: 3,
+  Inactive: 4,
+} as const
+export type SpaceStatus = (typeof SpaceStatus)[keyof typeof SpaceStatus]
+
+export const SpaceStatusLabel: Record<SpaceStatus, string> = {
+  [SpaceStatus.Available]: 'Available',
+  [SpaceStatus.Reserved]: 'Reserved',
+  [SpaceStatus.Occupied]: 'Occupied',
+  [SpaceStatus.Maintenance]: 'Maintenance',
+  [SpaceStatus.Inactive]: 'Inactive',
+}
+
+export interface SpaceDto {
+  id: string
+  facilityId: string
+  facilityName: string
+  propertyUnitId: string | null
+  buildingBlock: string | null
+  code: string
+  type: SpaceType
+  areaSize: number | null
+  capacity: number | null
+  status: SpaceStatus
+  rate: number | null
+  metadataJson: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface MallShopDto {
+  spaceId: string
+  facilityId: string
+  facilityName: string
+  propertyUnitId: string
+  buildingBlock: string | null
+  code: string
+  areaSize: number | null
+  rate: number | null
+  status: SpaceStatus
+  tradeCategory: string | null
+  storefrontName: string | null
+  notes: string | null
+  currentLeaseId: string | null
+  currentLeaseStatus: LeaseStatus | null
+  currentTenantName: string | null
+}
+
+export const ServiceChargeCalculationType = {
+  FixedAmount: 0,
+  PerAreaUnit: 1,
+} as const
+export type ServiceChargeCalculationType = (typeof ServiceChargeCalculationType)[keyof typeof ServiceChargeCalculationType]
+
+export const ServiceChargeCalculationTypeLabel: Record<ServiceChargeCalculationType, string> = {
+  [ServiceChargeCalculationType.FixedAmount]: 'Fixed Amount',
+  [ServiceChargeCalculationType.PerAreaUnit]: 'Per Area Unit',
+}
+
+export const ServiceChargeStatus = {
+  Pending: 0,
+  PartiallyPaid: 1,
+  Paid: 2,
+  Cancelled: 3,
+} as const
+export type ServiceChargeStatus = (typeof ServiceChargeStatus)[keyof typeof ServiceChargeStatus]
+
+export const ServiceChargeStatusLabel: Record<ServiceChargeStatus, string> = {
+  [ServiceChargeStatus.Pending]: 'Pending',
+  [ServiceChargeStatus.PartiallyPaid]: 'Partially Paid',
+  [ServiceChargeStatus.Paid]: 'Paid',
+  [ServiceChargeStatus.Cancelled]: 'Cancelled',
+}
+
+export interface ServiceChargeDefinitionDto {
+  id: string
+  facilityId: string
+  facilityName: string
+  name: string
+  calculationType: ServiceChargeCalculationType
+  amount: number
+  billingFrequency: LeasePaymentFrequency
+  isActive: boolean
+  createdAt: string
+}
+
+export interface ServiceChargeChargeDto {
+  id: string
+  serviceChargeDefinitionId: string
+  serviceChargeDefinitionName: string
+  leaseId: string
+  leaseNumber: string
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  amount: number
+  paidAmount: number
+  status: ServiceChargeStatus
+}
+
+export const ParkingSpaceStatus = {
+  Available: 0,
+  Allocated: 1,
+  Inactive: 2,
+} as const
+export type ParkingSpaceStatus = (typeof ParkingSpaceStatus)[keyof typeof ParkingSpaceStatus]
+
+export const ParkingSpaceStatusLabel: Record<ParkingSpaceStatus, string> = {
+  [ParkingSpaceStatus.Available]: 'Available',
+  [ParkingSpaceStatus.Allocated]: 'Allocated',
+  [ParkingSpaceStatus.Inactive]: 'Inactive',
+}
+
+export const ParkingAllocationStatus = {
+  Active: 0,
+  Ended: 1,
+} as const
+export type ParkingAllocationStatus = (typeof ParkingAllocationStatus)[keyof typeof ParkingAllocationStatus]
+
+export const ParkingAllocationStatusLabel: Record<ParkingAllocationStatus, string> = {
+  [ParkingAllocationStatus.Active]: 'Active',
+  [ParkingAllocationStatus.Ended]: 'Ended',
+}
+
+export interface ParkingSpaceDto {
+  id: string
+  facilityId: string
+  code: string
+  status: ParkingSpaceStatus
+}
+
+export interface ParkingAllocationDto {
+  id: string
+  parkingSpaceId: string
+  parkingSpaceCode: string
+  rentalTenantId: string | null
+  rentalTenantName: string | null
+  vehicleReference: string | null
+  startDate: string
+  endDate: string | null
+  amount: number
+  paidAmount: number
+  status: ParkingAllocationStatus
+  notes: string | null
+}
+
+export const FacilityEventStatus = {
+  Planned: 0,
+  Ongoing: 1,
+  Completed: 2,
+  Cancelled: 3,
+} as const
+export type FacilityEventStatus = (typeof FacilityEventStatus)[keyof typeof FacilityEventStatus]
+
+export const FacilityEventStatusLabel: Record<FacilityEventStatus, string> = {
+  [FacilityEventStatus.Planned]: 'Planned',
+  [FacilityEventStatus.Ongoing]: 'Ongoing',
+  [FacilityEventStatus.Completed]: 'Completed',
+  [FacilityEventStatus.Cancelled]: 'Cancelled',
+}
+
+export interface FacilityEventDto {
+  id: string
+  facilityId: string
+  facilityName: string
+  title: string
+  startAt: string
+  endAt: string
+  location: string | null
+  organizer: string | null
+  status: FacilityEventStatus
+  notes: string | null
+}
+
+export const TenantNoticeStatus = {
+  Draft: 0,
+  Sent: 1,
+  Acknowledged: 2,
+} as const
+export type TenantNoticeStatus = (typeof TenantNoticeStatus)[keyof typeof TenantNoticeStatus]
+
+export const TenantNoticeStatusLabel: Record<TenantNoticeStatus, string> = {
+  [TenantNoticeStatus.Draft]: 'Draft',
+  [TenantNoticeStatus.Sent]: 'Sent',
+  [TenantNoticeStatus.Acknowledged]: 'Acknowledged',
+}
+
+export interface TenantNoticeDto {
+  id: string
+  facilityId: string
+  facilityName: string
+  rentalTenantId: string | null
+  rentalTenantName: string | null
+  subject: string
+  content: string
+  noticeDate: string
+  status: TenantNoticeStatus
+}
+
+export const UtilityType = {
+  Electricity: 0,
+  Water: 1,
+  Gas: 2,
+  Other: 3,
+} as const
+export type UtilityType = (typeof UtilityType)[keyof typeof UtilityType]
+
+export const UtilityTypeLabel: Record<UtilityType, string> = {
+  [UtilityType.Electricity]: 'Electricity',
+  [UtilityType.Water]: 'Water',
+  [UtilityType.Gas]: 'Gas',
+  [UtilityType.Other]: 'Other',
+}
+
+export interface UtilityReadingDto {
+  id: string
+  facilityId: string | null
+  facilityName: string | null
+  propertyId: string | null
+  propertyName: string | null
+  type: UtilityType
+  meterReference: string
+  readingValue: number
+  readingDate: string
+  consumption: number | null
+  ratePerUnit: number | null
+  amount: number | null
+  paidAmount: number
+  createdAt: string
+}
+
+export const ServiceRequestCategory = {
+  Cleaning: 0,
+  Security: 1,
+  ItSupport: 2,
+  FrontDesk: 3,
+  Other: 4,
+} as const
+export type ServiceRequestCategory = (typeof ServiceRequestCategory)[keyof typeof ServiceRequestCategory]
+
+export const ServiceRequestCategoryLabel: Record<ServiceRequestCategory, string> = {
+  [ServiceRequestCategory.Cleaning]: 'Cleaning',
+  [ServiceRequestCategory.Security]: 'Security',
+  [ServiceRequestCategory.ItSupport]: 'IT Support',
+  [ServiceRequestCategory.FrontDesk]: 'Front Desk',
+  [ServiceRequestCategory.Other]: 'Other',
+}
+
+export interface ServiceRequestDto {
+  id: string
+  requestNumber: string
+  facilityId: string
+  facilityName: string
+  spaceId: string | null
+  spaceCode: string | null
+  requestedByUserId: string | null
+  requestedByUserName: string | null
+  requesterCustomerId: string | null
+  requesterCustomerName: string | null
+  category: ServiceRequestCategory
+  priority: MaintenancePriority
+  description: string
+  reportedDate: string
+  assignedToUserId: string | null
+  assignedToUserName: string | null
+  assignedVendorId: string | null
+  assignedVendorName: string | null
+  status: MaintenanceStatus
+  resolutionNotes: string | null
+  resolvedDate: string | null
+  createdAt: string
+}
+
+export const FacilityPaymentSourceType = {
+  ServiceCharge: 0,
+  Parking: 1,
+  CoworkingMembership: 2,
+  CoworkingBooking: 3,
+  Utility: 4,
+} as const
+export type FacilityPaymentSourceType = (typeof FacilityPaymentSourceType)[keyof typeof FacilityPaymentSourceType]
+
+export const FacilityPaymentSourceTypeLabel: Record<FacilityPaymentSourceType, string> = {
+  [FacilityPaymentSourceType.ServiceCharge]: 'Service Charge',
+  [FacilityPaymentSourceType.Parking]: 'Parking',
+  [FacilityPaymentSourceType.CoworkingMembership]: 'Coworking Membership',
+  [FacilityPaymentSourceType.CoworkingBooking]: 'Coworking Booking',
+  [FacilityPaymentSourceType.Utility]: 'Utility',
+}
+
+export interface FacilityPaymentDto {
+  id: string
+  receiptNumber: string
+  sourceType: FacilityPaymentSourceType
+  sourceId: string
+  amount: number
+  paymentDate: string
+  method: PaymentMethod
+  referenceNumber: string | null
+  notes: string | null
+  recordedByUserId: string
+  recordedByUserName: string | null
+  journalEntryId: string | null
+  createdAt: string
+}
+
+export interface UtilityConsumptionSummaryDto {
+  type: UtilityType
+  totalConsumption: number
+  totalAmount: number
+}
+
+export interface UpcomingFacilityEventDto {
+  id: string
+  title: string
+  facilityId: string
+  facilityName: string
+  startAt: string
+}
+
+export interface FacilityDashboardDto {
+  totalFacilities: number
+  totalSpaces: number
+  occupiedSpaces: number
+  availableSpaces: number
+  occupancyRate: number
+  activeTenantsOrMembers: number
+  openMaintenanceRequests: number
+  openServiceRequests: number
+  totalRevenue: number
+  outstandingReceivables: number
+  utilitySummary: UtilityConsumptionSummaryDto[]
+  upcomingEvents: UpcomingFacilityEventDto[]
+}
+
+export interface MallDashboardDto {
+  totalShops: number
+  occupiedShops: number
+  vacantShops: number
+  occupancyRate: number
+  activeTenants: number
+  rentDue: number
+  rentCollected: number
+  serviceChargesOutstanding: number
+  parkingOccupied: number
+  parkingTotal: number
+  openMaintenanceRequests: number
+  upcomingEvents: number
+  unacknowledgedNotices: number
+  revenueSummary: number
+}
+
+export interface CoworkingMemberDto {
+  id: string
+  customerId: string
+  customerName: string
+  email: string | null
+  phone: string | null
+  isActive: boolean
+  notes: string | null
+  activeMembershipCount: number
+  createdAt: string
+}
+
+export interface MembershipPlanDto {
+  id: string
+  facilityId: string
+  facilityName: string
+  name: string
+  durationDays: number
+  price: number
+  includedHoursCredits: number | null
+  isActive: boolean
+}
+
+export const MembershipStatus = {
+  Active: 0,
+  Expired: 1,
+  Cancelled: 2,
+} as const
+export type MembershipStatus = (typeof MembershipStatus)[keyof typeof MembershipStatus]
+
+export const MembershipStatusLabel: Record<MembershipStatus, string> = {
+  [MembershipStatus.Active]: 'Active',
+  [MembershipStatus.Expired]: 'Expired',
+  [MembershipStatus.Cancelled]: 'Cancelled',
+}
+
+export interface MembershipDto {
+  id: string
+  memberId: string
+  memberName: string
+  planId: string
+  planName: string
+  startDate: string
+  endDate: string
+  status: MembershipStatus
+  amount: number
+  paidAmount: number
+  createdAt: string
+}
+
+export const DeskType = {
+  Hot: 0,
+  Dedicated: 1,
+} as const
+export type DeskType = (typeof DeskType)[keyof typeof DeskType]
+
+export const DeskTypeLabel: Record<DeskType, string> = {
+  [DeskType.Hot]: 'Hot Desk',
+  [DeskType.Dedicated]: 'Dedicated Desk',
+}
+
+export const DeskStatus = {
+  Available: 0,
+  Occupied: 1,
+  Maintenance: 2,
+  Inactive: 3,
+} as const
+export type DeskStatus = (typeof DeskStatus)[keyof typeof DeskStatus]
+
+export const DeskStatusLabel: Record<DeskStatus, string> = {
+  [DeskStatus.Available]: 'Available',
+  [DeskStatus.Occupied]: 'Occupied',
+  [DeskStatus.Maintenance]: 'Maintenance',
+  [DeskStatus.Inactive]: 'Inactive',
+}
+
+export interface DeskDto {
+  id: string
+  spaceId: string
+  spaceCode: string
+  code: string
+  type: DeskType
+  status: DeskStatus
+}
+
+export const MeetingRoomStatus = {
+  Available: 0,
+  Maintenance: 1,
+  Inactive: 2,
+} as const
+export type MeetingRoomStatus = (typeof MeetingRoomStatus)[keyof typeof MeetingRoomStatus]
+
+export const MeetingRoomStatusLabel: Record<MeetingRoomStatus, string> = {
+  [MeetingRoomStatus.Available]: 'Available',
+  [MeetingRoomStatus.Maintenance]: 'Maintenance',
+  [MeetingRoomStatus.Inactive]: 'Inactive',
+}
+
+export interface MeetingRoomDto {
+  id: string
+  spaceId: string
+  spaceCode: string
+  name: string
+  capacity: number | null
+  hourlyRate: number | null
+  dailyRate: number | null
+  status: MeetingRoomStatus
+}
+
+export const BookingResourceType = {
+  Desk: 0,
+  MeetingRoom: 1,
+} as const
+export type BookingResourceType = (typeof BookingResourceType)[keyof typeof BookingResourceType]
+
+export const BookingResourceTypeLabel: Record<BookingResourceType, string> = {
+  [BookingResourceType.Desk]: 'Desk',
+  [BookingResourceType.MeetingRoom]: 'Meeting Room',
+}
+
+export const CoworkingBookingStatus = {
+  Pending: 0,
+  Confirmed: 1,
+  Completed: 2,
+  Cancelled: 3,
+} as const
+export type CoworkingBookingStatus = (typeof CoworkingBookingStatus)[keyof typeof CoworkingBookingStatus]
+
+export const CoworkingBookingStatusLabel: Record<CoworkingBookingStatus, string> = {
+  [CoworkingBookingStatus.Pending]: 'Pending',
+  [CoworkingBookingStatus.Confirmed]: 'Confirmed',
+  [CoworkingBookingStatus.Completed]: 'Completed',
+  [CoworkingBookingStatus.Cancelled]: 'Cancelled',
+}
+
+export interface CoworkingBookingDto {
+  id: string
+  memberId: string
+  memberName: string
+  resourceType: BookingResourceType
+  resourceId: string
+  resourceLabel: string
+  startAt: string
+  endAt: string
+  status: CoworkingBookingStatus
+  price: number
+  paidAmount: number
+  notes: string | null
+  createdAt: string
+}
+
+export interface UpcomingCoworkingBookingDto {
+  id: string
+  memberName: string
+  resourceLabel: string
+  startAt: string
+  endAt: string
+}
+
+export interface CoworkingDashboardDto {
+  totalDesks: number
+  occupiedDesks: number
+  availableDesks: number
+  occupancy: number
+  activeMembers: number
+  membershipRevenue: number
+  meetingRoomBookings: number
+  upcomingBookings: UpcomingCoworkingBookingDto[]
+  utilizationSummary: number
+  openMaintenanceOrServiceRequests: number
 }

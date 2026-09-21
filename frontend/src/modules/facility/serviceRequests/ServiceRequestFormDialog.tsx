@@ -11,50 +11,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
-import { useAllProperties } from '@/modules/property/properties/api'
-import { useAllTenants } from '@/modules/property/tenants/api'
-import { useUnitsByProperty } from '@/modules/property/units/api'
-import { useUsers } from '@/modules/users/api'
-import { useAllVendors } from '@/modules/procurement/vendors/api'
 import { useAllFacilities } from '@/modules/facility/facilities/api'
 import { useSpacesByFacility } from '@/modules/facility/spaces/api'
-import { MaintenanceCategory, MaintenanceCategoryLabel, MaintenancePriority, MaintenancePriorityLabel } from '@/types/api'
-import { useCreateMaintenanceRequest } from './api'
+import { useAllVendors } from '@/modules/procurement/vendors/api'
+import { useUsers } from '@/modules/users/api'
+import { MaintenancePriority, MaintenancePriorityLabel, ServiceRequestCategory, ServiceRequestCategoryLabel } from '@/types/api'
+import { useCreateServiceRequest } from './api'
 
 const NONE = 'none'
 const today = () => new Date().toISOString().slice(0, 10)
 
-const schema = z
-  .object({
-    propertyId: z.string().optional(),
-    unitId: z.string().optional(),
-    rentalTenantId: z.string().optional(),
-    facilityId: z.string().optional(),
-    spaceId: z.string().optional(),
-    slaHours: z.string().optional(),
-    category: z.string(),
-    priority: z.string(),
-    description: z.string().min(1, 'Description is required'),
-    reportedDate: z.string().min(1, 'Required'),
-    assignedToUserId: z.string().optional(),
-    assignedVendorId: z.string().optional(),
-  })
-  .refine((v) => (v.propertyId && v.propertyId !== NONE) || (v.facilityId && v.facilityId !== NONE), {
-    message: 'Select either a property or a facility',
-    path: ['propertyId'],
-  })
+const schema = z.object({
+  facilityId: z.string().min(1, 'Facility is required'),
+  spaceId: z.string().optional(),
+  requesterCustomerId: z.string().optional(),
+  category: z.string(),
+  priority: z.string(),
+  description: z.string().min(1, 'Description is required'),
+  reportedDate: z.string().min(1, 'Required'),
+  assignedToUserId: z.string().optional(),
+  assignedVendorId: z.string().optional(),
+})
 
 type FormValues = z.infer<typeof schema>
 
-export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const createRequest = useCreateMaintenanceRequest()
+export function ServiceRequestFormDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const createRequest = useCreateServiceRequest()
   const navigate = useNavigate()
 
-  const { data: properties } = useAllProperties()
-  const { data: tenants } = useAllTenants()
+  const { data: facilities } = useAllFacilities()
   const { data: users } = useUsers(1, '')
   const { data: vendors } = useAllVendors()
-  const { data: facilities } = useAllFacilities()
 
   const {
     register,
@@ -62,18 +49,14 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
     control,
     reset,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      propertyId: NONE,
-      unitId: NONE,
-      rentalTenantId: NONE,
-      facilityId: NONE,
+      facilityId: '',
       spaceId: NONE,
-      slaHours: '',
-      category: String(MaintenanceCategory.Other),
+      requesterCustomerId: '',
+      category: String(ServiceRequestCategory.Other),
       priority: String(MaintenancePriority.Medium),
       description: '',
       reportedDate: today(),
@@ -82,21 +65,16 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
     },
   })
 
-  const propertyId = watch('propertyId')
   const facilityId = watch('facilityId')
-  const { data: units } = useUnitsByProperty(propertyId && propertyId !== NONE ? propertyId : undefined)
-  const { data: spaces } = useSpacesByFacility(facilityId && facilityId !== NONE ? facilityId : undefined)
+  const { data: spaces } = useSpacesByFacility(facilityId || undefined)
 
   useEffect(() => {
     if (open) {
       reset({
-        propertyId: NONE,
-        unitId: NONE,
-        rentalTenantId: NONE,
-        facilityId: NONE,
+        facilityId: '',
         spaceId: NONE,
-        slaHours: '',
-        category: String(MaintenanceCategory.Other),
+        requesterCustomerId: '',
+        category: String(ServiceRequestCategory.Other),
         priority: String(MaintenancePriority.Medium),
         description: '',
         reportedDate: today(),
@@ -109,24 +87,21 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
   async function onSubmit(values: FormValues) {
     try {
       const created = await createRequest.mutateAsync({
-        propertyId: values.propertyId && values.propertyId !== NONE ? values.propertyId : null,
-        unitId: values.unitId && values.unitId !== NONE ? values.unitId : null,
-        rentalTenantId: values.rentalTenantId && values.rentalTenantId !== NONE ? values.rentalTenantId : null,
-        facilityId: values.facilityId && values.facilityId !== NONE ? values.facilityId : null,
+        facilityId: values.facilityId,
         spaceId: values.spaceId && values.spaceId !== NONE ? values.spaceId : null,
-        slaHours: values.slaHours ? Number(values.slaHours) : null,
-        category: Number(values.category) as MaintenanceCategory,
+        requesterCustomerId: values.requesterCustomerId || null,
+        category: Number(values.category) as ServiceRequestCategory,
         priority: Number(values.priority) as MaintenancePriority,
         description: values.description,
         reportedDate: values.reportedDate,
         assignedToUserId: values.assignedToUserId && values.assignedToUserId !== NONE ? values.assignedToUserId : null,
         assignedVendorId: values.assignedVendorId && values.assignedVendorId !== NONE ? values.assignedVendorId : null,
       })
-      toast({ title: 'Maintenance request created', variant: 'success' })
+      toast({ title: 'Service request created', variant: 'success' })
       onOpenChange(false)
-      navigate(`/property/maintenance/${created.id}`)
+      navigate(`/facility/service-requests/${created.id}`)
     } catch (error) {
-      toast({ title: 'Could not create maintenance request', description: extractErrorMessage(error), variant: 'destructive' })
+      toast({ title: 'Could not create service request', description: extractErrorMessage(error), variant: 'destructive' })
     }
   }
 
@@ -134,91 +109,22 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New maintenance request</DialogTitle>
-          <DialogDescription>Log a maintenance issue against a property or a facility, optionally scoped to a unit/space and tenant.</DialogDescription>
+          <DialogTitle>New service request</DialogTitle>
+          <DialogDescription>Log a facility-level service issue such as cleaning, security or front-desk support.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex max-h-[75vh] flex-col gap-4 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label>Property</Label>
-              <Controller
-                control={control}
-                name="propertyId"
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(v) => {
-                      field.onChange(v)
-                      setValue('unitId', NONE)
-                      if (v !== NONE) {
-                        setValue('facilityId', NONE)
-                        setValue('spaceId', NONE)
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>None</SelectItem>
-                      {(properties ?? []).map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.code} · {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.propertyId && <p className="text-xs text-destructive">{errors.propertyId.message}</p>}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Unit (optional)</Label>
-              <Controller
-                control={control}
-                name="unitId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={!propertyId || propertyId === NONE}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Property-level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Property-level</SelectItem>
-                      {(units ?? []).map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.unitNumber}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label>Facility (alternative to property)</Label>
+              <Label>Facility</Label>
               <Controller
                 control={control}
                 name="facilityId"
                 render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(v) => {
-                      field.onChange(v)
-                      setValue('spaceId', NONE)
-                      if (v !== NONE) {
-                        setValue('propertyId', NONE)
-                        setValue('unitId', NONE)
-                      }
-                    }}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="None" />
+                      <SelectValue placeholder="Select a facility" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NONE}>None</SelectItem>
                       {(facilities ?? []).map((f) => (
                         <SelectItem key={f.id} value={f.id}>
                           {f.code} · {f.name}
@@ -228,6 +134,7 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
                   </Select>
                 )}
               />
+              {errors.facilityId && <p className="text-xs text-destructive">{errors.facilityId.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Space (optional)</Label>
@@ -235,7 +142,7 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
                 control={control}
                 name="spaceId"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={!facilityId || facilityId === NONE}>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={!facilityId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Facility-level" />
                     </SelectTrigger>
@@ -254,31 +161,8 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="slaHours">SLA hours (optional)</Label>
-            <Input id="slaHours" type="number" step="1" {...register('slaHours')} />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Tenant (optional)</Label>
-            <Controller
-              control={control}
-              name="rentalTenantId"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {(tenants ?? []).map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.customerName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <Label htmlFor="requesterCustomerId">Requester customer ID (optional)</Label>
+            <Input id="requesterCustomerId" placeholder="Customer GUID, if applicable" {...register('requesterCustomerId')} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -293,7 +177,7 @@ export function MaintenanceRequestFormDialog({ open, onOpenChange }: { open: boo
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(MaintenanceCategoryLabel).map(([value, label]) => (
+                      {Object.entries(ServiceRequestCategoryLabel).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>

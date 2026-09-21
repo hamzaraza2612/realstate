@@ -10,10 +10,10 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
-import { useAllProperties } from '@/modules/property/properties/api'
-import { MaintenanceCategoryLabel, MaintenancePriority, MaintenancePriorityLabel, MaintenanceStatus, MaintenanceStatusLabel } from '@/types/api'
-import { useMaintenanceRequests } from './api'
-import { MaintenanceRequestFormDialog } from './MaintenanceRequestFormDialog'
+import { useAllFacilities } from '@/modules/facility/facilities/api'
+import { MaintenancePriority, MaintenancePriorityLabel, MaintenanceStatus, MaintenanceStatusLabel, ServiceRequestCategoryLabel } from '@/types/api'
+import { useServiceRequests } from './api'
+import { ServiceRequestFormDialog } from './ServiceRequestFormDialog'
 
 const ALL = 'all'
 
@@ -33,19 +33,19 @@ const priorityVariant: Record<MaintenancePriority, 'default' | 'secondary' | 'su
   [MaintenancePriority.Urgent]: 'destructive',
 }
 
-export function MaintenanceRequestsPage() {
+export function ServiceRequestsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [propertyId, setPropertyId] = useState<string>(ALL)
+  const [facilityId, setFacilityId] = useState<string>(ALL)
   const [status, setStatus] = useState<string>(ALL)
   const [priority, setPriority] = useState<string>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
   const navigate = useNavigate()
 
-  const { data: properties } = useAllProperties()
-  const { data, isLoading, isError, refetch } = useMaintenanceRequests(page, {
+  const { data: facilities } = useAllFacilities()
+  const { data, isLoading, isError, refetch } = useServiceRequests(page, {
     search: search || undefined,
-    propertyId: propertyId === ALL ? undefined : propertyId,
+    facilityId: facilityId === ALL ? undefined : facilityId,
     status: status === ALL ? undefined : (Number(status) as MaintenanceStatus),
     priority: priority === ALL ? undefined : (Number(priority) as MaintenancePriority),
   })
@@ -55,10 +55,10 @@ export function MaintenanceRequestsPage() {
   return (
     <div>
       <PageHeader
-        title="Maintenance Requests"
-        description="Maintenance issues reported across your properties and units."
+        title="Service Requests"
+        description="Cleaning, security, IT and front-desk requests logged against your facilities."
         actions={
-          <PermissionGate permission="property.maintenance.manage">
+          <PermissionGate permission="facility.manage">
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" /> New request
             </Button>
@@ -80,20 +80,20 @@ export function MaintenanceRequestsPage() {
           />
         </div>
         <Select
-          value={propertyId}
+          value={facilityId}
           onValueChange={(v) => {
-            setPropertyId(v)
+            setFacilityId(v)
             setPage(1)
           }}
         >
           <SelectTrigger className="w-52">
-            <SelectValue placeholder="Property" />
+            <SelectValue placeholder="Facility" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>All properties</SelectItem>
-            {(properties ?? []).map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.code} · {p.name}
+            <SelectItem value={ALL}>All facilities</SelectItem>
+            {(facilities ?? []).map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {f.code} · {f.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -138,10 +138,10 @@ export function MaintenanceRequestsPage() {
         </Select>
       </div>
 
-      {isLoading && <LoadingState label="Loading maintenance requests…" />}
-      {isError && <ErrorState message="Could not load maintenance requests." onRetry={() => refetch()} />}
+      {isLoading && <LoadingState label="Loading service requests…" />}
+      {isError && <ErrorState message="Could not load service requests." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No maintenance requests found" description="Try different filters or log a new request." />
+        <EmptyState title="No service requests found" description="Try different filters or log a new request." />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -150,7 +150,7 @@ export function MaintenanceRequestsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Request #</TableHead>
-                <TableHead>Property / Unit</TableHead>
+                <TableHead>Facility / Space</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Reported</TableHead>
@@ -160,22 +160,13 @@ export function MaintenanceRequestsPage() {
             </TableHeader>
             <TableBody>
               {data.items.map((request) => (
-                <TableRow key={request.id} className="cursor-pointer" onClick={() => navigate(`/property/maintenance/${request.id}`)}>
+                <TableRow key={request.id} className="cursor-pointer" onClick={() => navigate(`/facility/service-requests/${request.id}`)}>
                   <TableCell className="font-medium">{request.requestNumber}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {request.facilityId ? (
-                      <>
-                        {request.facilityName}
-                        {request.spaceCode ? ` · ${request.spaceCode}` : ''}
-                      </>
-                    ) : (
-                      <>
-                        {request.propertyName}
-                        {request.unitNumber ? ` · ${request.unitNumber}` : ''}
-                      </>
-                    )}
+                    {request.facilityName}
+                    {request.spaceCode ? ` · ${request.spaceCode}` : ''}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{MaintenanceCategoryLabel[request.category]}</TableCell>
+                  <TableCell className="text-muted-foreground">{ServiceRequestCategoryLabel[request.category]}</TableCell>
                   <TableCell>
                     <Badge variant={priorityVariant[request.priority]}>{MaintenancePriorityLabel[request.priority]}</Badge>
                   </TableCell>
@@ -205,7 +196,7 @@ export function MaintenanceRequestsPage() {
         </>
       )}
 
-      <MaintenanceRequestFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ServiceRequestFormDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }

@@ -37,9 +37,12 @@ export function useMaintenanceRequest(id: string | undefined) {
 }
 
 export interface MaintenanceRequestRequest {
-  propertyId: string
+  propertyId: string | null
   unitId: string | null
   rentalTenantId: string | null
+  facilityId: string | null
+  spaceId: string | null
+  slaHours: number | null
   category: MaintenanceCategory
   priority: MaintenancePriority
   description: string
@@ -51,6 +54,7 @@ export interface MaintenanceRequestRequest {
 function invalidateMaintenance(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: MAINTENANCE_KEY })
   queryClient.invalidateQueries({ queryKey: ['property', 'dashboard'] })
+  queryClient.invalidateQueries({ queryKey: ['facility', 'dashboard'] })
 }
 
 export function useCreateMaintenanceRequest() {
