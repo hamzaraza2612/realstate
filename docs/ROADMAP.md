@@ -514,7 +514,19 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
 - [x] Database: one migration, `AddReportingIndexes`, adding 8 composite indexes justified by the new
       reports' own filter predicates (see `docs/DATABASE.md`) — no new tables, applied and
       schema-verified against the dev database.
-- [x] Frontend: [placeholder — filled in after independent verification below]
+- [x] Frontend: a unified `/reports` area — an Executive Dashboard (13 grouped KPI cards, correctly
+      distinguishing period figures from as-of-now snapshots, `null` rendered as "N/A" never as a
+      fabricated 0) plus 7 tabbed report pages (Sales, Finance, Projects, Construction, Procurement,
+      Property, Facility — 3 to 10 tabs each covering every report endpoint), a shared `StatCard`/
+      `DateRangeFilter`/CSV-export helper, and 6 `recharts` charts (the dependency's first real use
+      in this codebase) reading the app's own theme tokens so they track dark mode automatically.
+      Independently verified after the implementing agent's handback: every new DTO in `types/api.ts`
+      checked field-by-field against the actual backend response shapes (exact match); every
+      drill-down `navigate()` call checked against the real routes in `App.tsx` (all resolve to
+      genuine existing detail pages — no invented routes); grepped for stray string-literal enum
+      comparisons (none — every status field reuses an existing numeric enum + label map); `npm run
+      build` re-run independently and confirmed to exit 0 with zero TypeScript errors. No backend
+      files were touched by the frontend work.
 - [x] Unit/integration tests: 20 new integration tests covering Executive Dashboard KPI calculation
       and date-range filtering, Sales report aggregation/filtering (Confirmed-only inclusion,
       project/agent filters), receivable aging bucketing, CSV export, AP aging (Approved-only

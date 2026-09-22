@@ -242,7 +242,7 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 - Customer/Owner/Tenant/Member/Vendor/Agent portals (depends on a real email provider, not just the abstraction).
 - Multi-currency.
 - Credit/debit notes and a tax engine.
-- Charting (wire the already-installed `recharts` dependency into existing dashboards).
+- ~~Charting~~ — **fixed in Milestone 12** (`recharts` now used in the new `/reports/*` pages — trend/breakdown charts only, not on every report; the pre-existing per-module dashboards from Milestones 1–10 still don't use it, which remains open if wanted there too).
 - ~~Generic approval-workflow engine~~ — **fixed in Milestone 11** (Expense/PurchaseOrder/Booking integrated; extending to further modules is now a matter of registering another `IApprovalLinkedEntityHandler`, not new architecture).
 - Platform billing/invoicing of tenants (Stripe or equivalent) and self-service signup.
 - Optimistic-concurrency tokens across the domain model. **Partially addressed in Milestone 11** — `ApprovalRequest` now uses `xmin`; every other entity remains last-write-wins.
@@ -368,7 +368,7 @@ A unified, read-only reporting layer over existing modules' data closing the exa
 ### Verification performed in Milestone 12
 
 - **Backend tests:** 12/12 unit + 170/170 integration passed (150 pre-existing + 20 new), 0 failures, 0 regressions.
-- **Frontend build:** [placeholder — filled in after independent verification below]
+- **Frontend build:** `npm run build` exits 0 with zero TypeScript errors (independently re-run after the implementing agent's handback). Delivered: an Executive Dashboard (13 grouped KPI cards) plus 7 tabbed report pages under `/reports/*` covering every backend report endpoint, gated by `reports.view`; 6 `recharts` charts (its first real use in this codebase, resolving the P2 "wire the already-installed recharts dependency" item — see §12); CSV export buttons wherever the backend supports `?format=csv`. Independent spot-check confirmed every new DTO in `types/api.ts` matches the actual backend response shapes field-by-field, every drill-down link resolves to a real existing route in `App.tsx`, and no stray string-literal enum comparisons exist. No backend files were touched.
 - **Migration/schema:** one new migration, `AddReportingIndexes` (8 composite indexes across `bookings`/`payments`/`expenses`/`rent_payments`/`purchase_orders`/`facility_payments`/`service_charge_charges`/`maintenance_requests`, no new tables) — applied and schema-verified via `psql \d` against the dev database.
 - **`docker compose config`:** exits 0 with `.env.example` values (both the default profile and `--profile tools`).
 - **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.

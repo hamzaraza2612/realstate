@@ -46,6 +46,7 @@ import {
   Banknote,
   FileText,
   CheckSquare,
+  BarChart3,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -113,6 +114,7 @@ const navItems: NavItem[] = [
   { to: '/finance/profit-and-loss', label: 'Profit & Loss', icon: TrendingUp, permission: 'finance.reports.view' },
   { to: '/finance/cash-flow', label: 'Cash Flow', icon: Banknote, permission: 'finance.reports.view' },
   { to: '/finance/fiscal-periods', label: 'Fiscal Periods', icon: CalendarClock, permission: 'finance.reports.view' },
+  { to: '/reports', label: 'Reports', icon: BarChart3, permission: 'reports.view' },
   { to: '/documents', label: 'Documents', icon: FileText, permission: 'documents.view' },
   { to: '/approvals', label: 'Approvals', icon: CheckSquare },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },

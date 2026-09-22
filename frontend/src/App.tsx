@@ -82,6 +82,14 @@ import { DocumentsPage } from '@/modules/documents/DocumentsPage'
 import { NotificationsPage } from '@/modules/notifications/NotificationsPage'
 import { NotificationPreferencesPage } from '@/modules/notifications/NotificationPreferencesPage'
 import { ApprovalInboxPage } from '@/modules/approvals/ApprovalInboxPage'
+import { ExecutiveDashboardPage } from '@/modules/reports/ExecutiveDashboardPage'
+import { SalesReportsPage } from '@/modules/reports/sales/SalesReportsPage'
+import { FinanceReportsPage } from '@/modules/reports/finance/FinanceReportsPage'
+import { ProjectReportsPage } from '@/modules/reports/projects/ProjectReportsPage'
+import { ConstructionReportsPage } from '@/modules/reports/construction/ConstructionReportsPage'
+import { ProcurementReportsPage } from '@/modules/reports/procurement/ProcurementReportsPage'
+import { PropertyReportsPage } from '@/modules/reports/property/PropertyReportsPage'
+import { FacilityReportsPage } from '@/modules/reports/facility/FacilityReportsPage'
 
 export default function App() {
   return (
@@ -677,6 +685,70 @@ export default function App() {
           element={
             <PermissionRoute permission="audit_logs.view">
               <AuditLogPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ExecutiveDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/sales"
+          element={
+            <PermissionRoute permission="reports.view">
+              <SalesReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/finance"
+          element={
+            <PermissionRoute permission="reports.view">
+              <FinanceReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/projects"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ProjectReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/construction"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ConstructionReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/procurement"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ProcurementReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/property"
+          element={
+            <PermissionRoute permission="reports.view">
+              <PropertyReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/facility"
+          element={
+            <PermissionRoute permission="reports.view">
+              <FacilityReportsPage />
             </PermissionRoute>
           }
         />

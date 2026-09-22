@@ -2308,3 +2308,383 @@ export interface ApprovalRequestDto {
   decidedAt: string | null
   createdAt: string
 }
+
+// --- Reporting (Milestone 12) ---
+// All report DTOs below map 1:1 onto `/api/v1/reports/*` responses (see docs/REPORTING.md).
+// Every status/category field reuses an existing numeric enum declared above — none are new.
+
+export interface ExecutiveDashboardDto {
+  from: string
+  to: string
+  sales: number
+  collections: number
+  revenue: number
+  expenses: number
+  profit: number
+  rentalCollected: number
+  receivables: number
+  payables: number
+  cashPosition: number
+  activeProjects: number
+  inventory: {
+    available: number
+    reserved: number
+    sold: number
+    total: number
+  }
+  propertyOccupancyRate: number | null
+  rentalOutstanding: number
+  constructionProgressPercent: number | null
+  procurementExposure: number
+  maintenanceBacklogCount: number
+  totalLeads: number
+  leadConversionRatePercent: number
+}
+
+// Sales reports
+
+export interface SalesByProjectRow {
+  projectId: string
+  projectName: string
+  bookingCount: number
+  totalNetPrice: number
+}
+
+export interface SalesByPeriodRow {
+  year: number
+  month: number
+  bookingCount: number
+  totalNetPrice: number
+}
+
+export interface SalesByAgentRow {
+  agentUserId: string
+  agentName: string
+  bookingCount: number
+  totalNetPrice: number
+}
+
+export interface BookingStatusReportRow {
+  status: BookingStatus
+  count: number
+  totalNetPrice: number
+}
+
+export interface SalesConversionReportDto {
+  from: string
+  to: string
+  /** Keys are `LeadStatus` enum NAMES (e.g. "New", "Won"), not numeric values. */
+  leadsByStatus: Record<string, number>
+  totalLeads: number
+  wonLeads: number
+  conversionRatePercent: number
+}
+
+export interface BookingCancellationRow {
+  bookingId: string
+  bookingNumber: string
+  projectId: string
+  projectName: string
+  customerId: string
+  customerName: string
+  netPrice: number
+  bookingDate: string
+}
+
+export interface SalesCollectionRow {
+  date: string
+  amount: number
+  paymentCount: number
+}
+
+export interface ReceivableAgingRow {
+  customerId: string
+  customerName: string
+  current: number
+  days1To30: number
+  days31To60: number
+  days61To90: number
+  days90Plus: number
+  total: number
+}
+
+// Finance reports (extension only — Trial Balance/P&L/Balance Sheet/Cash Flow already exist)
+
+export interface ArAgingReportDto {
+  rows: ReceivableAgingRow[]
+  totalOutstanding: number
+}
+
+export interface ApAgingRow {
+  vendorId: string
+  vendorName: string
+  current: number
+  days1To30: number
+  days31To60: number
+  days61To90: number
+  days90Plus: number
+  total: number
+}
+
+export interface ApAgingReportDto {
+  rows: ApAgingRow[]
+  totalOutstanding: number
+}
+
+export interface MonthlyAmountRow {
+  year: number
+  month: number
+  amount: number
+}
+
+// Project reports
+
+export interface InventoryAvailabilityRow {
+  projectId: string
+  projectName: string
+  available: number
+  reserved: number
+  booked: number
+  sold: number
+  blocked: number
+  underConstruction: number
+  handedOver: number
+  total: number
+}
+
+export interface SoldVsAvailableRow {
+  projectId: string
+  projectName: string
+  sold: number
+  available: number
+  total: number
+  soldPercent: number
+}
+
+export interface ProjectSalesSummaryRow {
+  projectId: string
+  projectName: string
+  bookingCount: number
+  totalNetPrice: number
+}
+
+export interface ProjectCollectionSummaryRow {
+  projectId: string
+  projectName: string
+  totalInstallments: number
+  collected: number
+  outstanding: number
+}
+
+export interface ProjectFinancialSummaryRow {
+  projectId: string
+  projectName: string
+  salesRevenue: number
+  constructionExpenses: number
+  grossMargin: number
+}
+
+export interface ProjectProgressRow {
+  projectId: string
+  projectName: string
+  progressPercent: number | null
+  workPackageCount: number
+}
+
+// Construction / Procurement reports
+
+export interface WorkPackageProgressRow {
+  id: string
+  name: string
+  code: string
+  projectId: string
+  projectName: string
+  status: WorkPackageStatus
+  progressPercent: number
+  budget: number | null
+  actualExpenses: number
+}
+
+export interface ConstructionExpenseByCategoryRow {
+  category: ExpenseCategory
+  count: number
+  total: number
+}
+
+export interface BudgetVsActualRow {
+  workPackageId: string
+  workPackageName: string
+  projectId: string
+  projectName: string
+  budget: number | null
+  actual: number
+  variance: number | null
+}
+
+export interface PurchaseOrderExposureRow {
+  vendorId: string
+  vendorName: string
+  orderCount: number
+  totalExposure: number
+}
+
+export interface ReceivedVsOrderedRow {
+  purchaseOrderId: string
+  poNumber: string
+  itemDescription: string
+  orderedQuantity: number
+  receivedQuantity: number
+  outstandingQuantity: number
+}
+
+export interface VendorSpendRow {
+  vendorId: string
+  vendorName: string
+  orderCount: number
+  totalSpend: number
+}
+
+export interface PurchaseOrderStatusReportRow {
+  status: PurchaseOrderStatus
+  count: number
+  totalValue: number
+}
+
+// Property / Rental reports
+
+export interface PropertyOccupancyRow {
+  propertyId: string
+  propertyName: string
+  totalUnits: number
+  occupiedUnits: number
+  occupancyRate: number
+}
+
+export interface RentBilledRow {
+  propertyId: string
+  propertyName: string
+  amountBilled: number
+}
+
+export interface RentCollectedRow {
+  propertyId: string
+  propertyName: string
+  amountCollected: number
+}
+
+export interface OverdueRentRow {
+  leaseId: string
+  leaseNumber: string
+  propertyId: string
+  propertyName: string
+  tenantName: string
+  outstandingAmount: number
+  dueDate: string
+  daysPastDue: number
+}
+
+export interface PropertyRevenueRow {
+  propertyId: string
+  propertyName: string
+  revenue: number
+}
+
+export interface TenantAgingRow {
+  rentalTenantId: string
+  tenantName: string
+  current: number
+  days1To30: number
+  days31To60: number
+  days61To90: number
+  days90Plus: number
+  total: number
+}
+
+export interface LeaseStatusReportRow {
+  status: LeaseStatus
+  count: number
+}
+
+// Facility / Mall / Coworking reports
+
+export interface FacilityUtilizationRow {
+  facilityId: string
+  facilityName: string
+  type: FacilityType
+  totalSpaces: number
+  occupiedSpaces: number
+  occupancyRate: number
+}
+
+export interface MallOccupancyRow {
+  facilityId: string
+  facilityName: string
+  totalShops: number
+  occupiedShops: number
+  occupancyRate: number
+}
+
+export interface ServiceChargeCollectionRow {
+  facilityId: string
+  facilityName: string
+  billed: number
+  collected: number
+  outstanding: number
+}
+
+export interface FacilityRevenueRow {
+  facilityId: string
+  facilityName: string
+  total: number
+  /** Keys are `FacilityPaymentSourceType` enum NAMES (e.g. "ServiceCharge", "Parking"). */
+  bySourceType: Record<string, number>
+}
+
+export interface ParkingReportRow {
+  facilityId: string
+  facilityName: string
+  totalSpaces: number
+  allocatedSpaces: number
+  occupancyRate: number
+}
+
+export interface FacilityEventsRow {
+  facilityId: string
+  facilityName: string
+  upcomingCount: number
+  pastCount: number
+}
+
+export interface CoworkingDeskUtilizationRow {
+  facilityId: string
+  facilityName: string
+  totalDesks: number
+  occupiedDesks: number
+  occupancyRate: number
+}
+
+export interface MeetingRoomUtilizationRow {
+  meetingRoomId: string
+  roomName: string
+  facilityId: string
+  facilityName: string
+  bookedHours: number
+  bookingCount: number
+}
+
+export interface BookingTrendRow {
+  date: string
+  bookingCount: number
+}
+
+export interface MaintenanceBacklogRow {
+  requestId: string
+  requestNumber: string
+  facilityId: string
+  facilityName: string
+  priority: MaintenancePriority
+  status: MaintenanceStatus
+  ageInDays: number
+  assignedVendorId: string | null
+  assignedVendorName: string | null
+}
