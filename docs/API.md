@@ -248,4 +248,48 @@ Coworking (built on the shared foundation):
   All three new report endpoints share the existing `finance.reports.view` permission with Trial Balance/
   Income Summary.
 
+## Milestone 11 endpoints (Documents + Notifications + Approvals + Communication Foundation)
+
+Documents (generic — attaches to any `DocumentEntityTypes` value: Customer/Lead/Booking/Payment/
+Project/Property/PropertyUnit/Lease/RentalTenant/Vendor/PurchaseOrder/PurchaseRequest/Expense/
+Facility/MaintenanceRequest/Other):
+- `GET /api/v1/documents?entityType=&entityId=&category=&search=` — permission `documents.view`.
+- `GET /api/v1/documents/{id}` — returns `{ document, versions[] }`, versions newest-first.
+- `POST /api/v1/documents` — `multipart/form-data` (`EntityType`, `EntityId`, `Category`, `Title`,
+  `Description`, `File`), permission `documents.manage`. Rejects `400 empty_file`,
+  `400 file_too_large` (`Storage:MaxFileSizeMb`, default 25), `400 unsupported_file_type` (not in
+  `Storage:AllowedContentTypes`), `400 content_type_mismatch` (declared Content-Type doesn't match the
+  file's actual magic bytes), `400 unknown_entity_type`.
+- `POST /api/v1/documents/{id}/versions` — `multipart/form-data` (`File` only) — adds a new, immutable
+  version; never overwrites a prior one.
+- `GET /api/v1/documents/{id}/download?version=` (version optional, defaults to latest) — streams the
+  file with the original filename/Content-Type restored from metadata; the storage key itself is never
+  exposed to the client.
+- `DELETE /api/v1/documents/{id}` — permission `documents.manage`; removes the document, every version,
+  and the underlying stored files together.
+
+Notifications (no permission gate — every action is scoped to the caller's own `UserId` server-side):
+- `GET /api/v1/notifications?unreadOnly=&category=`, `GET /api/v1/notifications/unread-count`.
+- `POST /api/v1/notifications/{id}/read`, `POST /api/v1/notifications/read-all`.
+- `GET /api/v1/notifications/preferences` (always returns one row per `NotificationCategory`, defaulting
+  to both channels enabled), `PUT /api/v1/notifications/preferences` (one category at a time).
+
+Approvals (generic — same `(EntityType, EntityId)` pattern as Documents):
+- `GET /api/v1/approvals/inbox?status=` — no permission gate; scoped to requests where the caller is
+  the named approver or holds the request's `requiredPermission`. Omitting `status` returns Pending only.
+- `GET /api/v1/approvals/entity?entityType=&entityId=` — full history for one entity, permission
+  `approvals.view`.
+- `GET /api/v1/approvals/{id}` — permission `approvals.view`.
+- `POST /api/v1/approvals` — direct creation for the foundation itself (existing modules create
+  requests internally, not through this endpoint).
+- `POST /api/v1/approvals/{id}/decide` body `{ approve, decisionComments? }` — `403` if the caller is
+  neither the named approver nor holds the required permission; `400 already_decided` if someone else
+  already decided it (a real, expected race, not a bug — see the concurrent-decision test). Deciding an
+  Expense/PurchaseOrder/Booking's linked request here also drives that entity's own
+  approve/reject/cancel action (bidirectional — see `docs/ROADMAP.md` Milestone 11 for how).
+
+Communication (diagnostic/support visibility, not an end-user feature):
+- `GET /api/v1/communication-logs?recipientUserId=&entityType=&entityId=&status=` — permission
+  `audit_logs.view` (reused, since this is the same kind of cross-cutting sensitive data).
+
 Further modules append their endpoint list here as they ship.

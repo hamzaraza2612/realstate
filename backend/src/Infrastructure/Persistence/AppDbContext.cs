@@ -98,6 +98,12 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Desk> Desks => Set<Desk>();
     public DbSet<MeetingRoom> MeetingRooms => Set<MeetingRoom>();
     public DbSet<CoworkingBooking> CoworkingBookings => Set<CoworkingBooking>();
+    public DbSet<Domain.Documents.Document> Documents => Set<Domain.Documents.Document>();
+    public DbSet<Domain.Documents.DocumentVersion> DocumentVersions => Set<Domain.Documents.DocumentVersion>();
+    public DbSet<Domain.Notifications.Notification> Notifications => Set<Domain.Notifications.Notification>();
+    public DbSet<Domain.Notifications.NotificationPreference> NotificationPreferences => Set<Domain.Notifications.NotificationPreference>();
+    public DbSet<Domain.Communication.CommunicationLog> CommunicationLogs => Set<Domain.Communication.CommunicationLog>();
+    public DbSet<Domain.Approvals.ApprovalRequest> ApprovalRequests => Set<Domain.Approvals.ApprovalRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

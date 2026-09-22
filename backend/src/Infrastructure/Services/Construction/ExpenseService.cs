@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using RealEstateErp.Application.Approvals;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Construction.Expenses;
 using RealEstateErp.Application.Finance;
@@ -7,6 +8,7 @@ using RealEstateErp.Domain.Construction;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
+using RealEstateErp.Shared.Security;
 
 namespace RealEstateErp.Infrastructure.Services.Construction;
 
@@ -18,13 +20,16 @@ public class ExpenseService : IExpenseService
     private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
     private readonly IConstructionFinancePostingService _financePosting;
+    private readonly IApprovalService _approvalService;
 
-    public ExpenseService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger, IConstructionFinancePostingService financePosting)
+    public ExpenseService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger,
+        IConstructionFinancePostingService financePosting, IApprovalService approvalService)
     {
         _db = db;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
         _financePosting = financePosting;
+        _approvalService = approvalService;
     }
 
     public async Task<PagedResult<ExpenseDto>> ListAsync(PagedRequest request, ExpenseFilter filter, CancellationToken ct = default)
@@ -68,6 +73,15 @@ public class ExpenseService : IExpenseService
         await _db.SaveChangesAsync(ct);
 
         await _auditLogger.LogAsync("Create", "Construction", "Expense", expense.Id.ToString(), after: new { expense.ProjectId, expense.Amount }, ct: ct);
+
+        // Creates a parallel ApprovalRequest for the cross-module Approval Inbox/history. Expense.Status
+        // remains this entity's own source of truth — this call never gates ApproveAsync/RejectAsync
+        // below, it's resolved by them (see ResolveForEntityAsync calls further down). The reverse path
+        // also exists: deciding this request via the generic Approval Inbox calls back into
+        // ApproveAsync/RejectAsync through a registered ExpenseApprovalHandler (see
+        // ApprovalService.DecideAsync), so either entry point keeps both records in sync.
+        await _approvalService.CreateRequestAsync(new CreateApprovalRequestRequest(
+            "Expense", expense.Id, ApproverUserId: null, Permissions.Procurement.OrderApprove, RequestComments: null), ct);
         return Result.Success((await ToDtosAsync(new[] { expense }, ct))[0]);
     }
 
@@ -92,6 +106,7 @@ public class ExpenseService : IExpenseService
         await transaction.CommitAsync(ct);
 
         await _auditLogger.LogAsync("Approve", "Construction", "Expense", expense.Id.ToString(), after: new { expense.JournalEntryId }, ct: ct);
+        await _approvalService.ResolveForEntityAsync("Expense", expense.Id, approved: true, _tenantContext.UserId ?? Guid.Empty, decisionComments: null, ct);
         return Result.Success((await ToDtosAsync(new[] { expense }, ct))[0]);
     }
 
@@ -104,6 +119,7 @@ public class ExpenseService : IExpenseService
         expense.Status = ExpenseStatus.Rejected;
         await _db.SaveChangesAsync(ct);
         await _auditLogger.LogAsync("Reject", "Construction", "Expense", expense.Id.ToString(), ct: ct);
+        await _approvalService.ResolveForEntityAsync("Expense", expense.Id, approved: false, _tenantContext.UserId ?? Guid.Empty, decisionComments: null, ct);
         return Result.Success((await ToDtosAsync(new[] { expense }, ct))[0]);
     }
 

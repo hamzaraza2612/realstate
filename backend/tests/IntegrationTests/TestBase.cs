@@ -59,6 +59,40 @@ public abstract class TestBase
         return (response.IsSuccessStatusCode, body, response.StatusCode);
     }
 
+    protected async Task<(bool Success, JsonElement Body, System.Net.HttpStatusCode Status)> PostFormAsync(
+        string url, IDictionary<string, string> fields, (byte[] Bytes, string FileName, string ContentType)? file, string? token = null)
+    {
+        using var content = new MultipartFormDataContent();
+        foreach (var (key, value) in fields)
+        {
+            content.Add(new StringContent(value), key);
+        }
+        if (file is { } f)
+        {
+            var fileContent = new ByteArrayContent(f.Bytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(f.ContentType);
+            content.Add(fileContent, "File", f.FileName);
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+        if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Client.SendAsync(request);
+        var text = await response.Content.ReadAsStringAsync();
+        var body = string.IsNullOrWhiteSpace(text) ? default : JsonSerializer.Deserialize<JsonElement>(text, JsonOptions);
+        return (response.IsSuccessStatusCode, body, response.StatusCode);
+    }
+
+    protected async Task<(bool Success, byte[] Bytes, System.Net.HttpStatusCode Status, string? ContentType)> GetBytesAsync(string url, string? token = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Client.SendAsync(request);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        return (response.IsSuccessStatusCode, bytes, response.StatusCode, response.Content.Headers.ContentType?.MediaType);
+    }
+
     protected async Task<string> LoginAsync(string email, string password)
     {
         var (success, body, status) = await PostAsync("/api/v1/auth/login", new { email, password });

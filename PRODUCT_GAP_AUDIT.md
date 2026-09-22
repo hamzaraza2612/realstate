@@ -39,9 +39,9 @@ None of these are architecture failures — they are scope gaps in modules that 
 | Shopping Mall | **IMPLEMENTED** | MallShopProfile (reuses Lease/PropertyUnit), ServiceCharge, Parking, Event, TenantNotice, dashboard. |
 | Coworking | **IMPLEMENTED** | Membership, MembershipPlan, Desk, MeetingRoom, Booking (real overlap-prevention via Postgres EXCLUDE constraint), dashboard. |
 | Maintenance | **IMPLEMENTED** | `Property.MaintenanceRequest` extended (not duplicated) for Facility reuse; status-rule-governed lifecycle. |
-| Documents | **MISSING** | No `IFormFile`/upload/attachment code anywhere. A `Storage:LocalPath` config key and an `uploads-data` Docker volume exist but are unused — dead scaffolding, not a feature. |
-| Notifications / Communication | **MISSING** | No notification entity, no email service (`SmtpClient`/`SendGrid`/`MailKit` — zero hits), no in-app notification feed. Password reset does not exist because there is no email capability to deliver it. |
-| Approvals / Workflows | **PARTIAL** | Approval exists as a hardcoded step inside specific flows (Sales Booking approval, Expense approval) — no generic, reusable approval-workflow engine. |
+| Documents | **IMPLEMENTED (Milestone 11)** | Generic `Document`/`DocumentVersion` attaches to any entity via `(EntityType, EntityId)` — no per-module table. `IFileStorageService`/`LocalFileStorageService` finally uses the `Storage:LocalPath` config and `uploads-data` volume that had been dead scaffolding since Milestone 1. Size/type/magic-byte validation, versioning, tenant-isolated download, `documents.view`/`documents.manage` permissions. |
+| Notifications / Communication | **PARTIAL (Milestone 11)** | In-app `Notification`/`NotificationPreference` and `ICommunicationService`/`IEmailSender` now exist and are used by the Approvals foundation. `LoggingEmailSender` is a development-safe default — **no real SMTP/SendGrid provider is registered yet**, so password reset and any customer-facing email still can't actually leave the building; only the abstraction and its dev-safe implementation exist. |
+| Approvals / Workflows | **IMPLEMENTED (Milestone 11)** | Generic `ApprovalRequest` (named approver or "anyone holding permission X"), with Postgres `xmin` optimistic-concurrency protection against duplicate/concurrent decisions. Expense/PurchaseOrder/Booking are integrated *bidirectionally* — deciding via the generic Approval Inbox also drives the entity's own approve/reject, via a pluggable `IApprovalLinkedEntityHandler` registered per module, not a hardcoded dispatch. No other modules integrated yet (deliberately, per scope). |
 | Customer / Tenant / Member portals | **MISSING** | Confirmed zero external-actor login surface. `Customer`, `RentalTenant`, `Vendor` have no password/credential/UserId field at all — only ERP staff and Super Admin can authenticate. See §10. |
 | Reporting / Analytics | **PARTIAL** | Per-module dashboards are real and tenant-scoped; no cross-module reports (project profitability, AP aging, agent performance, today's-sales), no charting despite `recharts` being an installed dependency. See §8. |
 | HR / Payroll | **MISSING** | No entity, controller, or domain folder of any kind. |
@@ -60,7 +60,7 @@ None of these are architecture failures — they are scope gaps in modules that 
 
 ## 3. Missing Capabilities (summary list)
 
-Documents/attachments, transactional email (including password reset), in-app notifications, a generic approval-workflow engine, any external-actor portal (customer/owner/tenant/member/vendor/agent), HR/Payroll, Owner/Investor management, platform billing/invoicing of tenants, subscription lifecycle automation, tenant-status enforcement, bank reconciliation, fiscal period locking, multi-currency, credit/debit notes, AP clearing, cross-module reporting (profitability, aging, agent performance), and a real charting layer on the already-present `recharts` dependency.
+~~Documents/attachments~~, a **real** transactional email provider (including password reset — the abstraction and a dev-safe logging default now exist, fixed in Milestone 11, but nothing sends actual mail yet), ~~in-app notifications~~, ~~a generic approval-workflow engine~~, any external-actor portal (customer/owner/tenant/member/vendor/agent — still blocked on the real email provider above), HR/Payroll, Owner/Investor management, platform billing/invoicing of tenants, subscription lifecycle automation, ~~tenant-status enforcement~~, bank reconciliation, ~~fiscal period locking~~, multi-currency, credit/debit notes, ~~AP clearing~~, cross-module reporting (profitability, aging, agent performance), and a real charting layer on the already-present `recharts` dependency. (Struck-through items were fixed in Milestones 10–11; kept here, not deleted, so this list's history stays legible.)
 
 ---
 
@@ -185,7 +185,7 @@ The scaffolding is more built-out than a typical Milestone-8-stage product (a `T
 - No `IHostedService`/background job exists anywhere (Hangfire is wired with zero jobs registered) — `TrialEndsAt` is never checked, so trials never expire automatically.
 - No self-service tenant signup — the only tenant-creation path is Super-Admin-driven via the Platform API.
 - No platform billing/invoicing of tenants for their own subscription (no Stripe/gateway integration, no Invoice entity at the platform level) — `SubscriptionPlan` is a catalog only.
-- No transactional email capability at all (no SMTP/SendGrid/MailKit) — this alone blocks password reset, welcome emails, and any tenant-suspension notice.
+- ~~No transactional email capability at all~~ **Updated by Milestone 11**: `IEmailSender`/`ICommunicationService` now exist and are used by the Approvals foundation, but the only registered implementation (`LoggingEmailSender`) logs instead of sending — no real SMTP/SendGrid provider is wired in yet, so this still blocks password reset, welcome emails, and any tenant-suspension notice reaching an actual inbox.
 - `Tenant.Timezone` is stored and validated but never actually used to convert or display any date/time.
 - No currency/locale field anywhere; every frontend dashboard hardcodes `en-US`/`$`.
 - Production posture is otherwise genuinely solid: Serilog structured logging, a real `/health` endpoint, fail-closed CORS, environment-variable-driven secrets with no hardcoded defaults in `docker-compose.yml`, a documented Docker Compose deployment procedure, and correctly-scoped rate limiting.
@@ -194,7 +194,7 @@ The scaffolding is more built-out than a typical Milestone-8-stage product (a `T
 
 ## 10. Portal Readiness
 
-There is exactly one authentication surface in the entire system (`AuthController` + ASP.NET Identity), used by internal staff and Super Admin only. `Customer`, `RentalTenant`, `Vendor`, and the newly-added `CoworkingMember` have **no password, credential, or `UserId` field of any kind** — confirmed by direct inspection of all four entities. Building any of the six requested portals (Customer, Owner, Tenant, Rental, Member, Vendor, Agent) requires, at minimum: an external-identity concept distinct from `AppUser` (or a scoped/claims-limited `AppUser` linked to a `Customer`/`RentalTenant`/`Vendor` row), a separate login surface, and read-scoped (mostly) API views onto data that already exists and is already correctly tenant-isolated. The domain services underneath are reusable as-is; only the identity/auth layer and a thin portal-specific frontend are net-new work. This is real, well-scoped work — not a rebuild — but it has a hard prerequisite that doesn't exist yet: email delivery, since a portal invite/password-reset flow is meaningless without it.
+There is exactly one authentication surface in the entire system (`AuthController` + ASP.NET Identity), used by internal staff and Super Admin only. `Customer`, `RentalTenant`, `Vendor`, and the newly-added `CoworkingMember` have **no password, credential, or `UserId` field of any kind** — confirmed by direct inspection of all four entities. Building any of the six requested portals (Customer, Owner, Tenant, Rental, Member, Vendor, Agent) requires, at minimum: an external-identity concept distinct from `AppUser` (or a scoped/claims-limited `AppUser` linked to a `Customer`/`RentalTenant`/`Vendor` row), a separate login surface, and read-scoped (mostly) API views onto data that already exists and is already correctly tenant-isolated. The domain services underneath are reusable as-is; only the identity/auth layer and a thin portal-specific frontend are net-new work. This is real, well-scoped work — not a rebuild — but it has a hard prerequisite that's only half-done: the `IEmailSender` abstraction now exists (Milestone 11), but no real provider is registered behind it, and a portal invite/password-reset flow is meaningless without mail actually leaving the building.
 
 ---
 
@@ -218,29 +218,33 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 **P0 — required before serious commercial launch** (data-integrity or trust-breaking if absent):
 - ~~Cross-tenant role/permission leak~~ — **fixed in Milestone 9.**
 - ~~Enforce `TenantStatus`~~ — **fixed in Milestone 10** (Suspended/Cancelled tenants are blocked at login, refresh, and every protected API call).
-- Transactional email capability (minimum: password reset, tenant-suspension notice) — this is also the hard prerequisite for any portal work. **Still open** — moved to Milestone 12 in `ROADMAP.md`.
+- A **real** transactional email provider (minimum: password reset, tenant-suspension notice) behind the `IEmailSender` abstraction Milestone 11 added — this is also the hard prerequisite for any portal work. **Abstraction done, real provider still open.**
 - ~~AP clearing~~ — **fixed in Milestone 10** (vendor payments now reduce the AP balance via `ExpensePayment`).
 - ~~Fiscal-period closing~~ — **fixed in Milestone 10** (Closed periods reject backdated postings; opt-in, no behavior change for tenants that don't define one).
 - TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed). **Still open.**
 
 **P1 — important shortly after launch:**
-- Cross-module reporting: today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the single most commonly asked "can the ERP tell me X" questions today's answer is no to. (Balance Sheet/P&L/Cash Flow are now available as of Milestone 10, which covers part of this — today's-sales/aging/profitability/agent-performance remain open, scheduled for Milestone 11.)
+- Cross-module reporting: today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the single most commonly asked "can the ERP tell me X" questions today's answer is no to. (Balance Sheet/P&L/Cash Flow are now available as of Milestone 10, which covers part of this — today's-sales/aging/profitability/agent-performance remain open, scheduled for Milestone 12.)
 - ~~Journal reversal for posted entries~~ — **fixed in Milestone 10.**
 - Bank reconciliation and multi-bank-account support (`PaymentMethod` already captured, just not routed).
-- Documents/attachments (leases, maintenance photos, KYC) — infra (`uploads-data` volume, `Storage:LocalPath`) is already provisioned.
-- Confirmation dialogs on destructive status transitions (Cancel booking/membership/request) — cheap, mechanical, closes a real UX gap.
+- ~~Documents/attachments~~ — **fixed in Milestone 11.**
+- Confirmation dialogs on destructive status transitions (Cancel booking/membership/request) — cheap, mechanical, closes a real UX gap. (Milestone 11 added confirm-dialogs for its *own* new destructive actions — Approve/Reject in the Approval Inbox, document delete — but the pre-existing Sales/Coworking/Maintenance cancel-button gap this item originally referred to is still open.)
 - Subscription lifecycle automation (a single Hangfire recurring job checking `TrialEndsAt`) — the infrastructure to run it already exists and is unused.
 - Wire the two Facility/Mall status-change gaps (`FacilityEventService`, `TenantNoticeService`) into the existing `*StatusRules` pattern.
+- A real SMTP/SendGrid `IEmailSender` implementation — the interface and a dev-safe default exist as of Milestone 11; only a production provider is missing now.
 
 **P2 — valuable later:**
-- Customer/Owner/Tenant/Member/Vendor/Agent portals (depends on P0 email capability).
+- Customer/Owner/Tenant/Member/Vendor/Agent portals (depends on a real email provider, not just the abstraction).
 - Multi-currency.
 - Credit/debit notes and a tax engine.
 - Charting (wire the already-installed `recharts` dependency into existing dashboards).
-- Generic approval-workflow engine (currently hardcoded per-flow, which is fine at current scale).
+- ~~Generic approval-workflow engine~~ — **fixed in Milestone 11** (Expense/PurchaseOrder/Booking integrated; extending to further modules is now a matter of registering another `IApprovalLinkedEntityHandler`, not new architecture).
 - Platform billing/invoicing of tenants (Stripe or equivalent) and self-service signup.
-- Optimistic-concurrency tokens across the domain model.
+- Optimistic-concurrency tokens across the domain model. **Partially addressed in Milestone 11** — `ApprovalRequest` now uses `xmin`; every other entity remains last-write-wins.
 - Unify or share a Finance-posting base to remove the four-times-duplicated posting logic (only urgent if a fifth posting need appears, or the `CountAsync()+1` entry-numbering race condition is observed in practice under real concurrent load).
+- WhatsApp/SMS/push notification providers — `CommunicationChannel` already names them; no adapter is implemented for any of the three.
+- Per-entity-type document permissions (today `documents.view`/`documents.manage` are tenant-wide, not scoped per attached entity type — e.g. a user with `documents.manage` can delete a document attached to any entity, not just ones they'd otherwise have access to).
+- Object storage (S3/Blob) provider for Documents, to support horizontal API scaling — `LocalFileStorageService` alone requires either a single API replica or a shared volume across replicas.
 
 **DEFER — not necessary yet:**
 - HR/Payroll, Owner/Investor management, Marketing/Campaign depth, real GIS basemap, support-ticket/impersonation tooling, object storage backend (S3/Blob) beyond the local volume already provisioned.
@@ -249,7 +253,7 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 
 ## 13. Recommended Next Milestone
 
-**Milestone 10 — Security & Finance Hardening** (not a new feature module): enforce tenant status at the API boundary, add AP clearing + fiscal-period closing + journal reversal to Finance, add the confirmation-dialog fix and the two status-rule gaps to the frontend/Facility modules, and stand up transactional email as the prerequisite for every subsequent portal/notification milestone. This sequencing exists because every module built on top of an unenforced tenant-status check or an incomplete accounting ledger inherits that gap silently — closing it now is cheaper than after Documents/Notifications/Portals/Reporting are all built on top of it, which is what `ROADMAP.md` currently schedules next (Milestones 9–13: Portals, Documents/Notifications, Reporting, SaaS, Production hardening — all of which have a hard or soft dependency on the items in this milestone).
+**Milestone 10 — Security & Finance Hardening** and **Milestone 11 — Documents + Notifications + Approvals + Communication Foundation** are both now complete (see their addenda below). The next recommended milestone is **Milestone 12 — Reporting**: cross-module dashboards (today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance) are the most commonly requested "can the ERP tell me X" capability still missing, the underlying data (Finance, Sales, Facility, Property) is all already in place from Milestones 1–10, and `recharts` has sat installed and unused since before Milestone 8. Portals (Milestone 13) remain blocked behind a real `IEmailSender` provider, which is a smaller, separable piece of work that can happen in parallel with or just before Milestone 13 rather than gating Reporting.
 
 ---
 
@@ -268,13 +272,16 @@ HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campa
 | Login/refresh resolved roles via a tenant-filtered helper before any tenant context existed | `Infrastructure/Services/AuthService.cs` (`BuildAuthResultAsync`) | Any user assigned only a custom (non-system) role got zero roles/permissions on every login and refresh | **Yes** — role membership now resolved directly via `UserRoles` joined to `Roles` under `IgnoreQueryFilters()`, explicitly re-scoped to the user's tenant + system roles |
 | Four independent Finance posting services, no shared base | `Infrastructure/Services/Finance/*PostingService.cs` | Copy-pasted double-entry logic; inconsistent (only Sales creates a `FinancialDocument` receipt) | No — documented, not urgent |
 | `EntryNumber` generated via `CountAsync()+1` | Same four services | Race condition under concurrent postings (no DB sequence/lock) | No — documented |
-| No optimistic-concurrency tokens anywhere | Entire domain model | Silent last-write-wins on concurrent edits | No — documented |
+| No optimistic-concurrency tokens anywhere | Entire domain model | Silent last-write-wins on concurrent edits | **Partially** — `ApprovalRequest` uses Postgres `xmin` as of Milestone 11 (the first entity to get one); every other entity remains last-write-wins |
 | `FacilityEventService`/`TenantNoticeService` skip status-transition validation | `Infrastructure/Services/Facility/Mall/*.cs` | Illegal status transitions possible (business-integrity, not security) | No — documented |
 | Three parallel payment ledgers (Sales/Rental/Facility) | `Domain/Sales/Payment.cs`, `Domain/Property/RentPayment.cs`, `Domain/Facility/FacilityPayment.cs` | No unified "all money in" view without a three-way union query | No — each was locally correct; unify only when a fourth need appears |
 | `SecurityDeposit` has no Finance/journal link | `Domain/Property/SecurityDeposit.cs`, `Infrastructure/Services/Property/SecurityDepositService.cs` | Deposits held are invisible on any balance sheet | No — documented, feeds P0 item |
 | Hangfire/Redis provisioned, zero consumers | `DependencyInjection.cs`, `docker-compose.yml` | Infra cost with no functional benefit until a job/cache is actually implemented | No — intentional pre-provisioning |
 | No shared `DataTable`/`Pagination`/`StatCard` frontend component | `frontend/src/modules/**/*Page.tsx`, dashboard pages | ~15-line pattern copy-pasted across 30+ files; will drift if left long enough | No — documented |
 | `recharts` installed, unused | `frontend/package.json` | Dead dependency until Reporting milestone wires it in | No — documented |
+| `documents.manage` is tenant-wide, not per-entity-type | `Shared/Security/Permissions.cs` (`Documents`), `Infrastructure/Services/Documents/DocumentService.cs` | A user who can manage documents on their own module's entities can also delete a document attached to any other entity type in the tenant | No — documented, acceptable foundation-scope tradeoff per Milestone 11's own instructions (avoid a per-entity-type permission mapping that would itself be "unmaintainable") |
+| `IEmailSender` has only a logging (non-sending) implementation | `Infrastructure/Services/Communication/LoggingEmailSender.cs` | No transactional email actually reaches an inbox — blocks password reset and every portal | No — by design for this milestone; a real provider is the recommended next small piece of work before Milestone 13 |
+| WhatsApp/Sms/Push channels named but not implemented | `Domain/Communication/CommunicationLog.cs` (`CommunicationChannel`) | Requesting these channels always logs `Skipped` — silent no-op, not a failure, which is correct behavior but easy to forget is a no-op if a future caller assumes otherwise | No — explicitly out of scope for Milestone 11 per its own instructions |
 
 ---
 
@@ -311,3 +318,29 @@ Milestone 10 closed six of the items this audit originally flagged (see the stri
 - **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.
 - **Live verification against the real running API:** suspend → login blocked (401) → an already-issued token blocked on a protected endpoint (403) → reactivate → login restored; fiscal period created → closed → backdated post rejected (400) → reopened → retry succeeds (201); journal entry posted → reversed (debit/credit swap confirmed line-by-line) → double-reversal rejected (400); expense created → approved → paid in full via AP clearing; Balance Sheet (`TotalAssets == TotalLiabilitiesAndEquity`), Profit & Loss, and Cash Flow (`OpeningCash + NetChange == ClosingCash`) all fetched and their reconciliation identities held exactly on real, non-trivial numbers.
 - **Fix scope:** ~15 backend files (2 new entities, 1 new service, 1 new middleware, 1 new controller, extensions to `AuthService`/`JournalService`/`ConstructionFinancePostingService`/`ExpenseService`/`FinanceReportService`/the three other posting services), 1 migration, 3 new/extended test files — additive throughout, no existing endpoint's request/response shape was changed, no existing test was modified.
+
+---
+
+## Milestone 11 addendum — Documents + Notifications + Approvals + Communication Foundation
+
+Milestone 11 closed three of this audit's originally-flagged Missing Capabilities (§3): Documents, in-app Notifications, and a generic Approval workflow. It also added — not fixed, since nothing was broken — a fourth foundation piece the audit didn't originally call out by name: a provider-agnostic Communication abstraction, which the other three needed anyway.
+
+**What was implemented:**
+- `Document`/`DocumentVersion`, addressed by `(EntityType, EntityId)` — no per-module document table. `IFileStorageService`/`LocalFileStorageService` finally puts the `Storage:LocalPath` config and `uploads-data` Docker volume (both provisioned since Milestone 1, dead until now) to use. Size/allow-listed-type/magic-byte validation, real immutable versioning, tenant-isolated download.
+- `Notification`/`NotificationPreference`, scoped to `(TenantId, UserId)`, no permission gate needed since every action is already scoped to the caller.
+- `ICommunicationService`/`IEmailSender` — the single entry point every module calls to notify a user, with `LoggingEmailSender` as the zero-dependency development default and a `CommunicationLog` row written per channel attempted regardless of outcome.
+- `ApprovalRequest`, the first entity in this domain model to carry a real optimistic-concurrency token (Postgres `xmin`) rather than relying solely on an application-level status check — directly closing part of a Milestone 9 technical-debt item. Expense/PurchaseOrder/Booking are integrated bidirectionally via a pluggable `IApprovalLinkedEntityHandler` per module, resolved lazily through `IServiceProvider` specifically to avoid a circular DI dependency the naive design would have created (`ApprovalService → ExpenseApprovalHandler → IExpenseService → ApprovalService`) — found and fixed during this milestone, not anticipated in the original design.
+
+**A second cross-tenant leak of the same shape as Milestone 9's was found and fixed during this milestone**, before it ever shipped: `ApprovalService.GetUsersWithPermissionAsync` (notifying "anyone holding permission X" about a new approval request) initially matched `RolePermissions`/`UserRoles` by `RoleId` alone with no tenant check — since a shared system role (`TenantId` null) is a single row assigned to users across every tenant that uses it, this would have notified other tenants' staff about a request that has nothing to do with them. Fixed before any test or live verification ran by explicitly re-joining to `Users` filtered by the current tenant.
+
+**What was deliberately not touched, per the milestone's own scope:** a real SMTP/SendGrid `IEmailSender` provider, WhatsApp/SMS/push adapters, per-entity-type document permissions, self-service/manual approval-request creation UI, and integrating Approvals/Documents into any module beyond the three (Expense/PurchaseOrder/Booking) and three (Customer/Booking/PurchaseOrder detail pages) named — all remain open, tracked in §12/§15 above.
+
+### Verification performed in Milestone 11
+
+- **Backend tests:** 12/12 unit + 150/150 integration passed (129 pre-existing + 21 new), 0 failures, 0 regressions.
+- **Frontend build:** `npm run build` exits 0 with zero TypeScript errors (independently re-run after the implementing agent's handback, not just taken on its word). Delivered: `DocumentsPanel` (upload/version-history/download/delete, permission-gated) on Customer/Booking/Purchase Order detail pages plus a standalone `/documents` browser; a Notification Bell in the Topbar (unread badge, 30s poll, mark-read/mark-all-read, deep links) plus `/notifications` and `/notifications/preferences` pages; an `/approvals` inbox and an `ApprovalHistoryCard` on Booking/Purchase Order detail pages. Independent spot-check confirmed every route, query-param name, DTO field name, and permission code matches the actual controllers/DTOs (`DocumentsController`, `NotificationsController`, `ApprovalsController`), the numeric-enum + label-map convention is followed with no stray string-literal status comparisons, and no backend files were touched.
+- **Migration/schema:** one new migration, `AddDocumentsNotificationsApprovalsCommunication` (`documents`, `document_versions`, `notifications`, `notification_preferences`, `communication_logs`, `approval_requests` — the last with a Postgres `xmin` optimistic-concurrency token) — applied and schema-verified via `psql \d` against the dev database.
+- **`docker compose config`:** exits 0 with `.env.example` values.
+- **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.
+- **Live verification against the real running API:** a PDF uploaded, downloaded back byte-for-byte identical, a second version added, then deleted and confirmed unretrievable (404); an Expense created (auto-creating its ApprovalRequest), decided via the generic Approval Inbox, and the Expense's own status confirmed Approved (proving the bidirectional dispatch, not just the module-to-approval direction already covered by tests); unread-notification count and communication-log entries (2 in-app + 2 email, both Sent) confirmed for the same flow.
+- **Fix scope:** ~20 new backend files across 4 new domains (Documents/Notifications/Approvals/Communication), 3 existing services extended with approval hooks (`ExpenseService`, `PurchaseOrderService`, `BookingService`), 1 migration, 3 new/extended test files — additive throughout, no existing endpoint's request/response shape changed, no existing test modified.

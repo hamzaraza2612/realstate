@@ -15,13 +15,13 @@ Status legend: ✅ done · 🚧 in progress · ⬜ not started
 | 8 | Facility Management + Mall + Coworking: shared spaces/utilities/service requests, mall shops/service charges/parking/events/notices, coworking memberships/desks/rooms/bookings | ✅ |
 | 9 | Product Gap Audit: full commercial-readiness audit against the platform's business/architecture/finance/security/frontend/reporting/SaaS/portal/production targets — see `PRODUCT_GAP_AUDIT.md` | ✅ |
 | 10 | Security & Finance Hardening: tenant-status enforcement at login/refresh/every protected API call, a re-verification authorization pass, AP clearing, fiscal-period close/reopen, journal reversal, Balance Sheet/P&L/Cash Flow reports | ✅ |
-| 11 | Reporting: cross-module dashboards (AR/AP aging, today's sales, project profitability, agent performance), exports, wire up `recharts` | ⬜ |
-| 12 | Documents + Notifications + transactional email + approval workflows (email is a hard prerequisite for every portal; already-provisioned upload storage) | ⬜ |
-| 13 | Portals: customer/owner/tenant/member/vendor/agent portals (depends on Milestone 12's email capability) | ⬜ |
+| 11 | Documents + Notifications + Approvals + Communication Foundation: generic document/attachment system, in-app notifications + preferences, generic approval workflow (Expense/PurchaseOrder/Booking plugged in), email provider abstraction with a development-safe default | ✅ |
+| 12 | Reporting: cross-module dashboards (AR/AP aging, today's sales, project profitability, agent performance), exports, wire up `recharts` | ⬜ |
+| 13 | Portals: customer/owner/tenant/member/vendor/agent portals (depends on Milestone 11's email abstraction gaining a real SMTP/SendGrid provider) | ⬜ |
 | 14 | SaaS: subscription lifecycle automation, platform billing/invoicing, self-service signup, feature-entitlement enforcement | ⬜ |
-| 15 | Production hardening: TLS/reverse-proxy guidance, observability, backups, multi-currency, credit/debit notes, tax engine, optimistic concurrency, confirm-dialogs on the remaining older destructive status actions (Sales/Coworking/Maintenance cancel), the two Facility/Mall status-transition gaps | ⬜ |
+| 15 | Production hardening: TLS/reverse-proxy guidance, observability, backups, multi-currency, credit/debit notes, tax engine, optimistic concurrency, confirm-dialogs on the remaining older destructive status actions (Sales/Coworking/Maintenance cancel), the two Facility/Mall status-transition gaps, object storage (S3/Blob) provider for Documents | ⬜ |
 
-Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13 as Portals→Documents→Reporting→SaaS→Production): tenant-status enforcement and core accounting integrity are prerequisites every later module silently inherits. Transactional email moved from Milestone 10 into Milestone 12 (Documents + Notifications) once Milestone 10 was actually scoped down to security + finance only — it remains a hard prerequisite for Documents/Notifications and every portal, just introduced one milestone later than the Milestone 9 audit originally sketched.
+Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13 as Portals→Documents→Reporting→SaaS→Production): tenant-status enforcement and core accounting integrity are prerequisites every later module silently inherits. Documents/Notifications/Approvals/Communication landed as Milestone 11 (ahead of Reporting) once scoped — the email *abstraction* (`IEmailSender`, a development-safe logging provider) is now in place, but a real SMTP/SendGrid implementation of that interface is still a prerequisite for Milestone 13's portals (a portal invite/password-reset flow needs mail to actually leave the building, not just be logged).
 
 ## Milestone 1 — Foundation ✅
 - [x] Repo/docs scaffold
@@ -377,6 +377,88 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       created → approved → paid in full via AP clearing (`journalEntryId` set, `paidAmount` updated); all
       three financial statements fetched and their reconciliation identities held exactly on real,
       non-trivial numbers.
+
+## Milestone 11 — Documents + Notifications + Approvals + Communication Foundation ✅
+- [x] Documents: a single `Document`/`DocumentVersion` pair attaches to *any* business entity via a
+      polymorphic `(EntityType, EntityId)` reference — no per-module document table, no join table per
+      entity type, and a new entity type is just a new string constant (`DocumentEntityTypes`), not a
+      migration. `IFileStorageService` is the storage abstraction (`LocalFileStorageService` is the only
+      implementation for this deployment; a future S3/Blob provider implements the same three methods
+      with nothing above it changing) — storage keys are `{tenantId}/{new Guid}`, never derived from the
+      caller's filename, so path traversal has no surface to exploit at all rather than being merely
+      sanitized against. Every upload is validated for size, an allow-listed Content-Type, *and* a
+      magic-byte signature check against the declared type (`FileSignatureValidator`) — a declared
+      `application/pdf` whose bytes don't start with `%PDF` is rejected, not trusted. Versioning is a
+      real, immutable history (`DocumentVersion` rows are never mutated, only added); delete removes the
+      document, every version, and the underlying stored files together. Gated by two permissions
+      (`documents.view`/`documents.manage`) shared across every entity type, mirroring how `AuditLogs`
+      already spans every module behind one permission rather than one per attached entity.
+- [x] Notifications: in-app `Notification` rows scoped to `(TenantId, UserId)`, read/unread with
+      `MarkReadAsync`/`MarkAllReadAsync`, and per-user-per-category `NotificationPreference` (defaults to
+      both channels enabled when no row exists yet). No permission gate on the notification endpoints —
+      every action is scoped to the caller's own `UserId` server-side, which is a stronger check than a
+      role permission would add on top. Code-defined `NotificationTemplates` give consistent wording per
+      category (a v1, non-database-editable template system — a reasonable scope for a platform
+      primitive most modules only use once or twice).
+- [x] Communication: `ICommunicationService` is the single entry point every module calls to notify a
+      user — resolves preferences, creates the in-app `Notification` when allowed, calls `IEmailSender`
+      when allowed, and always writes a `CommunicationLog` row per channel actually attempted
+      (Sent/Failed/Skipped). `IEmailSender`'s only registered implementation, `LoggingEmailSender`, never
+      contacts a real mail server — it logs and returns success, so the application and every test run
+      with zero SMTP dependency; a production deployment registers a real SMTP/SendGrid implementation of
+      the same interface with nothing else changing. `CommunicationChannel` is a `[Flags]` enum already
+      naming `WhatsApp`/`Sms`/`Push` as future adapters — requesting them today is logged `Skipped`
+      ("provider not yet implemented"), not an error, so a caller can already ask for "notify everywhere"
+      without those providers existing yet.
+- [x] Approvals: a generic `ApprovalRequest` (also `(EntityType, EntityId)`-addressed) with either a
+      named `ApproverUserId` or a `RequiredPermission` ("anyone in this tenant holding this permission
+      may decide it") — `GetUsersWithPermissionAsync` explicitly re-scopes to the current tenant rather
+      than trusting a bare `RolePermissions`/`UserRoles` join, because a shared system role (`TenantId`
+      null, assigned to users across every tenant that uses it) would otherwise leak a notification to
+      another tenant's staff; this was found and fixed during this milestone, the same class of bug as
+      Milestone 9's role-permission leak but via a different path. Concurrent/duplicate decisions are
+      protected two ways: an application-level `Status != Pending` guard, and — the first real use of
+      Postgres's `xmin` system column as an EF Core optimistic-concurrency token anywhere in this domain
+      model (`UseXminAsConcurrencyToken()`) — a genuine database-level race guard for the case two
+      approvers decide the same request in the same instant, both mapped to the same `already_decided`
+      outcome a sequential race would have produced. Expense/PurchaseOrder/Booking are wired
+      *bidirectionally* without `ApprovalService` ever referencing those modules: each registers an
+      `IApprovalLinkedEntityHandler` (`ExpenseApprovalHandler`, etc.) that `ApprovalService.DecideAsync`
+      looks up by `EntityType` and invokes after committing its own decision, so deciding via the generic
+      Approval Inbox actually approves/rejects the Expense/PurchaseOrder/Booking too — not just a
+      parallel tracking record. The handler is resolved lazily via `IServiceProvider` inside the method
+      call rather than constructor-injected, specifically to break the circular dependency this creates
+      (`ApprovalService → ExpenseApprovalHandler → IExpenseService → ApprovalService`) without breaking
+      either direction of the integration. None of Expense/PurchaseOrder/Booking's own status-machine
+      code changed — the approval hooks are additive calls at their existing transition points.
+- [x] Frontend: `DocumentsPanel` (reusable attach/list/upload/version-history/download/delete widget,
+      permission-gated on `documents.manage`) mounted on Customer/Booking/Purchase Order detail pages; a
+      standalone `/documents` browser page; a Notification Bell in the Topbar (unread badge, 30s poll,
+      mark-read/mark-all-read, best-effort deep links) plus `/notifications` and
+      `/notifications/preferences` pages; an `/approvals` inbox (approve/reject with comments) and an
+      `ApprovalHistoryCard` mounted on Booking/Purchase Order detail pages (gated on `approvals.view`).
+      Independently verified against the actual backend source after the implementing agent's handback:
+      routes, query-param names, DTO field names, and permission codes all confirmed to match the
+      controllers/DTOs exactly; the numeric-enum + label-map convention used consistently with no stray
+      string-literal status comparisons; `npm run build` re-run independently and confirmed to exit 0
+      with zero TypeScript errors. No backend files were touched by the frontend work.
+- [x] Unit/integration tests: 21 new integration tests covering document upload/download/cross-tenant
+      denial/unsupported-type rejection/size-limit rejection/content-type-spoofing rejection/unknown-
+      entity-type rejection/version history/delete-and-permission-enforcement/audit logging; approval
+      creation-on-submission, inbox visibility, bidirectional module-to-approval and approval-to-module
+      resolution, unauthorized-approver rejection, duplicate-decision rejection, genuine concurrent-
+      decision race (two simultaneous HTTP requests, exactly one wins), tenant isolation, and audit
+      history; notification creation via the real approval flow, read/unread, mark-all-read, tenant
+      isolation, and preference-driven suppression; communication dev-provider delivery with zero SMTP
+      configured anywhere in the test process, preference-driven channel skipping, and tenant-scoped
+      communication-log visibility — all passing alongside the existing suite (162 total: 12 unit + 150
+      integration), zero regressions in the 129 pre-existing tests.
+- [x] Live end-to-end verification against the real running API: a PDF uploaded, downloaded back
+      byte-for-byte identical, a second version added, then the document deleted and confirmed
+      unretrievable (404); an Expense created (auto-creating its ApprovalRequest), decided via the
+      generic Approval Inbox, and the Expense's own status confirmed Approved — proving the bidirectional
+      dispatch, not just the one-directional path; unread-notification count and communication-log
+      entries (2 in-app + 2 email, both logged Sent) confirmed for the same flow.
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

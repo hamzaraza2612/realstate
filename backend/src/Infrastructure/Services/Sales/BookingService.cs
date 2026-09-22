@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using RealEstateErp.Application.Approvals;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Sales.Bookings;
 using RealEstateErp.Domain.Projects;
@@ -7,18 +8,23 @@ using RealEstateErp.Domain.Sales;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
+using RealEstateErp.Shared.Security;
 
 namespace RealEstateErp.Infrastructure.Services.Sales;
 
 public class BookingService : IBookingService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
+    private readonly IApprovalService _approvalService;
 
-    public BookingService(AppDbContext db, IAuditLogger auditLogger)
+    public BookingService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger, IApprovalService approvalService)
     {
         _db = db;
+        _tenantContext = tenantContext;
         _auditLogger = auditLogger;
+        _approvalService = approvalService;
     }
 
     public async Task<PagedResult<BookingDto>> ListAsync(PagedRequest request, BookingFilter filter, CancellationToken ct = default)
@@ -154,6 +160,7 @@ public class BookingService : IBookingService
 
         await _auditLogger.LogAsync("Approve", "Sales", "Booking", booking.Id.ToString(),
             new { Status = BookingStatus.PendingApproval }, new { booking.Status }, ct: ct);
+        await _approvalService.ResolveForEntityAsync("Booking", booking.Id, approved: true, _tenantContext.UserId ?? Guid.Empty, decisionComments: null, ct);
 
         return Result.Success((await ToDtosAsync(new[] { booking }, ct))[0]);
     }
@@ -187,6 +194,11 @@ public class BookingService : IBookingService
         await _auditLogger.LogAsync("Cancel", "Sales", "Booking", booking.Id.ToString(),
             new { Status = before }, new { booking.Status }, ct: ct);
 
+        if (before == BookingStatus.PendingApproval)
+        {
+            await _approvalService.ResolveForEntityAsync("Booking", booking.Id, approved: false, _tenantContext.UserId ?? Guid.Empty, decisionComments: null, ct);
+        }
+
         return Result.Success((await ToDtosAsync(new[] { booking }, ct))[0]);
     }
 
@@ -203,6 +215,12 @@ public class BookingService : IBookingService
 
         await _auditLogger.LogAsync("Transition", "Sales", "Booking", booking.Id.ToString(),
             new { Status = before }, new { booking.Status }, ct: ct);
+
+        if (target == BookingStatus.PendingApproval)
+        {
+            await _approvalService.CreateRequestAsync(new CreateApprovalRequestRequest(
+                "Booking", booking.Id, ApproverUserId: null, Permissions.Sales.BookingApprove, RequestComments: null), ct);
+        }
 
         return Result.Success((await ToDtosAsync(new[] { booking }, ct))[0]);
     }

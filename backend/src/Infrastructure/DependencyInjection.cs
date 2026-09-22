@@ -54,6 +54,10 @@ using RealEstateErp.Application.Projects.Hierarchy;
 using RealEstateErp.Application.Projects.Projects;
 using RealEstateErp.Application.Roles;
 using RealEstateErp.Application.Sales.Bookings;
+using RealEstateErp.Application.Approvals;
+using RealEstateErp.Application.Communication;
+using RealEstateErp.Application.Documents;
+using RealEstateErp.Application.Notifications;
 using RealEstateErp.Application.Sales.Dashboard;
 using RealEstateErp.Application.Sales.PaymentPlans;
 using RealEstateErp.Application.Sales.Payments;
@@ -62,11 +66,15 @@ using RealEstateErp.Application.Users;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Infrastructure.Services;
+using RealEstateErp.Infrastructure.Services.Approvals;
+using RealEstateErp.Infrastructure.Services.Communication;
 using RealEstateErp.Infrastructure.Services.Construction;
 using RealEstateErp.Infrastructure.Services.Crm;
+using RealEstateErp.Infrastructure.Services.Documents;
 using RealEstateErp.Infrastructure.Services.Facility;
 using RealEstateErp.Infrastructure.Services.Facility.Mall;
 using RealEstateErp.Infrastructure.Services.Facility.Coworking;
+using RealEstateErp.Infrastructure.Services.Notifications;
 using CoworkingBookingService = RealEstateErp.Infrastructure.Services.Facility.Coworking.BookingService;
 using SalesBookingService = RealEstateErp.Infrastructure.Services.Sales.BookingService;
 using RealEstateErp.Infrastructure.Services.Finance;
@@ -178,6 +186,17 @@ public static class DependencyInjection
         services.AddScoped<IMeetingRoomService, MeetingRoomService>();
         services.AddScoped<ICoworkingBookingService, CoworkingBookingService>();
         services.AddScoped<ICoworkingDashboardService, CoworkingDashboardService>();
+        services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IDocumentService, DocumentService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
+        services.AddScoped<IEmailSender, LoggingEmailSender>();
+        services.AddScoped<ICommunicationService, CommunicationService>();
+        services.AddScoped<ICommunicationLogQueryService, CommunicationLogQueryService>();
+        services.AddScoped<IApprovalService, ApprovalService>();
+        services.AddScoped<IApprovalLinkedEntityHandler, ExpenseApprovalHandler>();
+        services.AddScoped<IApprovalLinkedEntityHandler, PurchaseOrderApprovalHandler>();
+        services.AddScoped<IApprovalLinkedEntityHandler, BookingApprovalHandler>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

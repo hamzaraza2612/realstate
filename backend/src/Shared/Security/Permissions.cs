@@ -119,6 +119,24 @@ public static class Permissions
         public const string EmployeeManage = "hr.employee.manage";
     }
 
+    /// <summary>Governs the generic cross-module Document attachment system (Milestone 11) — one pair
+    /// of permissions for every entity type a document can attach to, mirroring how AuditLogs.View
+    /// already spans every module with a single permission rather than one per attached entity type.</summary>
+    public static class Documents
+    {
+        public const string View = "documents.view";
+        public const string Manage = "documents.manage";
+    }
+
+    /// <summary>Governs the generic cross-module Approval workflow (Milestone 11). Viewing an entity's
+    /// approval history is gated by this permission; deciding a specific request is gated inside
+    /// ApprovalService itself (the caller must be the request's named approver, or hold its
+    /// RequiredPermission) — a second, object-level check this permission alone can't express.</summary>
+    public static class Approvals
+    {
+        public const string View = "approvals.view";
+    }
+
     public static class Reports
     {
         public const string View = "reports.view";

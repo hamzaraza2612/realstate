@@ -325,7 +325,60 @@ the original, dated either today or an explicitly supplied reversal date (also c
 deleted — reversal is purely additive, preserving full auditability of what was originally posted and
 when it was corrected.
 
+## Milestone 11 schema (Documents + Notifications + Approvals + Communication Foundation)
+- `documents`: id, tenant_id, entity_type (a string constant, e.g. `"Customer"` — not an FK; see
+  `DocumentEntityTypes`), entity_id, category, title, description, latest_version_number,
+  created_by_user_id; indexed on `(tenant_id, entity_type, entity_id)` — the lookup every "attachment
+  list" view uses — and on `(tenant_id, category)`. No FK from `entity_id` to any specific table, by
+  design: a polymorphic reference lets any module attach documents without a per-module document table
+  or join table, at the cost of the database not being able to enforce the referenced row still exists —
+  tenant isolation is still guaranteed because `documents` is itself tenant-scoped, independent of what
+  it's attached to.
+- `document_versions`: id, tenant_id, document_id (FK, cascade), version_number, storage_key,
+  original_file_name, content_type, size_bytes, sha256_hash, uploaded_by_user_id; unique on
+  `(tenant_id, document_id, version_number)`. `storage_key` is an opaque, service-generated
+  `{tenant_id}/{new Guid}` string — never derived from `original_file_name` — resolved only by
+  `IFileStorageService`, never exposed to a client or interpreted as a filesystem path anywhere outside
+  that one service.
+- `notifications`: id, tenant_id, user_id, category, title, body, entity_type (nullable, for a deep
+  link), entity_id (nullable), is_read, read_at; indexed on `(tenant_id, user_id, created_at)` and
+  `(tenant_id, user_id, is_read)` — the two access patterns ("my recent notifications", "my unread
+  list/count").
+- `notification_preferences`: id, tenant_id, user_id, category, in_app_enabled, email_enabled; unique on
+  `(tenant_id, user_id, category)`. A missing row for a (user, category) pair means both channels default
+  to enabled — most users never touch this table at all.
+- `communication_logs`: id, tenant_id, channel, recipient_user_id, recipient_address, subject, body,
+  status (Sent/Failed/Skipped), error_message, entity_type, entity_id; indexed on
+  `(tenant_id, recipient_user_id)` and `(tenant_id, created_at)`. Every `ICommunicationService.SendAsync`
+  call writes one row per channel actually attempted, regardless of outcome — durable communication
+  history even though the registered Email channel is a development-safe logging provider, not a real
+  mail transport, in this deployment.
+- `approval_requests`: id, tenant_id, entity_type, entity_id, requested_by_user_id, approver_user_id
+  (nullable), required_permission (nullable — exactly one of the two is expected to be set), request_
+  comments, status (Pending/Approved/Rejected/Cancelled), decision_comments, decided_by_user_id,
+  decided_at; indexed on `(tenant_id, entity_type, entity_id)`, `(tenant_id, approver_user_id, status)`,
+  and `(tenant_id, status)`. Uses **Postgres's built-in `xmin` system column as an EF Core optimistic-
+  concurrency token** (`UseXminAsConcurrencyToken()`, no extra column needed) — the first real
+  concurrency token anywhere in this domain model (see `PRODUCT_GAP_AUDIT.md`'s technical debt
+  register). Two approvers deciding the same request in the same instant race on `SaveChanges`; the
+  loser gets `DbUpdateConcurrencyException`, mapped to the same `already_decided` outcome a sequential
+  race would have produced, instead of silently overwriting the winner's decision.
+
+### Storage configuration and production deployment requirements
+`Storage:LocalPath` (default `./data/uploads`, already provisioned as a Docker volume in
+`docker-compose.yml` since Milestone 1) is where `LocalFileStorageService` writes files, one
+subdirectory per tenant. `Storage:MaxFileSizeMb` (default 25) and `Storage:AllowedContentTypes` (an
+explicit allow-list — PDF, PNG/JPEG/WebP, plain text/CSV, the three Office Open XML formats, and plain
+zip) are both configurable in `appsettings.json` without a code change. **Production requirement**: the
+`uploads-data` Docker volume must be included in any backup strategy — document files live only on that
+volume, never in PostgreSQL, so a database-only backup loses every uploaded file's content (the
+`document_versions` rows would still reference storage keys that no longer resolve to anything). Running
+more than one API replica requires either a shared volume mounted at the same `Storage:LocalPath` on
+every replica, or swapping `IFileStorageService`'s registration for an S3/Azure Blob implementation
+(the interface is already provider-agnostic for exactly this reason) — `LocalFileStorageService` alone
+does not support horizontal scaling across replicas with independent local disks.
+
 Later milestones extend this file per-module (
-Documents, Subscription) as they land — each new module's tables and
+Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds
 the migration.
