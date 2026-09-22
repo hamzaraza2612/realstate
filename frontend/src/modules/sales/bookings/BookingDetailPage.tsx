@@ -12,6 +12,8 @@ import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
 import type { InstallmentDto } from '@/types/api'
 import { BookingStatus, BookingStatusLabel, InstallmentStatus, InstallmentStatusLabel, PaymentMethodLabel } from '@/types/api'
+import { ApprovalHistoryCard } from '@/modules/approvals/ApprovalHistoryCard'
+import { DocumentsPanel } from '@/modules/documents/DocumentsPanel'
 import { useApproveBooking, useBooking, useCancelBooking, usePayments, usePaymentPlan, useSubmitBooking } from './api'
 import { PaymentPlanFormDialog } from './PaymentPlanFormDialog'
 import { PaymentRecordDialog } from './PaymentRecordDialog'
@@ -200,6 +202,15 @@ export function BookingDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {id && (
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <PermissionGate permission="approvals.view">
+            <ApprovalHistoryCard entityType="Booking" entityId={id} />
+          </PermissionGate>
+          <DocumentsPanel entityType="Booking" entityId={id} />
+        </div>
+      )}
 
       {id && <PaymentPlanFormDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} bookingId={id} netPrice={booking.netPrice} />}
       {id && <PaymentRecordDialog open={!!paymentDialogTarget} onOpenChange={(o) => !o && setPaymentDialogTarget(null)} bookingId={id} installment={paymentDialogTarget} />}

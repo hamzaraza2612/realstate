@@ -2168,3 +2168,143 @@ export interface CoworkingDashboardDto {
   utilizationSummary: number
   openMaintenanceOrServiceRequests: number
 }
+
+// --- Documents ---
+
+export const DocumentEntityTypes = {
+  Customer: 'Customer',
+  Lead: 'Lead',
+  Booking: 'Booking',
+  Payment: 'Payment',
+  Project: 'Project',
+  Property: 'Property',
+  PropertyUnit: 'PropertyUnit',
+  Lease: 'Lease',
+  RentalTenant: 'RentalTenant',
+  Vendor: 'Vendor',
+  PurchaseOrder: 'PurchaseOrder',
+  PurchaseRequest: 'PurchaseRequest',
+  Expense: 'Expense',
+  Facility: 'Facility',
+  MaintenanceRequest: 'MaintenanceRequest',
+  Other: 'Other',
+} as const
+export type DocumentEntityType = (typeof DocumentEntityTypes)[keyof typeof DocumentEntityTypes]
+
+export const DocumentCategory = {
+  General: 0,
+  Contract: 1,
+  Invoice: 2,
+  Receipt: 3,
+  Identification: 4,
+  Legal: 5,
+  Other: 6,
+} as const
+export type DocumentCategory = (typeof DocumentCategory)[keyof typeof DocumentCategory]
+
+export const DocumentCategoryLabel: Record<DocumentCategory, string> = {
+  [DocumentCategory.General]: 'General',
+  [DocumentCategory.Contract]: 'Contract',
+  [DocumentCategory.Invoice]: 'Invoice',
+  [DocumentCategory.Receipt]: 'Receipt',
+  [DocumentCategory.Identification]: 'Identification',
+  [DocumentCategory.Legal]: 'Legal',
+  [DocumentCategory.Other]: 'Other',
+}
+
+export interface DocumentDto {
+  id: string
+  entityType: string
+  entityId: string
+  category: DocumentCategory
+  title: string
+  description: string | null
+  latestVersionNumber: number
+  createdByUserId: string
+  createdByUserName: string | null
+  createdAt: string
+}
+
+export interface DocumentVersionDto {
+  id: string
+  documentId: string
+  versionNumber: number
+  originalFileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedByUserId: string
+  uploadedByUserName: string | null
+  createdAt: string
+}
+
+// --- Notifications ---
+
+export const NotificationCategory = {
+  General: 0,
+  ApprovalRequested: 1,
+  ApprovalDecided: 2,
+  DocumentUploaded: 3,
+  Other: 4,
+} as const
+export type NotificationCategory = (typeof NotificationCategory)[keyof typeof NotificationCategory]
+
+export const NotificationCategoryLabel: Record<NotificationCategory, string> = {
+  [NotificationCategory.General]: 'General',
+  [NotificationCategory.ApprovalRequested]: 'Approval Requested',
+  [NotificationCategory.ApprovalDecided]: 'Approval Decided',
+  [NotificationCategory.DocumentUploaded]: 'Document Uploaded',
+  [NotificationCategory.Other]: 'Other',
+}
+
+export interface NotificationDto {
+  id: string
+  category: NotificationCategory
+  title: string
+  body: string
+  entityType: string | null
+  entityId: string | null
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+export interface NotificationPreferenceDto {
+  category: NotificationCategory
+  inAppEnabled: boolean
+  emailEnabled: boolean
+}
+
+// --- Approvals ---
+
+export const ApprovalStatus = {
+  Pending: 0,
+  Approved: 1,
+  Rejected: 2,
+  Cancelled: 3,
+} as const
+export type ApprovalStatus = (typeof ApprovalStatus)[keyof typeof ApprovalStatus]
+
+export const ApprovalStatusLabel: Record<ApprovalStatus, string> = {
+  [ApprovalStatus.Pending]: 'Pending',
+  [ApprovalStatus.Approved]: 'Approved',
+  [ApprovalStatus.Rejected]: 'Rejected',
+  [ApprovalStatus.Cancelled]: 'Cancelled',
+}
+
+export interface ApprovalRequestDto {
+  id: string
+  entityType: string
+  entityId: string
+  requestedByUserId: string
+  requestedByUserName: string | null
+  approverUserId: string | null
+  approverUserName: string | null
+  requiredPermission: string | null
+  requestComments: string | null
+  status: ApprovalStatus
+  decisionComments: string | null
+  decidedByUserId: string | null
+  decidedByUserName: string | null
+  decidedAt: string | null
+  createdAt: string
+}

@@ -78,6 +78,10 @@ import { DesksPage } from '@/modules/facility/coworking/desks/DesksPage'
 import { RoomsPage } from '@/modules/facility/coworking/rooms/RoomsPage'
 import { BookingsPage as CoworkingBookingsPage } from '@/modules/facility/coworking/bookings/BookingsPage'
 import { BookingDetailPage as CoworkingBookingDetailPage } from '@/modules/facility/coworking/bookings/BookingDetailPage'
+import { DocumentsPage } from '@/modules/documents/DocumentsPage'
+import { NotificationsPage } from '@/modules/notifications/NotificationsPage'
+import { NotificationPreferencesPage } from '@/modules/notifications/NotificationPreferencesPage'
+import { ApprovalInboxPage } from '@/modules/approvals/ApprovalInboxPage'
 
 export default function App() {
   return (
@@ -676,6 +680,20 @@ export default function App() {
             </PermissionRoute>
           }
         />
+        <Route
+          path="documents"
+          element={
+            <PermissionRoute permission="documents.view">
+              <DocumentsPage />
+            </PermissionRoute>
+          }
+        />
+        {/* No PermissionRoute: notifications and the approval inbox are personal to the signed-in
+            user and scoped server-side, the same way the dashboard (index route) needs no permission
+            beyond the ProtectedRoute the parent route already applies. */}
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications/preferences" element={<NotificationPreferencesPage />} />
+        <Route path="approvals" element={<ApprovalInboxPage />} />
         <Route
           path="platform/organizations"
           element={
