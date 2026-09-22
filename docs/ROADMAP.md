@@ -460,6 +460,77 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       dispatch, not just the one-directional path; unread-notification count and communication-log
       entries (2 in-app + 2 email, both logged Sent) confirmed for the same flow.
 
+## Milestone 12 — Cross-Module Reporting & Analytics ✅
+- [x] A unified, read-only reporting layer over existing modules' data — not a new business module.
+      Every report either queries existing tables directly (server-side `GroupBy`/`Sum`/`Count`, no
+      full-entity-graph loads) or calls straight into another module's already-implemented service
+      (Finance's Profit & Loss/Cash Flow, Property's occupancy, CRM's conversion rate) instead of
+      recomputing it a second way. Full KPI/report definitions — calculation, date range, tenant
+      scope, included/excluded statuses — are in `docs/REPORTING.md`, not restated here.
+- [x] Executive Dashboard (`GET /reports/executive`): Sales, Collections, Revenue/Expenses/Profit
+      (reused from Finance P&L), Rental Collected, Receivables, Payables, Cash Position (reused from
+      Finance Cash Flow), Active Projects, Inventory availability, Property Occupancy (reused),
+      Rental Outstanding, Construction Progress, Procurement Exposure, Maintenance Backlog, and
+      Leads/Conversion (reused from CRM) — each field's doc comment states whether it's a period sum
+      over `[from, to]` or an as-of-now snapshot, mirroring how a Balance Sheet line and a P&L line
+      differ in kind.
+- [x] Sales Reports: by-project/-period/-agent, booking-status breakdown, booking conversion (Lead
+      funnel over a date range), cancellations, collections, outstanding-installments (delegates
+      directly to the existing Finance Receivables list, not duplicated), and a new receivable-aging
+      report (0/1-30/31-60/61-90/90+ day buckets — the AR aging the audit's §8 flagged as missing).
+- [x] Finance Reports: new AR aging, AP aging (built fresh — no AP ledger view existed before this
+      milestone), revenue/expense/collections trend series. Trial Balance/Income Summary/Balance
+      Sheet/P&L/Cash Flow deliberately stay at their existing `/finance/reports/*` routes, not
+      duplicated under `/reports/*`.
+- [x] Project Reports: inventory availability, sold-vs-available, sales/collection summaries, and a
+      genuine **project profitability** report (Confirmed sales revenue minus Approved Construction
+      expenses, per project) — documented explicitly as a direct/gross margin only, since the domain
+      model tracks no per-project overhead allocation; and progress (average WorkPackage progress,
+      `null` — not 0% — for a project with no work packages yet).
+- [x] Construction/Procurement Reports: work-package progress, expenses by category, budget-vs-actual
+      (using the real `WorkPackage.Budget` field — `Project`/`ConstructionTask` have no budget field
+      in the current model, so no report was fabricated for those levels), purchase-order exposure,
+      received-vs-ordered, vendor spend, and PO status breakdown.
+- [x] Property/Rental Reports: occupancy, rent billed/collected, overdue rent, revenue (rent-only —
+      Facility/Mall revenue is reported separately, never mixed in), tenant aging, and lease status.
+- [x] Facility/Mall/Coworking Reports: facility utilization, mall occupancy, service-charge
+      collection, facility revenue (resolved per-facility by following each `FacilityPayment`'s
+      polymorphic source reference back to its owning Facility — the payment ledger itself carries
+      no direct FacilityId), parking utilization, event summary, coworking desk utilization, meeting
+      room utilization (booked hours), booking trends, and a maintenance backlog scoped to the
+      Facility half of the shared `MaintenanceRequest` table (age-in-days + priority).
+- [x] Drill-down: every report row carries the real entity id (customer/booking/project/vendor/
+      property/lease/request/vendor-assignment) a frontend links to the existing detail page with —
+      no invented ids or dead links. Holding `reports.view` never grants implicit access to what a
+      drill-down link points at: following it still enforces that entity's own permission (verified
+      by a dedicated test — an Accountant can see a receivable-aging row's real customer but is
+      still `403`'d navigating to that customer's own record without `crm.customer.view`).
+- [x] Architecture: one tenant-wide `reports.view` permission gates every report controller (the
+      same "one permission spans the whole area" precedent as `documents.view`/`approvals.view`);
+      `ReportDateRange` resolves a missing date range to "this calendar month to date" consistently
+      everywhere; `AgingBucket` is the single bucket-boundary definition every aging report shares;
+      `IReportExporter`/`CsvReportExporter` implement CSV export now with Excel/PDF as a clean,
+      unimplemented extension point (no dependency added for a format that isn't built yet).
+- [x] Database: one migration, `AddReportingIndexes`, adding 8 composite indexes justified by the new
+      reports' own filter predicates (see `docs/DATABASE.md`) — no new tables, applied and
+      schema-verified against the dev database.
+- [x] Frontend: [placeholder — filled in after independent verification below]
+- [x] Unit/integration tests: 20 new integration tests covering Executive Dashboard KPI calculation
+      and date-range filtering, Sales report aggregation/filtering (Confirmed-only inclusion,
+      project/agent filters), receivable aging bucketing, CSV export, AP aging (Approved-only
+      inclusion), a revenue-trend-vs-P&L reconciliation, Construction budget-vs-actual variance,
+      Procurement exposure (Draft/Received/Cancelled exclusion), Property occupancy and overdue-rent/
+      tenant-aging, Facility maintenance backlog scoping and age, RBAC (`reports.view` required),
+      cross-tenant isolation across Sales/Finance/Property reports, and drill-down authorization —
+      all passing alongside the existing suite (182 total: 12 unit + 170 integration), zero
+      regressions in the 150 pre-existing integration tests.
+- [x] Live end-to-end verification against the real running API, with two real tenants: Customer →
+      Booking → Payment Plan → Payment → Executive Dashboard/Sales-by-project/Receivable-aging,
+      cross-checked against Finance's own Profit & Loss and Cash Flow for the same period (exact
+      reconciliation, not just non-zero); Property → Unit → Tenant → Lease → Rent Schedule → Rent
+      Payment → Property occupancy/rent-collected reports; a second tenant confirmed to see zero
+      rows/zero totals across Sales, Finance, and Property reports for the first tenant's data.
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

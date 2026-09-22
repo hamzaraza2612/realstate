@@ -151,27 +151,32 @@ No functional regressions, no permission-bypass paths, and no `any`-typed API ha
 
 ## 8. Reporting Findings
 
-| Question | Status |
-|---|---|
-| Today's sales | **MISSING** |
-| Outstanding receivables (aging) | **PARTIAL** — per-installment outstanding + overdue flag; no 30/60/90 buckets |
-| Outstanding payables (vendor aging) | **MISSING** |
-| Cash collected (today/period) | **MISSING** (dashboard total is all-time only) |
-| Revenue by period | **EXISTING but unreachable** — `FinanceReportsController.IncomeSummary` exists; no frontend page calls it |
-| Expenses by category/period | **MISSING** |
-| Project profitability | **MISSING** |
-| Inventory status | **PARTIAL** — global counts exist; no per-project breakdown |
-| Construction progress | **EXISTING** — `ConstructionDashboardController` |
-| Procurement exposure | **PARTIAL** — open-PO value exists; pending-vendor-payments doesn't (no AP tracking) |
-| Rental collection | **EXISTING** — `RentalDashboardController` |
-| Occupancy (rental/mall/coworking) | **EXISTING**, all three, separately |
-| Mall performance | **PARTIAL** — revenue/occupancy/event-count exist; no footfall tracking |
-| Coworking utilization | **EXISTING** |
-| Maintenance backlog | **PARTIAL** — open count only; no age/priority breakdown |
-| Customer conversion | **EXISTING (basic)** — single conversion-rate metric, not a staged funnel |
-| Sales-agent performance | **MISSING** |
+**Updated in Milestone 12 — see the addendum below for what shipped.** Original Milestone 9 findings (for history):
 
-Per-module dashboards are genuinely tenant-scoped and real (not mocked), but a manager cannot today answer "what are today's sales," "who owes us money by age," "who do we owe," or "which project is profitable" from any existing screen or endpoint.
+| Question | Status at Milestone 9 | Status after Milestone 12 |
+|---|---|---|
+| Today's sales | **MISSING** | **FIXED** — `GET /reports/executive` (date-ranged) and `/reports/sales/by-period` |
+| Outstanding receivables (aging) | **PARTIAL** — no 30/60/90 buckets | **FIXED** — `/reports/sales/receivable-aging`, `/reports/finance/ar-aging` |
+| Outstanding payables (vendor aging) | **MISSING** | **FIXED** — `/reports/finance/ap-aging` (built fresh; aged from ExpenseDate, no separate due date exists) |
+| Cash collected (today/period) | **MISSING** (all-time only) | **FIXED** — Executive Dashboard Collections KPI, `/reports/finance/collections-trend` |
+| Revenue by period | **EXISTING but unreachable** | **FIXED (reachable)** — Executive Dashboard reuses `IFinanceReportService.GetProfitAndLossAsync`; `/reports/finance/revenue-trend` added; a frontend page now calls it |
+| Expenses by category/period | **MISSING** | **FIXED** — `/reports/construction/expenses` |
+| Project profitability | **MISSING** | **FIXED (direct/gross margin only)** — `/reports/projects/financial-summary`; documented as not allocating overhead, since none is tracked per-project |
+| Inventory status | **PARTIAL** — no per-project breakdown | **FIXED** — `/reports/projects/inventory-availability`, `/sold-vs-available` |
+| Construction progress | **EXISTING** | Unchanged; extended with `/reports/construction/work-package-progress` (filterable, unpaginated-but-not-"recent"-only) |
+| Procurement exposure | **PARTIAL** — no AP tracking | **PARTIALLY FIXED** — `/reports/procurement/purchase-order-exposure` and Construction's AP aging both now exist; a unified AP ledger view spanning both is still future work |
+| Rental collection | **EXISTING** | Unchanged; extended with `/reports/property/rent-billed`, `/rent-collected`, `/overdue-rent` |
+| Occupancy (rental/mall/coworking) | **EXISTING**, separately | Unchanged; extended with `/reports/property/occupancy` and `/reports/facility/{utilization,mall-occupancy,coworking-desk-utilization}` as standalone filterable reports, not just dashboard fields |
+| Mall performance | **PARTIAL** — no footfall tracking | Still no footfall tracking (no backing data model) — everything else extended (`/reports/facility/revenue`, `/parking`, `/events`) |
+| Coworking utilization | **EXISTING** | Unchanged; extended with `/reports/facility/meeting-room-utilization` (booked hours) and `/booking-trends` |
+| Maintenance backlog | **PARTIAL** — no age/priority breakdown | **FIXED** — `/reports/facility/maintenance-backlog` (age-in-days + priority, scoped to Facility-linked requests) |
+| Customer conversion | **EXISTING (basic)** — single rate | **FIXED (staged funnel)** — `/reports/sales/conversion` returns the full Lead-status funnel + rate, date-ranged |
+| Sales-agent performance | **MISSING** | **FIXED** — `/reports/sales/by-agent` |
+
+A manager can now answer "what are today's sales," "who owes us money by age," "who do we owe," and
+"which project is profitable (directly)" from the new `/reports/*` endpoints — the exact gap this
+section originally flagged. See `docs/REPORTING.md` for full KPI definitions and the Milestone 12
+addendum below for verification performed.
 
 ---
 
@@ -224,7 +229,7 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 - TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed). **Still open.**
 
 **P1 — important shortly after launch:**
-- Cross-module reporting: today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the single most commonly asked "can the ERP tell me X" questions today's answer is no to. (Balance Sheet/P&L/Cash Flow are now available as of Milestone 10, which covers part of this — today's-sales/aging/profitability/agent-performance remain open, scheduled for Milestone 12.)
+- ~~Cross-module reporting~~ — **fixed in Milestone 12** (today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance — the Executive Dashboard plus per-module report endpoints under `/reports/*`, see `docs/REPORTING.md`).
 - ~~Journal reversal for posted entries~~ — **fixed in Milestone 10.**
 - Bank reconciliation and multi-bank-account support (`PaymentMethod` already captured, just not routed).
 - ~~Documents/attachments~~ — **fixed in Milestone 11.**
@@ -253,7 +258,12 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 
 ## 13. Recommended Next Milestone
 
-**Milestone 10 — Security & Finance Hardening** and **Milestone 11 — Documents + Notifications + Approvals + Communication Foundation** are both now complete (see their addenda below). The next recommended milestone is **Milestone 12 — Reporting**: cross-module dashboards (today's sales, AR/AP aging, cash collected by period, project profitability, sales-agent performance) are the most commonly requested "can the ERP tell me X" capability still missing, the underlying data (Finance, Sales, Facility, Property) is all already in place from Milestones 1–10, and `recharts` has sat installed and unused since before Milestone 8. Portals (Milestone 13) remain blocked behind a real `IEmailSender` provider, which is a smaller, separable piece of work that can happen in parallel with or just before Milestone 13 rather than gating Reporting.
+**Milestones 10, 11, and 12** are now complete (see their addenda below). The most commonly
+requested "can the ERP tell me X" capability gap is closed. What remains open per the P0/P1/P2
+roadmap above: a real SMTP/SendGrid `IEmailSender` provider (the hard prerequisite for any portal
+work), TLS/reverse-proxy production deployment documentation, and bank reconciliation. **Portals
+(Milestone 13)** remain blocked behind the real email provider — that is now the most natural next
+milestone, either as its own small piece of work or as the first step inside Milestone 13 itself.
 
 ---
 
@@ -344,3 +354,24 @@ Milestone 11 closed three of this audit's originally-flagged Missing Capabilitie
 - **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.
 - **Live verification against the real running API:** a PDF uploaded, downloaded back byte-for-byte identical, a second version added, then deleted and confirmed unretrievable (404); an Expense created (auto-creating its ApprovalRequest), decided via the generic Approval Inbox, and the Expense's own status confirmed Approved (proving the bidirectional dispatch, not just the module-to-approval direction already covered by tests); unread-notification count and communication-log entries (2 in-app + 2 email, both Sent) confirmed for the same flow.
 - **Fix scope:** ~20 new backend files across 4 new domains (Documents/Notifications/Approvals/Communication), 3 existing services extended with approval hooks (`ExpenseService`, `PurchaseOrderService`, `BookingService`), 1 migration, 3 new/extended test files — additive throughout, no existing endpoint's request/response shape changed, no existing test modified.
+
+## Milestone 12 addendum — Cross-Module Reporting & Analytics
+
+A unified, read-only reporting layer over existing modules' data closing the exact gap §8 originally flagged: a manager can now answer "what are today's sales," "who owes us money by age," "who do we owe," "which project is profitable (directly)," and "how utilized is a given desk/shop/facility" from the new `/reports/*` endpoints. Nothing here is a second business module — every report either aggregates existing tables directly or calls straight into another module's already-implemented service (Finance's P&L/Cash Flow, Property's occupancy, CRM's conversion rate) rather than recomputing a second, possibly-diverging version of the same number.
+
+**What was implemented:** an Executive Dashboard (16 KPIs, each documented as either a period sum or an as-of-now snapshot); Sales reports (by-project/-period/-agent, booking-status, conversion funnel, cancellations, collections, outstanding-installments delegated to the existing Receivables service, and a new receivable-aging report); Finance extensions (AR aging, AP aging built fresh, revenue/expense/collections trend series — Trial Balance/P&L/Balance Sheet/Cash Flow deliberately left at their existing routes); Project reports (inventory availability, sold-vs-available, sales/collection summaries, a direct-margin project-profitability report, and progress); Construction/Procurement reports (work-package progress, expenses by category, budget-vs-actual against the real `WorkPackage.Budget` field, PO exposure, received-vs-ordered, vendor spend, PO status); Property/Rental reports (occupancy, rent billed/collected, overdue rent, revenue, tenant aging, lease status); Facility/Mall/Coworking reports (utilization, mall occupancy, service-charge collection, revenue resolved through each payment's polymorphic source reference, parking, events, desk/meeting-room utilization, booking trends, and a Facility-scoped maintenance backlog). Full KPI definitions are in the new `docs/REPORTING.md`.
+
+**What was deliberately not fabricated:** no AR/AP aging existed before this milestone in a bucketed form (built fresh, not faked); no budget field exists on `Project` or `ConstructionTask`, so no budget-vs-actual report was offered at those levels (only the real `WorkPackage.Budget` figure is reported); mall footfall tracking has no backing data model and remains unreported; project profitability is explicitly documented as a direct/gross margin (sales revenue minus direct construction expense), not a full P&L, since no per-project overhead allocation is tracked anywhere in the domain.
+
+**Architecture:** one tenant-wide `reports.view` permission gates every report controller (the same precedent as `documents.view`/`approvals.view`); `ReportDateRange`/`AgingBucket` are the single shared definitions every report reuses so "this month" and "31-60 days" mean the same thing everywhere; `IReportExporter`/`CsvReportExporter` implement CSV now with Excel/PDF as a clean, unimplemented extension point — no dependency added for a format not yet built. Every report row carries the referenced entity's real id for drill-down, and a dedicated test confirms holding `reports.view` never grants implicit access to what a drill-down link points at.
+
+### Verification performed in Milestone 12
+
+- **Backend tests:** 12/12 unit + 170/170 integration passed (150 pre-existing + 20 new), 0 failures, 0 regressions.
+- **Frontend build:** [placeholder — filled in after independent verification below]
+- **Migration/schema:** one new migration, `AddReportingIndexes` (8 composite indexes across `bookings`/`payments`/`expenses`/`rent_payments`/`purchase_orders`/`facility_payments`/`service_charge_charges`/`maintenance_requests`, no new tables) — applied and schema-verified via `psql \d` against the dev database.
+- **`docker compose config`:** exits 0 with `.env.example` values (both the default profile and `--profile tools`).
+- **Docker runtime verification:** not exercised — this sandbox's network policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report.
+- **Query/performance verification:** every report is a direct EF Core LINQ query with server-side `GroupBy`/`Sum`/`Count` and DTO-shaped projections — no full-entity-graph loads; new indexes were added only where a report's own filter predicate justified one (see `docs/DATABASE.md`), not speculatively.
+- **Live verification against the real running API, with two real tenants:** Customer → Booking → Payment Plan → Payment → Executive Dashboard, cross-checked field-for-field against Finance's own Profit & Loss and Cash Flow for the identical period (exact reconciliation: Sales 500,000, Collections/Revenue 200,000, Receivables 300,000, Profit 200,000, Cash Position matching Cash Flow's ClosingCash); Property → Unit → Tenant → Lease → Rent Schedule → Rent Payment → Property occupancy (100%) and rent-collected (exact payment amount) reports; a second tenant confirmed to see zero rows/zero totals across Sales, Finance, and Property reports for the first tenant's data.
+- **Fix scope:** ~30 new backend files (Application DTOs/interfaces + Infrastructure services + 8 report controllers, all under a new `Reporting` namespace), 8 existing entity configurations extended with one justified index each, 1 migration, 1 new test file (20 tests) — fully additive, no existing endpoint's request/response shape changed, no existing test modified.

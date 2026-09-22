@@ -81,6 +81,10 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         b.HasIndex(x => new { x.TenantId, x.VendorId });
         b.HasIndex(x => new { x.TenantId, x.Status });
 
+        // Reporting (Milestone 12): the vendor-spend report filters by OrderDate range across all
+        // statuses, so the existing (TenantId, Status) index doesn't cover it.
+        b.HasIndex(x => new { x.TenantId, x.OrderDate });
+
         b.HasOne<Vendor>().WithMany().HasForeignKey(x => x.VendorId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<WorkPackage>().WithMany().HasForeignKey(x => x.WorkPackageId).OnDelete(DeleteBehavior.Restrict);

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Models;
 using RealEstateErp.Api.Authorization;
+using RealEstateErp.Api.Common;
 using RealEstateErp.Api.Middleware;
 using RealEstateErp.Application;
 using RealEstateErp.Infrastructure;
@@ -52,6 +53,7 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddSingleton<IReportExporter, CsvReportExporter>();
 
     builder.Services.AddAuthentication(options =>
         {

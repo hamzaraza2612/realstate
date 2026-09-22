@@ -57,6 +57,10 @@ public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         b.HasIndex(x => new { x.TenantId, x.WorkPackageId });
         b.HasIndex(x => new { x.TenantId, x.Status });
 
+        // Reporting (Milestone 12): AP aging, expense trend, and budget-vs-actual all filter
+        // Approved expenses by ExpenseDate range.
+        b.HasIndex(x => new { x.TenantId, x.Status, x.ExpenseDate });
+
         b.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<WorkPackage>().WithMany().HasForeignKey(x => x.WorkPackageId).OnDelete(DeleteBehavior.Restrict);
     }

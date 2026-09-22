@@ -49,6 +49,9 @@ public class ServiceChargeChargeConfiguration : IEntityTypeConfiguration<Service
         b.HasIndex(x => new { x.TenantId, x.LeaseId });
         b.HasIndex(x => new { x.TenantId, x.Status });
 
+        // Reporting (Milestone 12): the service-charge-collection report filters by DueDate range.
+        b.HasIndex(x => new { x.TenantId, x.DueDate });
+
         b.HasOne<ServiceChargeDefinition>().WithMany().HasForeignKey(x => x.ServiceChargeDefinitionId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Lease>().WithMany().HasForeignKey(x => x.LeaseId).OnDelete(DeleteBehavior.Restrict);
     }

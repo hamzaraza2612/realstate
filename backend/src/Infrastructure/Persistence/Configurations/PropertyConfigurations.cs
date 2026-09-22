@@ -125,6 +125,9 @@ public class RentPaymentConfiguration : IEntityTypeConfiguration<RentPayment>
         b.HasIndex(x => new { x.TenantId, x.RentScheduleId });
         b.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
+        // Reporting (Milestone 12): rent-collected/revenue/collections-trend all filter by PaymentDate range.
+        b.HasIndex(x => new { x.TenantId, x.PaymentDate });
+
         b.HasOne<Lease>().WithMany().HasForeignKey(x => x.LeaseId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<RentSchedule>().WithMany().HasForeignKey(x => x.RentScheduleId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -159,6 +162,10 @@ public class MaintenanceRequestConfiguration : IEntityTypeConfiguration<Maintena
         b.HasIndex(x => new { x.TenantId, x.RequestNumber }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.PropertyId });
         b.HasIndex(x => new { x.TenantId, x.Status });
+
+        // Reporting (Milestone 12): the Facility maintenance-backlog report filters this shared
+        // table down to rows where FacilityId is set.
+        b.HasIndex(x => new { x.TenantId, x.FacilityId });
 
         b.HasOne<RealEstateErp.Domain.Property.Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<PropertyUnit>().WithMany().HasForeignKey(x => x.UnitId).OnDelete(DeleteBehavior.Restrict);

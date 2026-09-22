@@ -24,6 +24,11 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         b.HasIndex(x => new { x.TenantId, x.CustomerId });
         b.HasIndex(x => new { x.TenantId, x.SalesAgentUserId });
 
+        // Reporting (Milestone 12): sales-by-period/-project/-agent and the Executive Dashboard's
+        // Sales KPI all filter Confirmed bookings by BookingDate range — this composite index covers
+        // that filter directly instead of a full tenant scan.
+        b.HasIndex(x => new { x.TenantId, x.Status, x.BookingDate });
+
         // The actual double-booking guard: only one active (non-Cancelled) booking per unit, at the database level.
         b.HasIndex(x => x.InventoryUnitId).IsUnique().HasFilter("\"Status\" <> 3");
 
@@ -84,6 +89,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         b.HasIndex(x => new { x.TenantId, x.BookingId });
         b.HasIndex(x => new { x.TenantId, x.InstallmentId });
         b.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        // Reporting (Milestone 12): Sales collections/trend reports and the Executive Dashboard's
+        // Collections KPI filter and group by PaymentDate range.
+        b.HasIndex(x => new { x.TenantId, x.PaymentDate });
 
         b.HasOne<Booking>().WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Installment>().WithMany().HasForeignKey(x => x.InstallmentId).OnDelete(DeleteBehavior.Restrict);

@@ -292,4 +292,27 @@ Communication (diagnostic/support visibility, not an end-user feature):
 - `GET /api/v1/communication-logs?recipientUserId=&entityType=&entityId=&status=` — permission
   `audit_logs.view` (reused, since this is the same kind of cross-cutting sensitive data).
 
+Reporting (Milestone 12) — every route below requires permission `reports.view` (one tenant-wide
+permission for the whole area, same precedent as `documents.view`/`approvals.view`); full KPI/report
+definitions are in `docs/REPORTING.md`, not repeated here. Any route marked (csv) also accepts
+`?format=csv` to download the same rows as a file instead of the JSON envelope:
+- `GET /api/v1/reports/executive?from=&to=` — the cross-module management dashboard.
+- `GET /api/v1/reports/sales/{by-project|by-period|by-agent}?from=&to=&projectId=&agentUserId=&customerId=&status=` (csv)
+- `GET /api/v1/reports/sales/booking-status?...`, `GET /api/v1/reports/sales/conversion?from=&to=`
+- `GET /api/v1/reports/sales/cancellations?page=&pageSize=&...` (paged)
+- `GET /api/v1/reports/sales/collections?...` (csv), `GET /api/v1/reports/sales/receivable-aging` (csv)
+- `GET /api/v1/reports/sales/outstanding-installments?page=&pageSize=&customerId=&status=&overdueOnly=&search=`
+  — delegates directly to the existing Finance Receivables list (`IReceivableService`), not duplicated.
+- `GET /api/v1/reports/finance/ar-aging` (csv), `GET /api/v1/reports/finance/ap-aging` (csv) — new
+  reports only; Trial Balance/Income Summary/Balance Sheet/P&L/Cash Flow remain at their existing
+  `/finance/reports/*` routes.
+- `GET /api/v1/reports/finance/{revenue-trend|expense-trend|collections-trend}?from=&to=` — monthly series.
+- `GET /api/v1/reports/projects/{inventory-availability|sold-vs-available|sales-summary|collection-summary|financial-summary|progress}?projectId=&from=&to=` (csv)
+- `GET /api/v1/reports/construction/work-package-progress?projectId=&status=` (csv)
+- `GET /api/v1/reports/construction/{expenses|budget-vs-actual}?projectId=&from=&to=` (csv)
+- `GET /api/v1/reports/procurement/{purchase-order-exposure|received-vs-ordered|vendor-spend|status}?purchaseOrderId=&from=&to=` (csv, except `status`)
+- `GET /api/v1/reports/property/{occupancy|rent-billed|rent-collected|overdue-rent|revenue|tenant-aging|lease-status}?from=&to=` (csv, except `lease-status`)
+- `GET /api/v1/reports/facility/{utilization|mall-occupancy|service-charge-collection|revenue|parking|coworking-desk-utilization|meeting-room-utilization|maintenance-backlog}?from=&to=` (csv)
+- `GET /api/v1/reports/facility/{events|booking-trends}?from=&to=` (no export — small/no-drilldown shape)
+
 Further modules append their endpoint list here as they ship.

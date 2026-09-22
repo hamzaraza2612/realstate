@@ -52,6 +52,14 @@ using RealEstateErp.Application.Property.Tenants;
 using RealEstateErp.Application.Property.Units;
 using RealEstateErp.Application.Projects.Hierarchy;
 using RealEstateErp.Application.Projects.Projects;
+using RealEstateErp.Application.Reporting.Construction;
+using RealEstateErp.Application.Reporting.Executive;
+using RealEstateErp.Application.Reporting.Facility;
+using RealEstateErp.Application.Reporting.Finance;
+using RealEstateErp.Application.Reporting.Procurement;
+using RealEstateErp.Application.Reporting.Projects;
+using RealEstateErp.Application.Reporting.Property;
+using RealEstateErp.Application.Reporting.Sales;
 using RealEstateErp.Application.Roles;
 using RealEstateErp.Application.Sales.Bookings;
 using RealEstateErp.Application.Approvals;
@@ -83,6 +91,7 @@ using RealEstateErp.Infrastructure.Services.Materials;
 using RealEstateErp.Infrastructure.Services.Procurement;
 using RealEstateErp.Infrastructure.Services.Property;
 using RealEstateErp.Infrastructure.Services.Projects;
+using RealEstateErp.Infrastructure.Services.Reporting;
 using RealEstateErp.Infrastructure.Services.Sales;
 
 namespace RealEstateErp.Infrastructure;
@@ -197,6 +206,15 @@ public static class DependencyInjection
         services.AddScoped<IApprovalLinkedEntityHandler, ExpenseApprovalHandler>();
         services.AddScoped<IApprovalLinkedEntityHandler, PurchaseOrderApprovalHandler>();
         services.AddScoped<IApprovalLinkedEntityHandler, BookingApprovalHandler>();
+
+        services.AddScoped<IExecutiveDashboardService, ExecutiveDashboardService>();
+        services.AddScoped<ISalesReportService, SalesReportService>();
+        services.AddScoped<IFinanceReportsExtensionService, FinanceReportsExtensionService>();
+        services.AddScoped<IProjectReportService, ProjectReportService>();
+        services.AddScoped<IConstructionReportService, ConstructionReportService>();
+        services.AddScoped<IProcurementReportService, ProcurementReportService>();
+        services.AddScoped<IPropertyReportService, PropertyReportService>();
+        services.AddScoped<IFacilityReportService, FacilityReportService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

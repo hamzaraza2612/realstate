@@ -378,6 +378,26 @@ every replica, or swapping `IFileStorageService`'s registration for an S3/Azure 
 (the interface is already provider-agnostic for exactly this reason) — `LocalFileStorageService` alone
 does not support horizontal scaling across replicas with independent local disks.
 
+## Milestone 12 schema — Reporting & Analytics
+
+No new tables: the reporting layer is a pure read/query layer over existing tables (plus, for a
+handful of reports, direct calls into another module's own already-implemented service — see
+`docs/REPORTING.md`). One migration, `AddReportingIndexes`, adds composite indexes justified by the
+new report queries' actual filter predicates — nothing speculative:
+
+| Table | New index | Report(s) it serves |
+|---|---|---|
+| `bookings` | `(tenant_id, status, booking_date)` | Sales by-period/-project/-agent, Executive Dashboard Sales KPI — all filter Confirmed bookings by date range |
+| `payments` | `(tenant_id, payment_date)` | Sales collections/receivable reports, Executive Dashboard Collections KPI, collections-trend |
+| `expenses` | `(tenant_id, status, expense_date)` | AP aging, expense-trend, budget-vs-actual — all filter Approved expenses by date range |
+| `rent_payments` | `(tenant_id, payment_date)` | Property rent-collected/revenue, collections-trend |
+| `purchase_orders` | `(tenant_id, order_date)` | Vendor-spend (filters by date across every status, so the existing `(tenant_id, status)` index alone doesn't cover it) |
+| `facility_payments` | `(tenant_id, payment_date)` | Facility revenue, Executive Dashboard Collections KPI |
+| `service_charge_charges` | `(tenant_id, due_date)` | Service-charge-collection |
+| `maintenance_requests` | `(tenant_id, facility_id)` | Facility maintenance-backlog (scopes the shared Property/Facility table down to Facility-linked rows) |
+
+Applied and schema-verified against the dev database (`psql \d <table>` confirms each index).
+
 Later milestones extend this file per-module (
 Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds

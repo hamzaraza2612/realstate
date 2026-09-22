@@ -107,5 +107,9 @@ public class FacilityPaymentConfiguration : IEntityTypeConfiguration<FacilityPay
         b.HasIndex(x => new { x.TenantId, x.ReceiptNumber }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId });
         b.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        // Reporting (Milestone 12): the Facility revenue report and the Executive Dashboard's
+        // Collections KPI filter by PaymentDate range.
+        b.HasIndex(x => new { x.TenantId, x.PaymentDate });
     }
 }
