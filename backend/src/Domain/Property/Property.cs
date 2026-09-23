@@ -36,7 +36,13 @@ public class Property : TenantEntity
     public string? Country { get; set; }
     public string? PostalCode { get; set; }
 
-    /// <summary>Generic owner-information foundation — not a full ownership/title module yet.</summary>
+    /// <summary>Generic owner-information foundation — not a full ownership/title module yet. Kept
+    /// alongside PropertyOwnerId (Milestone 13) rather than replaced by it: a property doesn't need a
+    /// portal-linked owner record to keep working exactly as before.</summary>
     public string? OwnerName { get; set; }
     public string? OwnerContact { get; set; }
+
+    /// <summary>Optional link to a first-class PropertyOwner record (Milestone 13) — the basis for
+    /// the Owner Portal. Null for a property with no portal-linked owner yet.</summary>
+    public Guid? PropertyOwnerId { get; set; }
 }

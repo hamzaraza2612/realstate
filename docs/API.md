@@ -315,4 +315,86 @@ definitions are in `docs/REPORTING.md`, not repeated here. Any route marked (csv
 - `GET /api/v1/reports/facility/{utilization|mall-occupancy|service-charge-collection|revenue|parking|coworking-desk-utilization|meeting-room-utilization|maintenance-backlog}?from=&to=` (csv)
 - `GET /api/v1/reports/facility/{events|booking-trends}?from=&to=` (no export — small/no-drilldown shape)
 
+## External Portals (Milestone 13)
+
+Full architecture (identity model, JWT claim scheme, authorization isolation) is in
+`docs/PORTAL_ARCHITECTURE.md`, not repeated here.
+
+Portal auth (`AllowAnonymous` except `me`; no `[RequirePermission]` — a portal token carries no
+internal roles):
+- `POST /api/v1/portal/auth/login` body `{ tenantSlug, email, password }` — `401` on any failure
+  (unknown tenant, unknown email, wrong password, deactivated account, locked out), same
+  non-enumeration convention as internal login.
+- `POST /api/v1/portal/auth/refresh` body `{ refreshToken }`, `POST /api/v1/portal/auth/logout` body `{ refreshToken }`.
+- `POST /api/v1/portal/auth/request-password-reset` body `{ tenantSlug, email }` — always `204`
+  regardless of whether the email matched an account.
+- `POST /api/v1/portal/auth/reset-password` body `{ token, newPassword }`.
+- `GET /api/v1/portal/auth/me` — `[RequirePortal]`; returns the caller's own profile (actor type,
+  actor id, display name, tenant).
+
+Internal-staff administration of portal logins — `[RequirePermission(portal.manage_accounts)]`,
+one permission spans all five actor types:
+- `GET /api/v1/portal-accounts?actorType=&actorId=` — paged.
+- `POST /api/v1/portal-accounts/invite` body `{ actorType, actorId, email? }` — `400 already_invited`
+  if the actor already has a portal account, `400 actor_not_found` if the id doesn't resolve to a
+  real, same-tenant row of that type, `400 email_required`/`400 email_taken` for email conflicts.
+- `POST /api/v1/portal-accounts/{id}/deactivate`, `POST /api/v1/portal-accounts/{id}/reactivate`.
+
+`PropertyOwner` CRUD (internal, `property.view`/`property.manage` — new in this milestone since no
+first-class owner entity existed before):
+- `GET /api/v1/property/owners?isActive=&search=`, `GET /api/v1/property/owners/{id}`.
+- `POST /api/v1/property/owners`, `PUT /api/v1/property/owners/{id}`.
+- `POST /api/v1/property/owners/{ownerId}/properties/{propertyId}` — links a property to an owner
+  (a property has at most one linked owner in this milestone, not co-ownership).
+- `DELETE /api/v1/property/owners/properties/{propertyId}/link` — unlinks.
+
+Every portal-area route below requires `[RequirePortal]` **and** the controller's own
+`RequiredActorType` check (a Vendor token cannot reach `/portal/tenant/*`, etc. — see
+`docs/PORTAL_ARCHITECTURE.md`). Every object-level access (a specific booking/lease/property/PO/
+membership id) additionally verifies the caller owns that row; a mismatch is `404`, never `403`,
+so a portal user can never distinguish "doesn't exist" from "exists but isn't yours" — except the
+Tenant Portal's `POST maintenance-requests`, whose ownership failure surfaces as `400` like every
+other create-endpoint failure in this codebase.
+
+Customer Portal (`api/v1/portal/customer`, `RequiredActorType = Customer`):
+- `GET bookings`, `GET bookings/{id}`, `GET bookings/{id}/payment-plan`, `GET bookings/{id}/payments`, `GET payments`.
+- `GET documents`, `GET documents/{id}/download?version=`.
+- `GET notifications?unreadOnly=&category=`, `GET notifications/unread-count`,
+  `POST notifications/{id}/read`, `POST notifications/read-all`.
+
+Tenant Portal (`api/v1/portal/tenant`, `RequiredActorType = RentalTenant`):
+- `GET leases`, `GET leases/{id}`, `GET leases/{id}/rent-schedule`, `GET leases/{id}/payments`, `GET payments`.
+- `GET leases/{id}/security-deposit`.
+- `GET maintenance-requests`, `POST maintenance-requests` body `{ leaseId, category, priority, description }`.
+- `GET documents`, `GET documents/{id}/download?version=`.
+- `GET notifications?...`, `GET notifications/unread-count`, `POST notifications/{id}/read`, `POST notifications/read-all`.
+
+Owner Portal (`api/v1/portal/owner`, `RequiredActorType = PropertyOwner`, read-only):
+- `GET properties`, `GET properties/{id}` (includes per-unit occupant/rent detail).
+- `GET rent-collected?from=&to=`, `GET overdue-rent`, `GET revenue?from=&to=` — all reuse Milestone
+  12's `IPropertyReportService`, filtered down to this owner's own property ids.
+- `GET maintenance-requests`.
+- `GET documents`, `GET documents/{id}/download?version=`.
+- `GET notifications?...`, `GET notifications/unread-count`, `POST notifications/{id}/read`, `POST notifications/read-all`.
+
+Vendor Portal (`api/v1/portal/vendor`, `RequiredActorType = Vendor`):
+- `GET purchase-orders`, `GET purchase-orders/{id}`, `GET assigned-work` (maintenance requests assigned to this vendor).
+- `GET documents`, `GET documents/{id}/download?version=`.
+- `GET notifications?...`, `GET notifications/unread-count`, `POST notifications/{id}/read`, `POST notifications/read-all`.
+
+Coworking Member Portal (`api/v1/portal/member`, `RequiredActorType = CoworkingMember`):
+- `GET membership` (active only, `404` if none), `GET memberships` (full history), `GET bookings`, `GET bookings/{id}`.
+- `GET documents`, `GET documents/{id}/download?version=`.
+- `GET notifications?...`, `GET notifications/unread-count`, `POST notifications/{id}/read`, `POST notifications/read-all`.
+- No payment-history endpoint: Facility billing has no read-side "list payments for X" service
+  (only a write-side `FacilityPaymentService`), so none is fabricated here.
+
+Agent/Broker Portal (`api/v1/agent-portal`) — plain `[Authorize]`, **not** `[RequirePortal]`: this
+reuses the caller's existing internal `AppUser` session rather than a `PortalUser`, since an agent
+is already internal staff (see `docs/PORTAL_ARCHITECTURE.md` for why). Every action is self-scoped
+to the caller's own `UserId`:
+- `GET leads`, `GET customers`, `GET available-inventory`, `GET bookings`, `GET follow-ups`.
+- `GET performance?from=&to=` — reuses `ISalesReportService.SalesByPeriodAsync` filtered to the
+  caller's own agent id. No commission endpoint exists — the domain model has no commission data.
+
 Further modules append their endpoint list here as they ship.

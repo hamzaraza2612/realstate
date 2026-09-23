@@ -37,12 +37,17 @@ public static class DocumentEntityTypes
     public const string Expense = "Expense";
     public const string Facility = "Facility";
     public const string MaintenanceRequest = "MaintenanceRequest";
+    /// <summary>Milestone 13 — matches Domain.Facility.Coworking.CoworkingMember.</summary>
+    public const string CoworkingMember = "CoworkingMember";
+    /// <summary>Milestone 13 — matches Domain.Property.PropertyOwner.</summary>
+    public const string PropertyOwner = "PropertyOwner";
     public const string Other = "Other";
 
     public static readonly IReadOnlyCollection<string> All = new[]
     {
         Customer, Lead, Booking, Payment, Project, Property, PropertyUnit, Lease, RentalTenant,
-        Vendor, PurchaseOrder, PurchaseRequest, Expense, Facility, MaintenanceRequest, Other
+        Vendor, PurchaseOrder, PurchaseRequest, Expense, Facility, MaintenanceRequest,
+        CoworkingMember, PropertyOwner, Other
     };
 }
 

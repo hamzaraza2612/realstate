@@ -142,6 +142,16 @@ public static class Permissions
         public const string View = "reports.view";
     }
 
+    /// <summary>Governs internal-staff administration of the External Portal foundation (Milestone
+    /// 13) — inviting/deactivating a Customer/RentalTenant/PropertyOwner/Vendor/CoworkingMember's
+    /// portal login. Deliberately one tenant-wide permission rather than one per actor type (the same
+    /// precedent as Documents.View/Approvals.View/Reports.View): inviting a Vendor and inviting a
+    /// Customer to the portal are the same kind of action, not two.</summary>
+    public static class Portal
+    {
+        public const string ManageAccounts = "portal.manage_accounts";
+    }
+
     /// <summary>All permission codes declared above, discovered via reflection for seeding.</summary>
     public static IReadOnlyList<string> All { get; } = DiscoverAll();
 

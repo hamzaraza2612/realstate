@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace RealEstateErp.IntegrationTests;
 
@@ -8,10 +10,12 @@ namespace RealEstateErp.IntegrationTests;
 public abstract class TestBase
 {
     protected readonly HttpClient Client;
+    protected readonly CustomWebApplicationFactory Factory;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     protected TestBase(CustomWebApplicationFactory factory)
     {
+        Factory = factory;
         Client = factory.CreateClient();
     }
 
@@ -129,4 +133,49 @@ public abstract class TestBase
         var ownerToken = await LoginAsync(ownerEmail, "Owner@12345");
         return (ownerToken, orgId, ownerEmail);
     }
+
+    /// <summary>Same as CreateOrganizationAsync but also returns the tenant slug, needed for portal login
+    /// (portal accounts are looked up by (TenantSlug, Email) since portal email uniqueness is tenant-scoped).</summary>
+    protected async Task<(string OwnerToken, Guid OrgId, string OwnerEmail, string Slug)> CreateOrganizationWithSlugAsync(string namePrefix)
+    {
+        var superAdminToken = await LoginSuperAdminAsync();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var slug = $"{namePrefix}-{suffix}".ToLowerInvariant();
+        var ownerEmail = $"owner-{suffix}@{namePrefix}.test";
+
+        var (success, body, status) = await PostAsync("/api/v1/platform/organizations", new
+        {
+            name = $"{namePrefix} {suffix}",
+            slug,
+            contactEmail = (string?)null,
+            contactPhone = (string?)null,
+            timezone = "UTC",
+            subscriptionPlanId = (Guid?)null,
+            ownerEmail,
+            ownerFullName = $"{namePrefix} Owner",
+            ownerPassword = "Owner@12345"
+        }, superAdminToken);
+
+        if (!success) throw new InvalidOperationException($"Failed to create org: {status} {body}");
+
+        var orgId = Guid.Parse(body.GetProperty("data").GetProperty("id").GetString()!);
+        var ownerToken = await LoginAsync(ownerEmail, "Owner@12345");
+        return (ownerToken, orgId, ownerEmail, slug);
+    }
+
+    /// <summary>Directly sets a PortalUser's password hash so tests can log in without needing to
+    /// intercept the invite/reset email (LoggingEmailSender only logs; it exposes nothing to HTTP callers).</summary>
+    protected async Task SetPortalPasswordAsync(Guid portalUserId, string password)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RealEstateErp.Infrastructure.Persistence.AppDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.IPasswordHasher<RealEstateErp.Domain.Portal.PortalUser>>();
+        var user = await db.PortalUsers.IgnoreQueryFilters().FirstAsync(u => u.Id == portalUserId);
+        user.PasswordHash = hasher.HashPassword(user, password);
+        user.EmailConfirmed = true;
+        await db.SaveChangesAsync();
+    }
+
+    protected async Task<(bool Success, JsonElement Body, System.Net.HttpStatusCode Status)> PortalLoginAsync(string tenantSlug, string email, string password)
+        => await PostAsync("/api/v1/portal/auth/login", new { tenantSlug, email, password });
 }

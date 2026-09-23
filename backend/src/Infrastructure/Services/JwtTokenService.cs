@@ -61,6 +61,35 @@ public class JwtTokenService : IJwtTokenService
         return new AccessTokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 
+    public AccessTokenResult GeneratePortalAccessToken(Guid portalUserId, string email, Guid tenantId, string actorType, Guid actorId)
+    {
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_settings.AccessTokenMinutes);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, portalUserId.ToString()),
+            new(ClaimTypes.NameIdentifier, portalUserId.ToString()),
+            new(ClaimTypes.Email, email),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("tenant_id", tenantId.ToString()),
+            new("token_use", "portal"),
+            new("portal_actor_type", actorType),
+            new("portal_actor_id", actorId.ToString())
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _settings.Issuer,
+            audience: _settings.Audience,
+            claims: claims,
+            expires: expiresAt.UtcDateTime,
+            signingCredentials: creds);
+
+        return new AccessTokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+    }
+
     public string GenerateRefreshToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(64);

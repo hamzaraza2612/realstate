@@ -104,6 +104,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Domain.Notifications.NotificationPreference> NotificationPreferences => Set<Domain.Notifications.NotificationPreference>();
     public DbSet<Domain.Communication.CommunicationLog> CommunicationLogs => Set<Domain.Communication.CommunicationLog>();
     public DbSet<Domain.Approvals.ApprovalRequest> ApprovalRequests => Set<Domain.Approvals.ApprovalRequest>();
+    public DbSet<Domain.Portal.PortalUser> PortalUsers => Set<Domain.Portal.PortalUser>();
+    public DbSet<Domain.Portal.PortalRefreshToken> PortalRefreshTokens => Set<Domain.Portal.PortalRefreshToken>();
+    public DbSet<Domain.Portal.PortalPasswordResetToken> PortalPasswordResetTokens => Set<Domain.Portal.PortalPasswordResetToken>();
+    public DbSet<PropertyOwner> PropertyOwners => Set<PropertyOwner>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -167,6 +171,8 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
 
             if (entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
                 entry.Entity is not RefreshToken &&
+                entry.Entity is not Domain.Portal.PortalRefreshToken &&
+                entry.Entity is not Domain.Portal.PortalPasswordResetToken &&
                 entry.Entity.GetType().Namespace?.StartsWith("Microsoft.AspNetCore.Identity") != true)
             {
                 var entityType = entry.Entity.GetType().Name;

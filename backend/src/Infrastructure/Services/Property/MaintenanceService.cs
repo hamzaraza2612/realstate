@@ -24,6 +24,8 @@ public class MaintenanceService : IMaintenanceService
         var query = _db.MaintenanceRequests.AsQueryable();
         if (filter.PropertyId.HasValue) query = query.Where(m => m.PropertyId == filter.PropertyId);
         if (filter.UnitId.HasValue) query = query.Where(m => m.UnitId == filter.UnitId);
+        if (filter.RentalTenantId.HasValue) query = query.Where(m => m.RentalTenantId == filter.RentalTenantId);
+        if (filter.AssignedVendorId.HasValue) query = query.Where(m => m.AssignedVendorId == filter.AssignedVendorId);
         if (filter.Status.HasValue) query = query.Where(m => m.Status == filter.Status);
         if (filter.Priority.HasValue) query = query.Where(m => m.Priority == filter.Priority);
         if (!string.IsNullOrWhiteSpace(filter.Search))

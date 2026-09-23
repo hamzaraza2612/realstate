@@ -51,4 +51,9 @@ public record AssignMaintenanceRequestRequest(Guid? AssignedToUserId, Guid? Assi
 
 public record ChangeMaintenanceStatusRequest(MaintenanceStatus Status, string? ResolutionNotes, DateOnly? CompletionDate);
 
-public record MaintenanceRequestFilter(Guid? PropertyId, Guid? UnitId, MaintenanceStatus? Status, MaintenancePriority? Priority, string? Search);
+public record MaintenanceRequestFilter(
+    Guid? PropertyId, Guid? UnitId, MaintenanceStatus? Status, MaintenancePriority? Priority, string? Search,
+    /// <summary>Milestone 13 — lets the Tenant Portal list only its own maintenance requests.</summary>
+    Guid? RentalTenantId = null,
+    /// <summary>Milestone 13 — lets the Vendor Portal list only requests assigned to it.</summary>
+    Guid? AssignedVendorId = null);

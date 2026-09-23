@@ -543,6 +543,103 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       Payment → Property occupancy/rent-collected reports; a second tenant confirmed to see zero
       rows/zero totals across Sales, Finance, and Property reports for the first tenant's data.
 
+## Milestone 13 — External Portal Foundation & Customer/Tenant/Owner/Vendor/Agent/Member Portals ✅
+- [x] A reusable external-portal identity foundation, not six independent auth systems. `PortalUser`
+      is a new, separate table (not another `AppUser` role) because ASP.NET Core Identity's built-in
+      unique index on `NormalizedUserName` is platform-wide, not per-tenant — the same real person
+      could otherwise never hold two portal accounts with the same email at two different tenants.
+      `PortalUser`'s own `(TenantId, NormalizedEmail)` unique index solves that. Portal JWTs
+      deliberately reuse the same `sub`/`tenant_id` claim names as internal tokens, so
+      `ITenantContext`, the EF Core global tenant filter, and the entire pre-existing
+      `INotificationService` work for portal sessions with **zero code changes** — only three new
+      claims (`token_use=portal`, `portal_actor_type`, `portal_actor_id`) were added, read by a new
+      `IPortalContext`. Full rationale, JWT claim scheme, and the two-layer authorization-isolation
+      mechanism are in the new `docs/PORTAL_ARCHITECTURE.md`.
+- [x] Five external actor types (`Domain/Portal/PortalActorTypes.cs`): Customer, RentalTenant,
+      PropertyOwner, Vendor, CoworkingMember — each string identical to the corresponding
+      `DocumentEntityTypes` constant, enabling one uniform document/notification ownership check
+      across all five with no per-type mapping table.
+- [x] Customer Portal: own bookings, payment plan, payment history, documents, notifications — every
+      service call composes the existing `IBookingService`/`IPaymentPlanService`/`IPaymentService`/
+      `IDocumentService`/`INotificationService`, adding only an object-ownership check
+      (`booking.CustomerId != CustomerId` → `not_found`) where a bare `GetAsync` doesn't already
+      filter by actor.
+- [x] Tenant Portal: leases, rent schedule, rent payments, security deposit, maintenance requests
+      (list + create), documents, notifications — reuses `ILeaseService`/`IRentScheduleService`/
+      `IRentPaymentService`/`ISecurityDepositService`/`IMaintenanceService` verbatim. A tenant can
+      raise a maintenance request only against their own active/pending lease.
+- [x] Owner Portal (read-only): properties, per-unit occupancy/tenant detail, rent-collected,
+      overdue-rent, revenue, maintenance requests, documents, notifications — a genuinely new
+      first-class `PropertyOwner` entity (no such row existed before; `Property.OwnerName`/
+      `OwnerContact` were free-text only) linked via a new nullable `Property.PropertyOwnerId`.
+      Rent-collected/overdue-rent/revenue reuse Milestone 12's `IPropertyReportService` verbatim,
+      filtered down to the caller's own property ids after the call returns — no second reporting
+      implementation.
+- [x] Vendor Portal: assigned purchase orders, assigned maintenance/work requests, documents,
+      notifications — reuses `IPurchaseOrderService`/`IMaintenanceService` via their existing
+      `VendorId`/`AssignedVendorId` filters.
+- [x] Coworking Member Portal: active membership, membership history, meeting-room/desk bookings,
+      documents, notifications — reuses `IMembershipService`/Coworking `IBookingService`. No
+      payment-history endpoint: Facility billing has no read-side "list payments for X" service
+      (only a write-side `FacilityPaymentService`), so none was fabricated.
+- [x] Agent/Broker Portal deliberately does **not** use the `PortalUser` system at all —
+      `Booking.SalesAgentUserId` already references an internal `AppUser` and "Sales Agent" is
+      already a seeded internal-staff role, so inventing a sixth external identity type here would
+      have been exactly the unnecessary auth surface this milestone's own brief warned against.
+      `AgentPortalController` is a plain `[Authorize]` controller, self-scoped to the caller's own
+      `UserId` (same pattern as `NotificationsController`): assigned leads, customers, available
+      inventory, bookings, follow-ups, sales performance. No commission endpoint — the domain model
+      has no commission-rate/commission-ledger field anywhere to compute one from, so none was
+      invented; a clean extension point wasn't needed since there's no data to build one from.
+- [x] Security: two independent, redundant authorization layers guarantee "a portal token can never
+      reach an internal endpoint" (a `NotPortalRequirement` on the ASP.NET Core default policy
+      covers every bare `[Authorize]` controller with zero per-controller changes; an explicit
+      `token_use=="portal"` rejection inside `PermissionAuthorizationHandler` covers every
+      `[RequirePermission]`-gated endpoint, whose policy is freshly built per-request and does not
+      inherit the default policy's requirements) and the reverse ("an internal token can never reach
+      a portal endpoint" via a new `PortalOnly` named policy + `[RequirePortal]`). A third layer
+      (`PortalControllerBase.WrongActorType`) stops one actor type's token from reaching another
+      actor type's portal controller. Every object-level lookup (a specific booking/lease/property/
+      PO/membership id) is scoped by ownership and returns `404` on a mismatch — never `403` — so a
+      portal user can never distinguish "doesn't exist" from "exists but isn't yours."
+- [x] Documents/Notifications: no portal-specific duplicate tables. One deliberately-wired
+      integration point — `DocumentService.UploadAsync` notifies the linked `PortalUser` (if one
+      exists for the uploaded document's `(EntityType, EntityId)`) via the existing
+      `INotificationService`/`NotificationTemplates.DocumentUploaded` — proves the mechanism without
+      claiming a completeness the codebase doesn't have; other natural trigger points (a payment
+      recorded, a maintenance status change) are explicitly not wired, matching the disciplined
+      narrow-scope precedent from Milestones 11–12.
+- [x] Payments: `IPortalPaymentIntentProvider` extension point registered with exactly one
+      implementation, `UnconfiguredPortalPaymentIntentProvider`, which always returns a clean
+      `payment_provider_not_configured` failure — mirrors `LoggingEmailSender`'s "safe by default"
+      shape. No real gateway wired, no "Pay Now" button; current payment/receipt history is exposed
+      read-only through the existing Sales/Property payment services.
+- [x] Internal admin surface: `PortalAccountsController` (`portal.manage_accounts`, one tenant-wide
+      permission spanning all five actor types, same precedent as `documents.view`/`reports.view`)
+      to invite/deactivate/reactivate a portal login for any actor; a new `PropertyOwnersController`
+      (`property.view`/`property.manage`) for owner CRUD and property linking.
+- [x] Database: one migration, `AddExternalPortalFoundation` — `portal_users`,
+      `portal_refresh_tokens`, `portal_password_reset_tokens`, `property_owners` (all new tables)
+      plus `properties.PropertyOwnerId` (new nullable FK column) — applied and schema-verified
+      against the dev database (see `docs/DATABASE.md`).
+- [x] Unit/integration tests: 14 new integration tests covering portal login (success, wrong
+      password, wrong tenant slug), the same email holding independent portal accounts at two
+      different tenants, portal-token-cannot-reach-internal-endpoints (both a bare `[Authorize]`
+      endpoint and a `[RequirePermission]`-gated one), internal-token-cannot-reach-portal-endpoints
+      plus anonymous rejection, cross-actor-type rejection within the portal, Customer Portal
+      booking/payment-plan/document access with Customer-A-cannot-access-Customer-B's-booking,
+      cross-tenant document-download denial, Tenant Portal lease/rent-schedule/maintenance-request
+      access with Tenant-A-cannot-access-Tenant-B's-lease, Owner Portal property/rent-report access
+      with Owner-A-cannot-access-Owner-B's-property, Vendor Portal PO access with
+      Vendor-A-cannot-access-Vendor-B's-PO, Coworking Member Portal membership/booking access with
+      Member-A-cannot-access-Member-B's-booking, Agent Portal lead/booking self-scoping with
+      Agent-A-cannot-see-Agent-B's-leads, the document-upload-triggers-portal-notification wiring
+      with per-actor isolation, and the portal-accounts admin lifecycle (duplicate-invite rejection,
+      deactivate blocks login, reactivate restores it) — all passing alongside the existing suite
+      (196 total: 12 unit + 184 integration), zero regressions in the 182 pre-existing tests.
+- [x] Frontend: [PENDING — see below; independently verified after the implementing agent's handback
+      following this session's established pattern before this bullet is marked complete].
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

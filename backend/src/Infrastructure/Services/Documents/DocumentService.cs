@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Documents;
+using RealEstateErp.Application.Notifications;
 using RealEstateErp.Domain.Documents;
+using RealEstateErp.Domain.Notifications;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
@@ -15,16 +17,18 @@ public class DocumentService : IDocumentService
     private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
     private readonly IFileStorageService _storage;
+    private readonly INotificationService _notificationService;
     private readonly long _maxFileSizeBytes;
     private readonly HashSet<string> _allowedContentTypes;
 
     public DocumentService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger,
-        IFileStorageService storage, IConfiguration configuration)
+        IFileStorageService storage, INotificationService notificationService, IConfiguration configuration)
     {
         _db = db;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
         _storage = storage;
+        _notificationService = notificationService;
         _maxFileSizeBytes = configuration.GetValue("Storage:MaxFileSizeMb", 25) * 1024L * 1024L;
         _allowedContentTypes = configuration.GetSection("Storage:AllowedContentTypes").Get<string[]>()?.ToHashSet()
             ?? new HashSet<string> { "application/pdf" };
@@ -109,7 +113,25 @@ public class DocumentService : IDocumentService
         await _auditLogger.LogAsync("Upload", "Documents", "Document", document.Id.ToString(),
             after: new { document.EntityType, document.EntityId, document.Title, version.OriginalFileName, version.SizeBytes }, ct: ct);
 
+        await NotifyLinkedPortalUserAsync(document.EntityType, document.EntityId, document.Title, ct);
+
         return Result.Success((await ToDtosAsync(new[] { document }, ct))[0]);
+    }
+
+    /// <summary>The one Milestone 13 notification trigger wired into an existing service: if the
+    /// entity a document was just attached to has a portal login (Customer/RentalTenant/Vendor/
+    /// PropertyOwner/CoworkingMember — the same five DocumentEntityTypes values a PortalUser's
+    /// ActorType can be), it gets an in-app notification. Every DocumentEntityTypes value not in that
+    /// set (Booking, Lease, Project, ...) simply finds no matching PortalUser and no-ops — this works
+    /// uniformly across every portal actor type without a switch statement.</summary>
+    private async Task NotifyLinkedPortalUserAsync(string entityType, Guid entityId, string documentTitle, CancellationToken ct)
+    {
+        var portalUser = await _db.PortalUsers
+            .FirstOrDefaultAsync(u => u.IsActive && u.ActorType == entityType && u.ActorId == entityId, ct);
+        if (portalUser is null) return;
+
+        var (title, body) = NotificationTemplates.DocumentUploaded(entityType, documentTitle);
+        await _notificationService.CreateAsync(portalUser.Id, NotificationCategory.DocumentUploaded, title, body, entityType, entityId, ct);
     }
 
     public async Task<Result<DocumentVersionDto>> AddVersionAsync(

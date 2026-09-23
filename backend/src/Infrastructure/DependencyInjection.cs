@@ -60,6 +60,8 @@ using RealEstateErp.Application.Reporting.Procurement;
 using RealEstateErp.Application.Reporting.Projects;
 using RealEstateErp.Application.Reporting.Property;
 using RealEstateErp.Application.Reporting.Sales;
+using RealEstateErp.Application.Portal;
+using RealEstateErp.Application.Property.Owners;
 using RealEstateErp.Application.Roles;
 using RealEstateErp.Application.Sales.Bookings;
 using RealEstateErp.Application.Approvals;
@@ -91,6 +93,7 @@ using RealEstateErp.Infrastructure.Services.Materials;
 using RealEstateErp.Infrastructure.Services.Procurement;
 using RealEstateErp.Infrastructure.Services.Property;
 using RealEstateErp.Infrastructure.Services.Projects;
+using RealEstateErp.Infrastructure.Services.Portal;
 using RealEstateErp.Infrastructure.Services.Reporting;
 using RealEstateErp.Infrastructure.Services.Sales;
 
@@ -127,6 +130,7 @@ public static class DependencyInjection
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<IPortalContext, PortalContext>();
         services.AddScoped<IAuditLogger, AuditLogger>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthService, AuthService>();
@@ -215,6 +219,20 @@ public static class DependencyInjection
         services.AddScoped<IProcurementReportService, ProcurementReportService>();
         services.AddScoped<IPropertyReportService, PropertyReportService>();
         services.AddScoped<IFacilityReportService, FacilityReportService>();
+
+        services.AddScoped<IPasswordHasher<Domain.Portal.PortalUser>, PasswordHasher<Domain.Portal.PortalUser>>();
+        services.AddScoped<PortalActorResolver>();
+        services.AddScoped<PortalPasswordResetIssuer>();
+        services.AddScoped<IPortalAuthService, PortalAuthService>();
+        services.AddScoped<IPortalAccountService, PortalAccountService>();
+        services.AddScoped<IPropertyOwnerService, PropertyOwnerService>();
+        services.AddScoped<IPortalCustomerService, PortalCustomerService>();
+        services.AddScoped<IPortalTenantService, PortalTenantService>();
+        services.AddScoped<IPortalOwnerService, PortalOwnerService>();
+        services.AddScoped<IPortalVendorService, PortalVendorService>();
+        services.AddScoped<IPortalMemberService, PortalMemberService>();
+        services.AddSingleton<IPortalPaymentIntentProvider, UnconfiguredPortalPaymentIntentProvider>();
+        services.AddScoped<IAgentPortalService, AgentPortalService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

@@ -398,6 +398,54 @@ new report queries' actual filter predicates — nothing speculative:
 
 Applied and schema-verified against the dev database (`psql \d <table>` confirms each index).
 
+## Milestone 13 schema — External Portal Foundation
+
+One migration, `AddExternalPortalFoundation`. Full architectural rationale (why a separate table
+from `AppUser`, the JWT claim scheme) is in `docs/PORTAL_ARCHITECTURE.md`.
+
+**`portal_users`** — one row per external-actor login. `TenantEntity` (has `TenantId` and the EF
+global tenant filter, unlike the two token tables below which are looked up by opaque hash and
+therefore don't need it).
+
+| Column | Notes |
+|---|---|
+| `Email`, `NormalizedEmail` | `NormalizedEmail` is upper-invariant; unique per `(TenantId, NormalizedEmail)` — **not** globally unique, unlike `AppUser`/Identity's `NormalizedUserName`, so the same email can hold a portal account at multiple tenants. |
+| `PasswordHash` | `PasswordHasher<PortalUser>` (ASP.NET Core Identity's hasher class used standalone, no `UserManager`). |
+| `ActorType`, `ActorId` | One of `Customer`/`RentalTenant`/`PropertyOwner`/`Vendor`/`CoworkingMember`; unique per `(TenantId, ActorType, ActorId)` — one portal login per actor. |
+| `IsActive`, `EmailConfirmed` | `EmailConfirmed` exists for a future verification flow; nothing sets it `true` yet outside test setup. |
+| `AccessFailedCount`, `LockedOutUntil` | Manual lockout (5 attempts / 15 minutes) — `PortalUser` has no Identity `UserManager` lockout machinery to reuse. |
+| `LastLoginAt` | Set on successful login. |
+
+Indexes: `IX_portal_users_TenantId_NormalizedEmail` (unique), `IX_portal_users_TenantId_ActorType_ActorId` (unique).
+
+**`portal_refresh_tokens`** and **`portal_password_reset_tokens`** — plain classes (not
+`TenantEntity`; looked up by `TokenHash`, same shape as the existing internal `RefreshToken` table).
+
+| Table | Columns | Notes |
+|---|---|---|
+| `portal_refresh_tokens` | `PortalUserId`, `TokenHash` (unique), `ExpiresAt`, `CreatedAt`, `CreatedByIp`, `RevokedAt`, `ReplacedByTokenHash` | Same rotation-with-audit-trail pattern as internal `refresh_tokens`. |
+| `portal_password_reset_tokens` | `PortalUserId`, `TokenHash` (unique), `ExpiresAt`, `CreatedAt`, `UsedAt` | One token type serves both account activation (issued on invite) and ordinary forgot-password. |
+
+**`property_owners`** — new first-class entity (`Property.OwnerName`/`OwnerContact` were, and
+remain, free-text-only fields; this milestone needed a real, linkable owner row for the Owner
+Portal).
+
+| Column | Notes |
+|---|---|
+| `FullName`, `Email`, `Phone`, `Notes` | |
+| `IsActive` | |
+
+Index: `IX_property_owners_TenantId_IsActive`.
+
+**`properties.PropertyOwnerId`** (nullable `uuid`, `ON DELETE SET NULL`) — added to the existing
+`properties` table. One owner can own many properties; a property has **at most one** linked owner
+in this milestone (not a co-ownership model). Indexes: `IX_properties_PropertyOwnerId`,
+`IX_properties_TenantId_PropertyOwnerId`.
+
+Applied and schema-verified against the dev database (`psql \d portal_users`,
+`\d portal_refresh_tokens`, `\d portal_password_reset_tokens`, `\d property_owners`, `\d properties`
+all confirm the expected columns/indexes/FK).
+
 Later milestones extend this file per-module (
 Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds

@@ -42,7 +42,7 @@ None of these are architecture failures — they are scope gaps in modules that 
 | Documents | **IMPLEMENTED (Milestone 11)** | Generic `Document`/`DocumentVersion` attaches to any entity via `(EntityType, EntityId)` — no per-module table. `IFileStorageService`/`LocalFileStorageService` finally uses the `Storage:LocalPath` config and `uploads-data` volume that had been dead scaffolding since Milestone 1. Size/type/magic-byte validation, versioning, tenant-isolated download, `documents.view`/`documents.manage` permissions. |
 | Notifications / Communication | **PARTIAL (Milestone 11)** | In-app `Notification`/`NotificationPreference` and `ICommunicationService`/`IEmailSender` now exist and are used by the Approvals foundation. `LoggingEmailSender` is a development-safe default — **no real SMTP/SendGrid provider is registered yet**, so password reset and any customer-facing email still can't actually leave the building; only the abstraction and its dev-safe implementation exist. |
 | Approvals / Workflows | **IMPLEMENTED (Milestone 11)** | Generic `ApprovalRequest` (named approver or "anyone holding permission X"), with Postgres `xmin` optimistic-concurrency protection against duplicate/concurrent decisions. Expense/PurchaseOrder/Booking are integrated *bidirectionally* — deciding via the generic Approval Inbox also drives the entity's own approve/reject, via a pluggable `IApprovalLinkedEntityHandler` registered per module, not a hardcoded dispatch. No other modules integrated yet (deliberately, per scope). |
-| Customer / Tenant / Member portals | **MISSING** | Confirmed zero external-actor login surface. `Customer`, `RentalTenant`, `Vendor` have no password/credential/UserId field at all — only ERP staff and Super Admin can authenticate. See §10. |
+| Customer / Tenant / Owner / Vendor / Member / Agent portals | **IMPLEMENTED (Milestone 13)** | A new `PortalUser` external-identity table (tenant-scoped email uniqueness, separate from `AppUser`), JWT-based portal login reusing the internal token scheme's claim names, and two-layer authorization isolation (a portal token can never reach an internal endpoint and vice versa). Customer/Tenant/Owner/Vendor/CoworkingMember portals are read-scoped (mostly) views over existing Sales/Property/Procurement/Facility/Documents/Notifications services with per-actor object-ownership checks; the Agent Portal deliberately reuses the existing internal `AppUser` session instead of a new identity, since an agent is already internal staff. See §10. Portal invite/activation email still goes through `LoggingEmailSender` (logged, not delivered) — see the P0 real-email-provider item, now a production-launch gap rather than a portal-blocking one. |
 | Reporting / Analytics | **PARTIAL** | Per-module dashboards are real and tenant-scoped; no cross-module reports (project profitability, AP aging, agent performance, today's-sales), no charting despite `recharts` being an installed dependency. See §8. |
 | HR / Payroll | **MISSING** | No entity, controller, or domain folder of any kind. |
 | Owner / Investor management | **MISSING** | No property-owner or investor entity distinct from `Customer`/`RentalTenant`. No distribution/statement-of-account feature. |
@@ -60,7 +60,7 @@ None of these are architecture failures — they are scope gaps in modules that 
 
 ## 3. Missing Capabilities (summary list)
 
-~~Documents/attachments~~, a **real** transactional email provider (including password reset — the abstraction and a dev-safe logging default now exist, fixed in Milestone 11, but nothing sends actual mail yet), ~~in-app notifications~~, ~~a generic approval-workflow engine~~, any external-actor portal (customer/owner/tenant/member/vendor/agent — still blocked on the real email provider above), HR/Payroll, Owner/Investor management, platform billing/invoicing of tenants, subscription lifecycle automation, ~~tenant-status enforcement~~, bank reconciliation, ~~fiscal period locking~~, multi-currency, credit/debit notes, ~~AP clearing~~, cross-module reporting (profitability, aging, agent performance), and a real charting layer on the already-present `recharts` dependency. (Struck-through items were fixed in Milestones 10–11; kept here, not deleted, so this list's history stays legible.)
+~~Documents/attachments~~, a **real** transactional email provider (including password reset — the abstraction and a dev-safe logging default now exist, fixed in Milestone 11, but nothing sends actual mail yet — this is now the reason portal invite/reset emails are logged, not delivered, in production), ~~in-app notifications~~, ~~a generic approval-workflow engine~~, ~~any external-actor portal (customer/owner/tenant/member/vendor/agent)~~, HR/Payroll, Owner/Investor management, platform billing/invoicing of tenants, subscription lifecycle automation, ~~tenant-status enforcement~~, bank reconciliation, ~~fiscal period locking~~, multi-currency, credit/debit notes, ~~AP clearing~~, ~~cross-module reporting (profitability, aging, agent performance)~~, and a real charting layer on the already-present `recharts` dependency (partially addressed — see §12). (Struck-through items were fixed in Milestones 10–13; kept here, not deleted, so this list's history stays legible.)
 
 ---
 
@@ -199,7 +199,32 @@ The scaffolding is more built-out than a typical Milestone-8-stage product (a `T
 
 ## 10. Portal Readiness
 
-There is exactly one authentication surface in the entire system (`AuthController` + ASP.NET Identity), used by internal staff and Super Admin only. `Customer`, `RentalTenant`, `Vendor`, and the newly-added `CoworkingMember` have **no password, credential, or `UserId` field of any kind** — confirmed by direct inspection of all four entities. Building any of the six requested portals (Customer, Owner, Tenant, Rental, Member, Vendor, Agent) requires, at minimum: an external-identity concept distinct from `AppUser` (or a scoped/claims-limited `AppUser` linked to a `Customer`/`RentalTenant`/`Vendor` row), a separate login surface, and read-scoped (mostly) API views onto data that already exists and is already correctly tenant-isolated. The domain services underneath are reusable as-is; only the identity/auth layer and a thin portal-specific frontend are net-new work. This is real, well-scoped work — not a rebuild — but it has a hard prerequisite that's only half-done: the `IEmailSender` abstraction now exists (Milestone 11), but no real provider is registered behind it, and a portal invite/password-reset flow is meaningless without mail actually leaving the building.
+**Built in Milestone 13.** A second authentication surface now exists alongside `AuthController`/
+ASP.NET Identity: `PortalUser`, a separate table (not a scoped/claims-limited `AppUser`) because
+Identity's built-in unique index on `NormalizedUserName` is platform-wide, not per-tenant — the
+same real person could otherwise never hold two portal accounts with the same email at two
+different tenants. Portal JWTs deliberately reuse the internal token's `sub`/`tenant_id` claim
+names, so the EF Core tenant filter and the entire pre-existing `INotificationService` work for
+portal sessions unmodified. Full architecture — identity model, JWT claim scheme, the two-layer
+authorization-isolation mechanism, per-object ownership checks — is in `docs/PORTAL_ARCHITECTURE.md`.
+
+Five external actor types now have a login and a scoped portal: Customer, RentalTenant,
+PropertyOwner (a genuinely new first-class entity — `Property.OwnerName`/`OwnerContact` remain
+free-text only), Vendor, and CoworkingMember. The sixth requested portal, Agent, deliberately does
+**not** get a new external identity: `Booking.SalesAgentUserId` already references an internal
+`AppUser`, so the Agent Portal reuses the caller's existing internal session instead of inventing a
+sixth auth surface.
+
+**What remains open:** the `IEmailSender` abstraction (Milestone 11) still has only
+`LoggingEmailSender` behind it — portal invite/activation and password-reset links are logged, not
+actually delivered to an inbox. Portal login/activation itself works end-to-end in this codebase
+(the reset token exists and is checkable via the API regardless of how the email got there), so
+this is now a **production-launch gap, not a portal-blocking one** — see the P0 item below. No MFA,
+email verification enforcement, magic-link/OTP provider, or native mobile client exists yet
+(explicitly out of scope for Milestone 13; `PortalUser.EmailConfirmed` is a placeholder field). No
+real payment gateway is wired to the portal payment views (`IPortalPaymentIntentProvider` is a
+registered-but-unconfigured extension point) — portals expose existing payment/receipt history
+read-only.
 
 ---
 
@@ -223,7 +248,7 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 **P0 — required before serious commercial launch** (data-integrity or trust-breaking if absent):
 - ~~Cross-tenant role/permission leak~~ — **fixed in Milestone 9.**
 - ~~Enforce `TenantStatus`~~ — **fixed in Milestone 10** (Suspended/Cancelled tenants are blocked at login, refresh, and every protected API call).
-- A **real** transactional email provider (minimum: password reset, tenant-suspension notice) behind the `IEmailSender` abstraction Milestone 11 added — this is also the hard prerequisite for any portal work. **Abstraction done, real provider still open.**
+- A **real** transactional email provider (minimum: password reset, tenant-suspension notice, portal invite/activation) behind the `IEmailSender` abstraction Milestone 11 added. **Abstraction done, portals built on top of it in Milestone 13, real provider still open** — without it, portal invite/reset links are logged, not delivered, which blocks real-world portal adoption even though the underlying login/reset mechanics are complete and tested.
 - ~~AP clearing~~ — **fixed in Milestone 10** (vendor payments now reduce the AP balance via `ExpensePayment`).
 - ~~Fiscal-period closing~~ — **fixed in Milestone 10** (Closed periods reject backdated postings; opt-in, no behavior change for tenants that don't define one).
 - TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed). **Still open.**
@@ -239,7 +264,9 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 - A real SMTP/SendGrid `IEmailSender` implementation — the interface and a dev-safe default exist as of Milestone 11; only a production provider is missing now.
 
 **P2 — valuable later:**
-- Customer/Owner/Tenant/Member/Vendor/Agent portals (depends on a real email provider, not just the abstraction).
+- ~~Customer/Owner/Tenant/Member/Vendor/Agent portals~~ — **fixed in Milestone 13** (identity
+  foundation, all six portals, cross-actor/cross-tenant isolation tests; real-provider email
+  delivery for invite/reset links remains a P0 item above).
 - Multi-currency.
 - Credit/debit notes and a tax engine.
 - ~~Charting~~ — **fixed in Milestone 12** (`recharts` now used in the new `/reports/*` pages — trend/breakdown charts only, not on every report; the pre-existing per-module dashboards from Milestones 1–10 still don't use it, which remains open if wanted there too).
@@ -258,12 +285,15 @@ There is exactly one authentication surface in the entire system (`AuthControlle
 
 ## 13. Recommended Next Milestone
 
-**Milestones 10, 11, and 12** are now complete (see their addenda below). The most commonly
-requested "can the ERP tell me X" capability gap is closed. What remains open per the P0/P1/P2
-roadmap above: a real SMTP/SendGrid `IEmailSender` provider (the hard prerequisite for any portal
-work), TLS/reverse-proxy production deployment documentation, and bank reconciliation. **Portals
-(Milestone 13)** remain blocked behind the real email provider — that is now the most natural next
-milestone, either as its own small piece of work or as the first step inside Milestone 13 itself.
+**Milestones 10 through 13** are now complete (see their addenda below). The most commonly
+requested "can the ERP tell me X" capability gap is closed, and the platform now has a working
+external-portal identity foundation with six portal experiences. What remains open per the P0/P1/P2
+roadmap above: a real SMTP/SendGrid `IEmailSender` provider (now blocking real-world portal
+adoption, not just password reset), TLS/reverse-proxy production deployment documentation, and bank
+reconciliation. A real email provider is the natural next small piece of work — it unlocks both
+portal invite/reset delivery and tenant-suspension notices in one implementation — followed by
+SaaS billing/subscription enforcement, which this session's task explicitly deferred out of
+Milestone 13.
 
 ---
 
@@ -290,7 +320,7 @@ HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campa
 | No shared `DataTable`/`Pagination`/`StatCard` frontend component | `frontend/src/modules/**/*Page.tsx`, dashboard pages | ~15-line pattern copy-pasted across 30+ files; will drift if left long enough | No — documented |
 | `recharts` installed, unused | `frontend/package.json` | Dead dependency until Reporting milestone wires it in | No — documented |
 | `documents.manage` is tenant-wide, not per-entity-type | `Shared/Security/Permissions.cs` (`Documents`), `Infrastructure/Services/Documents/DocumentService.cs` | A user who can manage documents on their own module's entities can also delete a document attached to any other entity type in the tenant | No — documented, acceptable foundation-scope tradeoff per Milestone 11's own instructions (avoid a per-entity-type permission mapping that would itself be "unmaintainable") |
-| `IEmailSender` has only a logging (non-sending) implementation | `Infrastructure/Services/Communication/LoggingEmailSender.cs` | No transactional email actually reaches an inbox — blocks password reset and every portal | No — by design for this milestone; a real provider is the recommended next small piece of work before Milestone 13 |
+| `IEmailSender` has only a logging (non-sending) implementation | `Infrastructure/Services/Communication/LoggingEmailSender.cs` | No transactional email actually reaches an inbox — blocks password reset, and now blocks real-world delivery of portal invite/activation links (portals themselves were built on top of this in Milestone 13; the mechanics work, only delivery doesn't) | No — by design; a real provider remains the recommended next small piece of work |
 | WhatsApp/Sms/Push channels named but not implemented | `Domain/Communication/CommunicationLog.cs` (`CommunicationChannel`) | Requesting these channels always logs `Skipped` — silent no-op, not a failure, which is correct behavior but easy to forget is a no-op if a future caller assumes otherwise | No — explicitly out of scope for Milestone 11 per its own instructions |
 
 ---

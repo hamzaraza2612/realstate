@@ -6,6 +6,19 @@ using RealEstateErp.Domain.Property;
 
 namespace RealEstateErp.Infrastructure.Persistence.Configurations;
 
+public class PropertyOwnerConfiguration : IEntityTypeConfiguration<PropertyOwner>
+{
+    public void Configure(EntityTypeBuilder<PropertyOwner> b)
+    {
+        b.ToTable("property_owners");
+        b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+        b.Property(x => x.Email).HasMaxLength(256);
+        b.Property(x => x.Phone).HasMaxLength(50);
+        b.Property(x => x.Notes).HasMaxLength(2000);
+        b.HasIndex(x => new { x.TenantId, x.IsActive });
+    }
+}
+
 public class PropertyConfiguration : IEntityTypeConfiguration<Property>
 {
     public void Configure(EntityTypeBuilder<Property> b)
@@ -26,6 +39,10 @@ public class PropertyConfiguration : IEntityTypeConfiguration<Property>
         b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.Status });
         b.HasIndex(x => new { x.TenantId, x.Type });
+
+        // Milestone 13 (Owner Portal): optional link to a first-class PropertyOwner record.
+        b.HasIndex(x => new { x.TenantId, x.PropertyOwnerId });
+        b.HasOne<PropertyOwner>().WithMany().HasForeignKey(x => x.PropertyOwnerId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 
