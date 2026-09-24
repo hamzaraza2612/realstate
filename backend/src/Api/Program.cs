@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Models;
 using RealEstateErp.Api.Authorization;
+using RealEstateErp.Api.Common;
 using RealEstateErp.Api.Middleware;
 using RealEstateErp.Application;
 using RealEstateErp.Infrastructure;
@@ -52,6 +53,7 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddSingleton<IReportExporter, CsvReportExporter>();
 
     builder.Services.AddAuthentication(options =>
         {
@@ -63,9 +65,20 @@ try
 
     builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
     builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+    builder.Services.AddSingleton<IAuthorizationHandler, NotPortalAuthorizationHandler>();
+    builder.Services.AddSingleton<IAuthorizationHandler, PortalOnlyAuthorizationHandler>();
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("SuperAdminOnly", policy => policy.RequireClaim("is_super_admin", "true"));
+        // Every bare [Authorize] on an internal controller (Notifications, the Approval inbox, etc.)
+        // uses this policy — excluding a portal-issued token here closes the same gap
+        // PermissionAuthorizationHandler closes for [RequirePermission] endpoints, so a portal session
+        // can never reach ANY internal endpoint, permission-gated or not. See docs/PORTAL_ARCHITECTURE.md.
+        options.DefaultPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new NotPortalRequirement())
+            .Build();
+        options.AddPolicy("PortalOnly", policy => policy.RequireAuthenticatedUser().AddRequirements(new PortalOnlyRequirement()));
     });
 
     var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
@@ -108,6 +121,7 @@ try
     app.UseHttpsRedirection();
     app.UseCors("Default");
     app.UseAuthentication();
+    app.UseMiddleware<TenantStatusMiddleware>();
     app.UseAuthorization();
 
     app.MapControllers();

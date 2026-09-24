@@ -18,6 +18,8 @@ public static class SystemAccountSeeder
         (FinanceConstants.AccountsPayableAccountCode, "Accounts Payable", AccountType.Liability),
         (FinanceConstants.SalesRevenueAccountCode, "Sales Revenue", AccountType.Revenue),
         (FinanceConstants.ConstructionExpenseAccountCode, "Construction Expenses", AccountType.Expense),
+        (FinanceConstants.RentalRevenueAccountCode, "Rental Revenue", AccountType.Revenue),
+        (FinanceConstants.FacilityRevenueAccountCode, "Facility Revenue", AccountType.Revenue),
     };
 
     public static async Task SeedAsync(AppDbContext db, Guid tenantId, CancellationToken ct = default)

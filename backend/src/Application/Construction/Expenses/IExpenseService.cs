@@ -10,4 +10,6 @@ public interface IExpenseService
     Task<Result<ExpenseDto>> CreateAsync(CreateExpenseRequest request, CancellationToken ct = default);
     Task<Result<ExpenseDto>> ApproveAsync(Guid id, CancellationToken ct = default);
     Task<Result<ExpenseDto>> RejectAsync(Guid id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ExpensePaymentDto>>> ListPaymentsAsync(Guid expenseId, CancellationToken ct = default);
+    Task<Result<ExpensePaymentDto>> PayAsync(Guid expenseId, PayExpenseRequest request, CancellationToken ct = default);
 }

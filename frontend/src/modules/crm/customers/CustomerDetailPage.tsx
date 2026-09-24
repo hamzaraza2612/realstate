@@ -13,6 +13,7 @@ import { PermissionGate } from '@/components/common/PermissionGate'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
+import { DocumentsPanel } from '@/modules/documents/DocumentsPanel'
 import { ActivityFormDialog } from '../activities/ActivityFormDialog'
 import { ActivityList } from '../activities/ActivityList'
 import { useCustomer, useUpdateCustomer } from './api'
@@ -156,6 +157,12 @@ export function CustomerDetailPage() {
       </Card>
 
       <ActivityFormDialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen} customerId={id} />
+
+      {id && (
+        <div className="mt-6">
+          <DocumentsPanel entityType="Customer" entityId={id} />
+        </div>
+      )}
     </div>
   )
 }

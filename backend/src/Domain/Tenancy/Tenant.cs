@@ -10,6 +10,13 @@ public enum TenantStatus
     Cancelled = 3
 }
 
+public static class TenantStatusExtensions
+{
+    /// <summary>Trial and Active tenants may authenticate and use the API; Suspended/Cancelled may not.
+    /// Centralized here so login, refresh, and the per-request enforcement middleware can never drift.</summary>
+    public static bool IsUsable(this TenantStatus status) => status is TenantStatus.Trial or TenantStatus.Active;
+}
+
 /// <summary>A tenant is a customer organization (real-estate company, developer, property manager, etc.) on the platform.</summary>
 public class Tenant : BaseEntity
 {

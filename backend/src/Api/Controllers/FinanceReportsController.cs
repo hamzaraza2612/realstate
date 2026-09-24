@@ -31,4 +31,25 @@ public class FinanceReportsController : ApiControllerBase
     {
         return Ok(ApiResponse.Ok(await _reportService.GetIncomeSummaryAsync(from, to, ct)));
     }
+
+    [HttpGet("balance-sheet")]
+    [RequirePermission(Permissions.Finance.ReportsView)]
+    public async Task<IActionResult> BalanceSheet([FromQuery] DateOnly? asOf, CancellationToken ct)
+    {
+        return Ok(ApiResponse.Ok(await _reportService.GetBalanceSheetAsync(asOf, ct)));
+    }
+
+    [HttpGet("profit-and-loss")]
+    [RequirePermission(Permissions.Finance.ReportsView)]
+    public async Task<IActionResult> ProfitAndLoss([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+    {
+        return Ok(ApiResponse.Ok(await _reportService.GetProfitAndLossAsync(from, to, ct)));
+    }
+
+    [HttpGet("cash-flow")]
+    [RequirePermission(Permissions.Finance.ReportsView)]
+    public async Task<IActionResult> CashFlow([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+    {
+        return Ok(ApiResponse.Ok(await _reportService.GetCashFlowAsync(from, to, ct)));
+    }
 }

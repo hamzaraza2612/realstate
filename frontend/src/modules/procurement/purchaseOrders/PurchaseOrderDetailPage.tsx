@@ -11,6 +11,8 @@ import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
 import { PurchaseOrderStatus, PurchaseOrderStatusLabel } from '@/types/api'
+import { ApprovalHistoryCard } from '@/modules/approvals/ApprovalHistoryCard'
+import { DocumentsPanel } from '@/modules/documents/DocumentsPanel'
 import {
   useApprovePurchaseOrder,
   useCancelPurchaseOrder,
@@ -216,6 +218,13 @@ export function PurchaseOrderDetailPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <PermissionGate permission="approvals.view">
+          <ApprovalHistoryCard entityType="PurchaseOrder" entityId={order.id} />
+        </PermissionGate>
+        <DocumentsPanel entityType="PurchaseOrder" entityId={order.id} />
       </div>
 
       <PurchaseOrderFormDialog open={editOpen} onOpenChange={setEditOpen} purchaseOrder={order} />

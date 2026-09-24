@@ -103,9 +103,16 @@ them — never run that against a production stack without a fresh backup):
 - `postgres-data` → `/var/lib/postgresql/data` on the `postgres` container —
   the entire database.
 - `uploads-data` → `/app/data/uploads` on the `api` container (`Storage__LocalPath`)
-  — provisioned now for the upcoming Documents module (file uploads persist
-  across container recreation/redeploys instead of living in the container's
-  writable layer).
+  — used by the Documents module (Milestone 11); file uploads persist across
+  container recreation/redeploys instead of living in the container's
+  writable layer. Two more `Storage:` settings are configurable in
+  `appsettings.json` (not currently surfaced as `.env` variables, since the
+  defaults are sane for most deployments): `MaxFileSizeMb` (default 25) and
+  `AllowedContentTypes` (an explicit allow-list). Running more than one `api`
+  replica requires either this volume mounted read/write on every replica at
+  the same path, or swapping the registered `IFileStorageService` for an
+  S3/Blob implementation — a single replica with a local volume is the
+  supported configuration today.
 
 ## Backup / restore
 

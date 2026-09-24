@@ -24,7 +24,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:Audience"] = "RealEstateErpClient",
                 ["SuperAdmin:Email"] = "superadmin@realestate-erp.local",
                 ["SuperAdmin:Password"] = "ChangeMe@123",
-                ["SeedDemoData"] = "false"
+                ["SeedDemoData"] = "false",
+                ["Storage:LocalPath"] = Path.Combine(Path.GetTempPath(), "realestate-erp-test-uploads")
             });
         });
     }

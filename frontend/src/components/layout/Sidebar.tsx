@@ -21,6 +21,33 @@ import {
   ShoppingCart,
   Truck,
   Package,
+  Home,
+  Building,
+  DoorOpen,
+  UserRound,
+  FileSignature,
+  Hammer,
+  Warehouse,
+  LayoutGrid,
+  Zap,
+  Store,
+  Receipt,
+  CircleParking,
+  PartyPopper,
+  BellRing,
+  Contact2,
+  IdCard,
+  BadgeCheck,
+  Armchair,
+  DoorClosed,
+  CalendarClock,
+  FileBarChart,
+  TrendingUp,
+  Banknote,
+  FileText,
+  CheckSquare,
+  BarChart3,
+  Briefcase,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -43,6 +70,7 @@ const navItems: NavItem[] = [
   { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
   { to: '/sales', label: 'Sales Dashboard', icon: LayoutDashboard, permission: 'sales.booking.view' },
   { to: '/sales/bookings', label: 'Bookings', icon: ReceiptText, permission: 'sales.booking.view' },
+  { to: '/agent-portal', label: 'Agent Portal', icon: Briefcase, permission: 'sales.booking.view' },
   { to: '/construction', label: 'Construction Dashboard', icon: LayoutDashboard, permission: 'construction.view' },
   { to: '/construction/work-packages', label: 'Work Packages', icon: HardHat, permission: 'construction.view' },
   { to: '/construction/tasks', label: 'Tasks', icon: ClipboardCheck, permission: 'construction.view' },
@@ -52,11 +80,45 @@ const navItems: NavItem[] = [
   { to: '/procurement/purchase-requests', label: 'Purchase Requests', icon: ClipboardList, permission: 'procurement.view' },
   { to: '/procurement/purchase-orders', label: 'Purchase Orders', icon: ShoppingCart, permission: 'procurement.view' },
   { to: '/procurement/materials', label: 'Materials', icon: Package, permission: 'procurement.view' },
+  { to: '/property', label: 'Property Dashboard', icon: LayoutDashboard, permission: 'property.view' },
+  { to: '/property/rental-dashboard', label: 'Rental Dashboard', icon: Home, permission: 'property.view' },
+  { to: '/property/properties', label: 'Properties', icon: Building, permission: 'property.view' },
+  { to: '/property/units', label: 'Units', icon: DoorOpen, permission: 'property.view' },
+  { to: '/property/tenants', label: 'Tenants', icon: UserRound, permission: 'property.view' },
+  { to: '/property/leases', label: 'Leases', icon: FileSignature, permission: 'property.view' },
+  { to: '/property/maintenance', label: 'Maintenance', icon: Hammer, permission: 'property.view' },
+  { to: '/facility', label: 'Facility Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/facilities', label: 'Facilities', icon: Warehouse, permission: 'facility.view' },
+  { to: '/facility/spaces', label: 'Spaces', icon: LayoutGrid, permission: 'facility.view' },
+  { to: '/facility/service-requests', label: 'Service Requests', icon: Wrench, permission: 'facility.view' },
+  { to: '/facility/utilities', label: 'Utilities', icon: Zap, permission: 'facility.view' },
+  { to: '/facility/mall', label: 'Mall Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/mall/shops', label: 'Mall Shops', icon: Store, permission: 'facility.view' },
+  { to: '/facility/mall/service-charges/definitions', label: 'Service Charge Definitions', icon: Receipt, permission: 'facility.view' },
+  { to: '/facility/mall/service-charges', label: 'Service Charges', icon: Receipt, permission: 'facility.view' },
+  { to: '/facility/mall/parking', label: 'Parking Spaces', icon: CircleParking, permission: 'facility.view' },
+  { to: '/facility/mall/parking/allocations', label: 'Parking Allocations', icon: CircleParking, permission: 'facility.view' },
+  { to: '/facility/mall/events', label: 'Events', icon: PartyPopper, permission: 'facility.view' },
+  { to: '/facility/mall/notices', label: 'Notices', icon: BellRing, permission: 'facility.view' },
+  { to: '/facility/coworking', label: 'Coworking Dashboard', icon: LayoutDashboard, permission: 'facility.view' },
+  { to: '/facility/coworking/members', label: 'Members', icon: Contact2, permission: 'facility.view' },
+  { to: '/facility/coworking/plans', label: 'Membership Plans', icon: IdCard, permission: 'facility.view' },
+  { to: '/facility/coworking/memberships', label: 'Memberships', icon: BadgeCheck, permission: 'facility.view' },
+  { to: '/facility/coworking/desks', label: 'Desks', icon: Armchair, permission: 'facility.view' },
+  { to: '/facility/coworking/rooms', label: 'Meeting Rooms', icon: DoorClosed, permission: 'facility.view' },
+  { to: '/facility/coworking/bookings', label: 'Bookings', icon: CalendarClock, permission: 'facility.view' },
   { to: '/finance', label: 'Finance Dashboard', icon: Wallet, permission: 'finance.reports.view' },
   { to: '/finance/accounts', label: 'Chart of Accounts', icon: BookOpen, permission: 'finance.reports.view' },
   { to: '/finance/journal', label: 'Journal', icon: Scale, permission: 'finance.reports.view' },
   { to: '/finance/receivables', label: 'Receivables', icon: HandCoins, permission: 'finance.reports.view' },
   { to: '/finance/trial-balance', label: 'Trial Balance', icon: Scale, permission: 'finance.reports.view' },
+  { to: '/finance/balance-sheet', label: 'Balance Sheet', icon: FileBarChart, permission: 'finance.reports.view' },
+  { to: '/finance/profit-and-loss', label: 'Profit & Loss', icon: TrendingUp, permission: 'finance.reports.view' },
+  { to: '/finance/cash-flow', label: 'Cash Flow', icon: Banknote, permission: 'finance.reports.view' },
+  { to: '/finance/fiscal-periods', label: 'Fiscal Periods', icon: CalendarClock, permission: 'finance.reports.view' },
+  { to: '/reports', label: 'Reports', icon: BarChart3, permission: 'reports.view' },
+  { to: '/documents', label: 'Documents', icon: FileText, permission: 'documents.view' },
+  { to: '/approvals', label: 'Approvals', icon: CheckSquare },
   { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },
@@ -112,7 +174,18 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/' || item.to === '/crm' || item.to === '/sales' || item.to === '/construction' || item.to === '/procurement' || item.to === '/finance'}
+      end={
+        item.to === '/' ||
+        item.to === '/crm' ||
+        item.to === '/sales' ||
+        item.to === '/construction' ||
+        item.to === '/procurement' ||
+        item.to === '/property' ||
+        item.to === '/facility' ||
+        item.to === '/facility/mall' ||
+        item.to === '/facility/coworking' ||
+        item.to === '/finance'
+      }
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',

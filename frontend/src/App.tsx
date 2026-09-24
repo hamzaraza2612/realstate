@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { PermissionRoute, ProtectedRoute, SuperAdminRoute } from '@/app/ProtectedRoute'
+import { PortalProtectedRoute } from '@/app/PortalProtectedRoute'
 import { LoginPage } from '@/modules/auth/LoginPage'
 import { DashboardPage } from '@/modules/dashboard/DashboardPage'
 import { CrmDashboardPage } from '@/modules/crm/dashboard/CrmDashboardPage'
@@ -29,18 +30,102 @@ import { PurchaseOrdersPage } from '@/modules/procurement/purchaseOrders/Purchas
 import { PurchaseOrderDetailPage } from '@/modules/procurement/purchaseOrders/PurchaseOrderDetailPage'
 import { MaterialsPage } from '@/modules/procurement/materials/MaterialsPage'
 import { MaterialDetailPage } from '@/modules/procurement/materials/MaterialDetailPage'
+import { PropertyDashboardPage } from '@/modules/property/dashboard/PropertyDashboardPage'
+import { RentalDashboardPage } from '@/modules/property/rentalDashboard/RentalDashboardPage'
+import { PropertiesPage } from '@/modules/property/properties/PropertiesPage'
+import { UnitsPage } from '@/modules/property/units/UnitsPage'
+import { TenantsPage } from '@/modules/property/tenants/TenantsPage'
+import { LeasesPage } from '@/modules/property/leases/LeasesPage'
+import { LeaseDetailPage } from '@/modules/property/leases/LeaseDetailPage'
+import { MaintenanceRequestsPage } from '@/modules/property/maintenance/MaintenanceRequestsPage'
+import { MaintenanceRequestDetailPage } from '@/modules/property/maintenance/MaintenanceRequestDetailPage'
 import { FinanceDashboardPage } from '@/modules/finance/dashboard/FinanceDashboardPage'
 import { ChartOfAccountsPage } from '@/modules/finance/accounts/ChartOfAccountsPage'
 import { JournalPage } from '@/modules/finance/journal/JournalPage'
 import { JournalEntryDetailPage } from '@/modules/finance/journal/JournalEntryDetailPage'
 import { ReceivablesPage } from '@/modules/finance/receivables/ReceivablesPage'
 import { TrialBalancePage } from '@/modules/finance/reports/TrialBalancePage'
+import { BalanceSheetPage } from '@/modules/finance/reports/BalanceSheetPage'
+import { ProfitAndLossPage } from '@/modules/finance/reports/ProfitAndLossPage'
+import { CashFlowPage } from '@/modules/finance/reports/CashFlowPage'
+import { FiscalPeriodsPage } from '@/modules/finance/fiscalPeriods/FiscalPeriodsPage'
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
 import { AuditLogPage } from '@/modules/audit/AuditLogPage'
 import { PlatformOrganizationsPage } from '@/modules/platform/PlatformOrganizationsPage'
 import { PlatformSubscriptionPlansPage } from '@/modules/platform/PlatformSubscriptionPlansPage'
+import { FacilityDashboardPage } from '@/modules/facility/dashboard/FacilityDashboardPage'
+import { FacilitiesPage } from '@/modules/facility/facilities/FacilitiesPage'
+import { SpacesPage } from '@/modules/facility/spaces/SpacesPage'
+import { ServiceRequestsPage } from '@/modules/facility/serviceRequests/ServiceRequestsPage'
+import { ServiceRequestDetailPage } from '@/modules/facility/serviceRequests/ServiceRequestDetailPage'
+import { UtilitiesPage } from '@/modules/facility/utilities/UtilitiesPage'
+import { MallDashboardPage } from '@/modules/facility/mall/dashboard/MallDashboardPage'
+import { MallShopsPage } from '@/modules/facility/mall/shops/MallShopsPage'
+import { MallShopDetailPage } from '@/modules/facility/mall/shops/MallShopDetailPage'
+import { ServiceChargeDefinitionsPage } from '@/modules/facility/mall/serviceCharges/ServiceChargeDefinitionsPage'
+import { ServiceChargesPage } from '@/modules/facility/mall/serviceCharges/ServiceChargesPage'
+import { ParkingSpacesPage } from '@/modules/facility/mall/parking/ParkingSpacesPage'
+import { ParkingAllocationsPage } from '@/modules/facility/mall/parking/ParkingAllocationsPage'
+import { EventsPage } from '@/modules/facility/mall/events/EventsPage'
+import { NoticesPage } from '@/modules/facility/mall/notices/NoticesPage'
+import { CoworkingDashboardPage } from '@/modules/facility/coworking/dashboard/CoworkingDashboardPage'
+import { MembersPage } from '@/modules/facility/coworking/members/MembersPage'
+import { PlansPage } from '@/modules/facility/coworking/plans/PlansPage'
+import { MembershipsPage } from '@/modules/facility/coworking/memberships/MembershipsPage'
+import { MembershipDetailPage } from '@/modules/facility/coworking/memberships/MembershipDetailPage'
+import { DesksPage } from '@/modules/facility/coworking/desks/DesksPage'
+import { RoomsPage } from '@/modules/facility/coworking/rooms/RoomsPage'
+import { BookingsPage as CoworkingBookingsPage } from '@/modules/facility/coworking/bookings/BookingsPage'
+import { BookingDetailPage as CoworkingBookingDetailPage } from '@/modules/facility/coworking/bookings/BookingDetailPage'
+import { DocumentsPage } from '@/modules/documents/DocumentsPage'
+import { NotificationsPage } from '@/modules/notifications/NotificationsPage'
+import { NotificationPreferencesPage } from '@/modules/notifications/NotificationPreferencesPage'
+import { ApprovalInboxPage } from '@/modules/approvals/ApprovalInboxPage'
+import { ExecutiveDashboardPage } from '@/modules/reports/ExecutiveDashboardPage'
+import { SalesReportsPage } from '@/modules/reports/sales/SalesReportsPage'
+import { FinanceReportsPage } from '@/modules/reports/finance/FinanceReportsPage'
+import { ProjectReportsPage } from '@/modules/reports/projects/ProjectReportsPage'
+import { ConstructionReportsPage } from '@/modules/reports/construction/ConstructionReportsPage'
+import { ProcurementReportsPage } from '@/modules/reports/procurement/ProcurementReportsPage'
+import { PropertyReportsPage } from '@/modules/reports/property/PropertyReportsPage'
+import { FacilityReportsPage } from '@/modules/reports/facility/FacilityReportsPage'
+import { AgentPortalPage } from '@/modules/agentPortal/AgentPortalPage'
+import { PortalLoginPage } from '@/modules/portal/auth/PortalLoginPage'
+import { PortalDocumentsPage } from '@/modules/portal/shared/PortalDocumentsPage'
+import { PortalNotificationsPage } from '@/modules/portal/shared/PortalNotificationsPage'
+import { PortalActorType } from '@/types/api'
+import { CustomerPortalLayout } from '@/modules/portal/customer/CustomerPortalLayout'
+import { CustomerDashboardPage } from '@/modules/portal/customer/CustomerDashboardPage'
+import { CustomerBookingsPage } from '@/modules/portal/customer/CustomerBookingsPage'
+import { CustomerBookingDetailPage } from '@/modules/portal/customer/CustomerBookingDetailPage'
+import { CustomerPaymentsPage } from '@/modules/portal/customer/CustomerPaymentsPage'
+import * as customerPortalApi from '@/modules/portal/customer/api'
+import { TenantPortalLayout } from '@/modules/portal/tenant/TenantPortalLayout'
+import { TenantDashboardPage } from '@/modules/portal/tenant/TenantDashboardPage'
+import { TenantLeasesPage } from '@/modules/portal/tenant/TenantLeasesPage'
+import { TenantLeaseDetailPage } from '@/modules/portal/tenant/TenantLeaseDetailPage'
+import { TenantMaintenancePage } from '@/modules/portal/tenant/TenantMaintenancePage'
+import * as tenantPortalApi from '@/modules/portal/tenant/api'
+import { OwnerPortalLayout } from '@/modules/portal/owner/OwnerPortalLayout'
+import { OwnerDashboardPage } from '@/modules/portal/owner/OwnerDashboardPage'
+import { OwnerPropertiesPage } from '@/modules/portal/owner/OwnerPropertiesPage'
+import { OwnerPropertyDetailPage } from '@/modules/portal/owner/OwnerPropertyDetailPage'
+import { OwnerReportsPage } from '@/modules/portal/owner/OwnerReportsPage'
+import { OwnerMaintenancePage } from '@/modules/portal/owner/OwnerMaintenancePage'
+import * as ownerPortalApi from '@/modules/portal/owner/api'
+import { VendorPortalLayout } from '@/modules/portal/vendor/VendorPortalLayout'
+import { VendorDashboardPage } from '@/modules/portal/vendor/VendorDashboardPage'
+import { VendorPurchaseOrdersPage } from '@/modules/portal/vendor/VendorPurchaseOrdersPage'
+import { VendorPurchaseOrderDetailPage } from '@/modules/portal/vendor/VendorPurchaseOrderDetailPage'
+import { VendorAssignedWorkPage } from '@/modules/portal/vendor/VendorAssignedWorkPage'
+import * as vendorPortalApi from '@/modules/portal/vendor/api'
+import { MemberPortalLayout } from '@/modules/portal/member/MemberPortalLayout'
+import { MemberDashboardPage } from '@/modules/portal/member/MemberDashboardPage'
+import { MemberBookingsPage } from '@/modules/portal/member/MemberBookingsPage'
+import { MemberBookingDetailPage } from '@/modules/portal/member/MemberBookingDetailPage'
+import * as memberPortalApi from '@/modules/portal/member/api'
 
 export default function App() {
   return (
@@ -264,6 +349,270 @@ export default function App() {
           }
         />
         <Route
+          path="property"
+          element={
+            <PermissionRoute permission="property.view">
+              <PropertyDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/rental-dashboard"
+          element={
+            <PermissionRoute permission="property.view">
+              <RentalDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/properties"
+          element={
+            <PermissionRoute permission="property.view">
+              <PropertiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/units"
+          element={
+            <PermissionRoute permission="property.view">
+              <UnitsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/tenants"
+          element={
+            <PermissionRoute permission="property.view">
+              <TenantsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/leases"
+          element={
+            <PermissionRoute permission="property.view">
+              <LeasesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/leases/:id"
+          element={
+            <PermissionRoute permission="property.view">
+              <LeaseDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/maintenance"
+          element={
+            <PermissionRoute permission="property.view">
+              <MaintenanceRequestsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="property/maintenance/:id"
+          element={
+            <PermissionRoute permission="property.view">
+              <MaintenanceRequestDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility"
+          element={
+            <PermissionRoute permission="facility.view">
+              <FacilityDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/facilities"
+          element={
+            <PermissionRoute permission="facility.view">
+              <FacilitiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/spaces"
+          element={
+            <PermissionRoute permission="facility.view">
+              <SpacesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/service-requests"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceRequestsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/service-requests/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceRequestDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/utilities"
+          element={
+            <PermissionRoute permission="facility.view">
+              <UtilitiesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/shops"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallShopsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/shops/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MallShopDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/service-charges/definitions"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceChargeDefinitionsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/service-charges"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ServiceChargesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/parking"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ParkingSpacesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/parking/allocations"
+          element={
+            <PermissionRoute permission="facility.view">
+              <ParkingAllocationsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/events"
+          element={
+            <PermissionRoute permission="facility.view">
+              <EventsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/mall/notices"
+          element={
+            <PermissionRoute permission="facility.view">
+              <NoticesPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/members"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembersPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/plans"
+          element={
+            <PermissionRoute permission="facility.view">
+              <PlansPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/memberships"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembershipsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/memberships/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <MembershipDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/desks"
+          element={
+            <PermissionRoute permission="facility.view">
+              <DesksPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/rooms"
+          element={
+            <PermissionRoute permission="facility.view">
+              <RoomsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/bookings"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingBookingsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="facility/coworking/bookings/:id"
+          element={
+            <PermissionRoute permission="facility.view">
+              <CoworkingBookingDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="finance"
           element={
             <PermissionRoute permission="finance.reports.view">
@@ -312,6 +661,38 @@ export default function App() {
           }
         />
         <Route
+          path="finance/balance-sheet"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <BalanceSheetPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/profit-and-loss"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <ProfitAndLossPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/cash-flow"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <CashFlowPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="finance/fiscal-periods"
+          element={
+            <PermissionRoute permission="finance.reports.view">
+              <FiscalPeriodsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="users"
           element={
             <PermissionRoute permission="users.view">
@@ -344,6 +725,84 @@ export default function App() {
           }
         />
         <Route
+          path="reports"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ExecutiveDashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/sales"
+          element={
+            <PermissionRoute permission="reports.view">
+              <SalesReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/finance"
+          element={
+            <PermissionRoute permission="reports.view">
+              <FinanceReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/projects"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ProjectReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/construction"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ConstructionReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/procurement"
+          element={
+            <PermissionRoute permission="reports.view">
+              <ProcurementReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/property"
+          element={
+            <PermissionRoute permission="reports.view">
+              <PropertyReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports/facility"
+          element={
+            <PermissionRoute permission="reports.view">
+              <FacilityReportsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="documents"
+          element={
+            <PermissionRoute permission="documents.view">
+              <DocumentsPage />
+            </PermissionRoute>
+          }
+        />
+        {/* No PermissionRoute: notifications and the approval inbox are personal to the signed-in
+            user and scoped server-side, the same way the dashboard (index route) needs no permission
+            beyond the ProtectedRoute the parent route already applies. */}
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications/preferences" element={<NotificationPreferencesPage />} />
+        <Route path="approvals" element={<ApprovalInboxPage />} />
+        <Route
           path="platform/organizations"
           element={
             <SuperAdminRoute>
@@ -357,6 +816,155 @@ export default function App() {
             <SuperAdminRoute>
               <PlatformSubscriptionPlansPage />
             </SuperAdminRoute>
+          }
+        />
+
+        {/* Agent Portal: reuses the internal session above (see modules/agentPortal/api.ts) — it is
+            NOT part of the External Portal auth surface, so it lives inside this same ProtectedRoute
+            tree rather than under /portal. */}
+        <Route path="agent-portal" element={<AgentPortalPage />} />
+      </Route>
+
+      {/* External Portal — a completely separate auth surface (usePortalAuthStore/portalApiClient),
+          deliberately NOT nested inside AppShell/ProtectedRoute. See docs/PORTAL_ARCHITECTURE.md. */}
+      <Route path="portal/login" element={<PortalLoginPage />} />
+
+      <Route
+        path="portal/customer"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.Customer}>
+            <CustomerPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<CustomerDashboardPage />} />
+        <Route path="bookings" element={<CustomerBookingsPage />} />
+        <Route path="bookings/:id" element={<CustomerBookingDetailPage />} />
+        <Route path="payments" element={<CustomerPaymentsPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={customerPortalApi.useDocuments} downloadDocument={customerPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={customerPortalApi.useNotifications}
+              useMarkNotificationRead={customerPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={customerPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/tenant"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.RentalTenant}>
+            <TenantPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<TenantDashboardPage />} />
+        <Route path="leases" element={<TenantLeasesPage />} />
+        <Route path="leases/:id" element={<TenantLeaseDetailPage />} />
+        <Route path="maintenance" element={<TenantMaintenancePage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={tenantPortalApi.useDocuments} downloadDocument={tenantPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={tenantPortalApi.useNotifications}
+              useMarkNotificationRead={tenantPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={tenantPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/owner"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.PropertyOwner}>
+            <OwnerPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<OwnerDashboardPage />} />
+        <Route path="properties" element={<OwnerPropertiesPage />} />
+        <Route path="properties/:id" element={<OwnerPropertyDetailPage />} />
+        <Route path="reports" element={<OwnerReportsPage />} />
+        <Route path="maintenance" element={<OwnerMaintenancePage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={ownerPortalApi.useDocuments} downloadDocument={ownerPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={ownerPortalApi.useNotifications}
+              useMarkNotificationRead={ownerPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={ownerPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/vendor"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.Vendor}>
+            <VendorPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<VendorDashboardPage />} />
+        <Route path="purchase-orders" element={<VendorPurchaseOrdersPage />} />
+        <Route path="purchase-orders/:id" element={<VendorPurchaseOrderDetailPage />} />
+        <Route path="assigned-work" element={<VendorAssignedWorkPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={vendorPortalApi.useDocuments} downloadDocument={vendorPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={vendorPortalApi.useNotifications}
+              useMarkNotificationRead={vendorPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={vendorPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/member"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.CoworkingMember}>
+            <MemberPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<MemberDashboardPage />} />
+        <Route path="bookings" element={<MemberBookingsPage />} />
+        <Route path="bookings/:id" element={<MemberBookingDetailPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={memberPortalApi.useDocuments} downloadDocument={memberPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={memberPortalApi.useNotifications}
+              useMarkNotificationRead={memberPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={memberPortalApi.useMarkAllNotificationsRead}
+            />
           }
         />
       </Route>

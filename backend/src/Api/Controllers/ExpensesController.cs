@@ -59,4 +59,20 @@ public class ExpensesController : ApiControllerBase
         var result = await _expenseService.RejectAsync(id, ct);
         return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
     }
+
+    [HttpGet("{id:guid}/payments")]
+    [RequirePermission(Permissions.Finance.ReportsView)]
+    public async Task<IActionResult> ListPayments(Guid id, CancellationToken ct)
+    {
+        var result = await _expenseService.ListPaymentsAsync(id, ct);
+        return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : NotFound(new { title = result.Error, status = 404 });
+    }
+
+    [HttpPost("{id:guid}/payments")]
+    [RequirePermission(Permissions.Finance.Manage)]
+    public async Task<IActionResult> Pay(Guid id, PayExpenseRequest request, CancellationToken ct)
+    {
+        var result = await _expenseService.PayAsync(id, request, ct);
+        return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
+    }
 }

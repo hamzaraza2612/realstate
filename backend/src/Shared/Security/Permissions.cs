@@ -87,7 +87,12 @@ public static class Permissions
 
     public static class Property
     {
+        public const string View = "property.view";
+        public const string Manage = "property.manage";
         public const string LeaseManage = "property.lease.manage";
+        public const string LeaseApprove = "property.lease.approve";
+        public const string PaymentRecord = "property.payment.record";
+        public const string MaintenanceManage = "property.maintenance.manage";
     }
 
     public static class Procurement
@@ -102,6 +107,11 @@ public static class Permissions
     public static class Facility
     {
         public const string WorkOrderManage = "facility.work_order.manage";
+        public const string View = "facility.view";
+        public const string Manage = "facility.manage";
+        public const string MallManage = "facility.mall.manage";
+        public const string CoworkingManage = "facility.coworking.manage";
+        public const string PaymentRecord = "facility.payment.record";
     }
 
     public static class Hr
@@ -109,9 +119,37 @@ public static class Permissions
         public const string EmployeeManage = "hr.employee.manage";
     }
 
+    /// <summary>Governs the generic cross-module Document attachment system (Milestone 11) — one pair
+    /// of permissions for every entity type a document can attach to, mirroring how AuditLogs.View
+    /// already spans every module with a single permission rather than one per attached entity type.</summary>
+    public static class Documents
+    {
+        public const string View = "documents.view";
+        public const string Manage = "documents.manage";
+    }
+
+    /// <summary>Governs the generic cross-module Approval workflow (Milestone 11). Viewing an entity's
+    /// approval history is gated by this permission; deciding a specific request is gated inside
+    /// ApprovalService itself (the caller must be the request's named approver, or hold its
+    /// RequiredPermission) — a second, object-level check this permission alone can't express.</summary>
+    public static class Approvals
+    {
+        public const string View = "approvals.view";
+    }
+
     public static class Reports
     {
         public const string View = "reports.view";
+    }
+
+    /// <summary>Governs internal-staff administration of the External Portal foundation (Milestone
+    /// 13) — inviting/deactivating a Customer/RentalTenant/PropertyOwner/Vendor/CoworkingMember's
+    /// portal login. Deliberately one tenant-wide permission rather than one per actor type (the same
+    /// precedent as Documents.View/Approvals.View/Reports.View): inviting a Vendor and inviting a
+    /// Customer to the portal are the same kind of action, not two.</summary>
+    public static class Portal
+    {
+        public const string ManageAccounts = "portal.manage_accounts";
     }
 
     /// <summary>All permission codes declared above, discovered via reflection for seeding.</summary>

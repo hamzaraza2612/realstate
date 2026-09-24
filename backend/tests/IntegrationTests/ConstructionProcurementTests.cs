@@ -405,6 +405,65 @@ public class ConstructionProcurementTests : TestBase
     }
 
     [Fact]
+    public async Task ExpensePayment_ClearsAccountsPayable_PartialThenFinalThenRejectsOverpayment()
+    {
+        var (token, projectId, wpId, vendorId, _) = await SetupContextAsync("expense-ap-clear");
+
+        var (_, createBody, _) = await PostAsync("/api/v1/construction/expenses", new
+        {
+            projectId = Guid.Parse(projectId), workPackageId = Guid.Parse(wpId), category = 2, amount = 10_000m,
+            expenseDate = DateOnly.FromDateTime(DateTime.UtcNow), vendorId = Guid.Parse(vendorId), referenceNumber = "INV-AP-1", notes = (string?)null
+        }, token);
+        var expenseId = createBody.GetProperty("data").GetProperty("id").GetString()!;
+
+        // Paying before approval is rejected — only an Approved expense has an actual AP obligation.
+        var (tooEarlySuccess, _, tooEarlyStatus) = await PostAsync($"/api/v1/construction/expenses/{expenseId}/payments", new
+        {
+            amount = 1000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow), referenceNumber = (string?)null, notes = (string?)null, idempotencyKey = (string?)null
+        }, token);
+        tooEarlySuccess.Should().BeFalse();
+        tooEarlyStatus.Should().Be(HttpStatusCode.BadRequest);
+
+        await PostAsync($"/api/v1/construction/expenses/{expenseId}/approve", new { }, token);
+
+        var (partialSuccess, partialBody, _) = await PostAsync($"/api/v1/construction/expenses/{expenseId}/payments", new
+        {
+            amount = 4000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow), referenceNumber = "PMT-1", notes = (string?)null, idempotencyKey = (string?)null
+        }, token);
+        partialSuccess.Should().BeTrue();
+        var firstJournalEntryId = partialBody.GetProperty("data").GetProperty("journalEntryId").GetString();
+        firstJournalEntryId.Should().NotBeNull();
+
+        var (_, firstJournalBody, _) = await GetAsync($"/api/v1/finance/journal-entries/{firstJournalEntryId}", token);
+        firstJournalBody.GetProperty("data").GetProperty("referenceType").GetString().Should().Be("ExpensePayment");
+        firstJournalBody.GetProperty("data").GetProperty("totalDebit").GetDecimal().Should().Be(4000m);
+
+        var (afterPartial, afterPartialBody, _) = await GetAsync($"/api/v1/construction/expenses/{expenseId}", token);
+        afterPartial.Should().BeTrue();
+        afterPartialBody.GetProperty("data").GetProperty("paidAmount").GetDecimal().Should().Be(4000m);
+
+        // Overpayment beyond the remaining 6000 outstanding is rejected.
+        var (overSuccess, _, overStatus) = await PostAsync($"/api/v1/construction/expenses/{expenseId}/payments", new
+        {
+            amount = 9000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow), referenceNumber = (string?)null, notes = (string?)null, idempotencyKey = (string?)null
+        }, token);
+        overSuccess.Should().BeFalse();
+        overStatus.Should().Be(HttpStatusCode.BadRequest);
+
+        var (finalSuccess, _, _) = await PostAsync($"/api/v1/construction/expenses/{expenseId}/payments", new
+        {
+            amount = 6000m, paymentDate = DateOnly.FromDateTime(DateTime.UtcNow), referenceNumber = "PMT-2", notes = (string?)null, idempotencyKey = (string?)null
+        }, token);
+        finalSuccess.Should().BeTrue();
+
+        var (_, afterFinalBody, _) = await GetAsync($"/api/v1/construction/expenses/{expenseId}", token);
+        afterFinalBody.GetProperty("data").GetProperty("paidAmount").GetDecimal().Should().Be(10_000m);
+
+        var (_, paymentsBody, _) = await GetAsync($"/api/v1/construction/expenses/{expenseId}/payments", token);
+        paymentsBody.GetProperty("data").GetArrayLength().Should().Be(2);
+    }
+
+    [Fact]
     public async Task ConstructionAndProcurementData_AreIsolatedPerTenant()
     {
         var (tokenA, projectIdA, wpIdA, vendorIdA, materialIdA) = await SetupContextAsync("iso-a");

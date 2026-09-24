@@ -41,11 +41,24 @@ backend/
 ```
 Each business module (Identity, Tenancy, CRM, Projects, Inventory, Sales,
 Payments, Accounting, Construction, Procurement, PropertyManagement,
-FacilityManagement, Coworking, Documents, Notifications, Reporting,
-Administration, Subscription) gets its own folder inside Domain/Application/
-Infrastructure, and its own `IModule`-style DI registration + `ModelBuilder`
-configuration, so modules stay loosely coupled and new ones can be added
-without touching existing ones.
+FacilityManagement, Coworking, Documents, Notifications, Approvals,
+Communication, Reporting, Administration, Subscription) gets its own folder
+inside Domain/Application/Infrastructure, and its own `IModule`-style DI
+registration + `ModelBuilder` configuration, so modules stay loosely coupled
+and new ones can be added without touching existing ones. Documents,
+Notifications, and Approvals (Milestone 11) are the platform's cross-cutting
+foundations, not owned by any one business module — each attaches to any
+other entity via a polymorphic `(EntityType, EntityId)` pair rather than a
+per-module table/FK, so a new module can attach documents, raise
+notifications, or plug into the approval workflow without a schema change,
+at the cost of the database not enforcing that the referenced row exists
+(tenant isolation is preserved regardless, since these tables are
+tenant-scoped independent of what they reference). Communication
+(`ICommunicationService`/`IEmailSender`) is a provider-agnostic seam over
+these — the only registered `IEmailSender` today is a development-safe
+logging provider, so the whole application and every test run with zero
+external SMTP dependency; a production deployment swaps in a real provider
+implementing the same interface with nothing above it changing.
 
 ```
 frontend/
@@ -121,9 +134,12 @@ dependency beyond Docker/Compose is required on the host, `docker compose up
 -d --build` is the full startup command, migrations run automatically inside
 the `api` container on boot (or manually via `docker compose --profile tools
 run --rm migrate`), and Postgres data plus uploaded-file storage
-(`uploads-data`, provisioned ahead of the Documents module) persist in named
-volumes independent of container lifecycle. See `docs/DEPLOYMENT.md` for the
-full production procedure, migrations, and backup/restore instructions.
+(`uploads-data`, provisioned since Milestone 1 and in active use since the
+Milestone 11 Documents module) persist in named volumes independent of
+container lifecycle — both must be included in any backup strategy, since
+document file content lives only on that volume, never in PostgreSQL. See
+`docs/DEPLOYMENT.md` for the full production procedure, migrations, and
+backup/restore instructions.
 
 ## Status
 See `ROADMAP.md` for milestone-by-milestone delivery status.

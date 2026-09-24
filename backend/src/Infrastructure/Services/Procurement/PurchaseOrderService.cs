@@ -1,23 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using RealEstateErp.Application.Approvals;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Procurement.PurchaseOrders;
 using RealEstateErp.Domain.Procurement;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
+using RealEstateErp.Shared.Security;
 
 namespace RealEstateErp.Infrastructure.Services.Procurement;
 
 public class PurchaseOrderService : IPurchaseOrderService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
+    private readonly IApprovalService _approvalService;
 
-    public PurchaseOrderService(AppDbContext db, IAuditLogger auditLogger)
+    public PurchaseOrderService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger, IApprovalService approvalService)
     {
         _db = db;
+        _tenantContext = tenantContext;
         _auditLogger = auditLogger;
+        _approvalService = approvalService;
     }
 
     public async Task<PagedResult<PurchaseOrderDto>> ListAsync(PagedRequest request, PurchaseOrderFilter filter, CancellationToken ct = default)
@@ -143,6 +149,20 @@ public class PurchaseOrderService : IPurchaseOrderService
         po.Status = target;
         await _db.SaveChangesAsync(ct);
         await _auditLogger.LogAsync("Transition", "Procurement", "PurchaseOrder", po.Id.ToString(), new { Status = before }, new { po.Status }, ct: ct);
+
+        // Parallel Approval Inbox/history tracking — additive only, never gates this transition
+        // (PurchaseOrderStatusRules above remains the sole source of truth for legal transitions).
+        if (target == PurchaseOrderStatus.PendingApproval)
+        {
+            await _approvalService.CreateRequestAsync(new CreateApprovalRequestRequest(
+                "PurchaseOrder", po.Id, ApproverUserId: null, Permissions.Procurement.OrderApprove, RequestComments: null), ct);
+        }
+        else if (before == PurchaseOrderStatus.PendingApproval && target is PurchaseOrderStatus.Approved or PurchaseOrderStatus.Cancelled)
+        {
+            await _approvalService.ResolveForEntityAsync("PurchaseOrder", po.Id, approved: target == PurchaseOrderStatus.Approved,
+                _tenantContext.UserId ?? Guid.Empty, decisionComments: null, ct);
+        }
+
         return Result.Success((await ToDtosAsync(new[] { po }, ct))[0]);
     }
 
