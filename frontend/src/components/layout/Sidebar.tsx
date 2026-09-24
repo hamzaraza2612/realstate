@@ -47,6 +47,7 @@ import {
   FileText,
   CheckSquare,
   BarChart3,
+  Briefcase,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -69,6 +70,7 @@ const navItems: NavItem[] = [
   { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory.view' },
   { to: '/sales', label: 'Sales Dashboard', icon: LayoutDashboard, permission: 'sales.booking.view' },
   { to: '/sales/bookings', label: 'Bookings', icon: ReceiptText, permission: 'sales.booking.view' },
+  { to: '/agent-portal', label: 'Agent Portal', icon: Briefcase, permission: 'sales.booking.view' },
   { to: '/construction', label: 'Construction Dashboard', icon: LayoutDashboard, permission: 'construction.view' },
   { to: '/construction/work-packages', label: 'Work Packages', icon: HardHat, permission: 'construction.view' },
   { to: '/construction/tasks', label: 'Tasks', icon: ClipboardCheck, permission: 'construction.view' },

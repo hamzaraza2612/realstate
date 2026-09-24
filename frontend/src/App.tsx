@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { PermissionRoute, ProtectedRoute, SuperAdminRoute } from '@/app/ProtectedRoute'
+import { PortalProtectedRoute } from '@/app/PortalProtectedRoute'
 import { LoginPage } from '@/modules/auth/LoginPage'
 import { DashboardPage } from '@/modules/dashboard/DashboardPage'
 import { CrmDashboardPage } from '@/modules/crm/dashboard/CrmDashboardPage'
@@ -90,6 +91,41 @@ import { ConstructionReportsPage } from '@/modules/reports/construction/Construc
 import { ProcurementReportsPage } from '@/modules/reports/procurement/ProcurementReportsPage'
 import { PropertyReportsPage } from '@/modules/reports/property/PropertyReportsPage'
 import { FacilityReportsPage } from '@/modules/reports/facility/FacilityReportsPage'
+import { AgentPortalPage } from '@/modules/agentPortal/AgentPortalPage'
+import { PortalLoginPage } from '@/modules/portal/auth/PortalLoginPage'
+import { PortalDocumentsPage } from '@/modules/portal/shared/PortalDocumentsPage'
+import { PortalNotificationsPage } from '@/modules/portal/shared/PortalNotificationsPage'
+import { PortalActorType } from '@/types/api'
+import { CustomerPortalLayout } from '@/modules/portal/customer/CustomerPortalLayout'
+import { CustomerDashboardPage } from '@/modules/portal/customer/CustomerDashboardPage'
+import { CustomerBookingsPage } from '@/modules/portal/customer/CustomerBookingsPage'
+import { CustomerBookingDetailPage } from '@/modules/portal/customer/CustomerBookingDetailPage'
+import { CustomerPaymentsPage } from '@/modules/portal/customer/CustomerPaymentsPage'
+import * as customerPortalApi from '@/modules/portal/customer/api'
+import { TenantPortalLayout } from '@/modules/portal/tenant/TenantPortalLayout'
+import { TenantDashboardPage } from '@/modules/portal/tenant/TenantDashboardPage'
+import { TenantLeasesPage } from '@/modules/portal/tenant/TenantLeasesPage'
+import { TenantLeaseDetailPage } from '@/modules/portal/tenant/TenantLeaseDetailPage'
+import { TenantMaintenancePage } from '@/modules/portal/tenant/TenantMaintenancePage'
+import * as tenantPortalApi from '@/modules/portal/tenant/api'
+import { OwnerPortalLayout } from '@/modules/portal/owner/OwnerPortalLayout'
+import { OwnerDashboardPage } from '@/modules/portal/owner/OwnerDashboardPage'
+import { OwnerPropertiesPage } from '@/modules/portal/owner/OwnerPropertiesPage'
+import { OwnerPropertyDetailPage } from '@/modules/portal/owner/OwnerPropertyDetailPage'
+import { OwnerReportsPage } from '@/modules/portal/owner/OwnerReportsPage'
+import { OwnerMaintenancePage } from '@/modules/portal/owner/OwnerMaintenancePage'
+import * as ownerPortalApi from '@/modules/portal/owner/api'
+import { VendorPortalLayout } from '@/modules/portal/vendor/VendorPortalLayout'
+import { VendorDashboardPage } from '@/modules/portal/vendor/VendorDashboardPage'
+import { VendorPurchaseOrdersPage } from '@/modules/portal/vendor/VendorPurchaseOrdersPage'
+import { VendorPurchaseOrderDetailPage } from '@/modules/portal/vendor/VendorPurchaseOrderDetailPage'
+import { VendorAssignedWorkPage } from '@/modules/portal/vendor/VendorAssignedWorkPage'
+import * as vendorPortalApi from '@/modules/portal/vendor/api'
+import { MemberPortalLayout } from '@/modules/portal/member/MemberPortalLayout'
+import { MemberDashboardPage } from '@/modules/portal/member/MemberDashboardPage'
+import { MemberBookingsPage } from '@/modules/portal/member/MemberBookingsPage'
+import { MemberBookingDetailPage } from '@/modules/portal/member/MemberBookingDetailPage'
+import * as memberPortalApi from '@/modules/portal/member/api'
 
 export default function App() {
   return (
@@ -780,6 +816,155 @@ export default function App() {
             <SuperAdminRoute>
               <PlatformSubscriptionPlansPage />
             </SuperAdminRoute>
+          }
+        />
+
+        {/* Agent Portal: reuses the internal session above (see modules/agentPortal/api.ts) — it is
+            NOT part of the External Portal auth surface, so it lives inside this same ProtectedRoute
+            tree rather than under /portal. */}
+        <Route path="agent-portal" element={<AgentPortalPage />} />
+      </Route>
+
+      {/* External Portal — a completely separate auth surface (usePortalAuthStore/portalApiClient),
+          deliberately NOT nested inside AppShell/ProtectedRoute. See docs/PORTAL_ARCHITECTURE.md. */}
+      <Route path="portal/login" element={<PortalLoginPage />} />
+
+      <Route
+        path="portal/customer"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.Customer}>
+            <CustomerPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<CustomerDashboardPage />} />
+        <Route path="bookings" element={<CustomerBookingsPage />} />
+        <Route path="bookings/:id" element={<CustomerBookingDetailPage />} />
+        <Route path="payments" element={<CustomerPaymentsPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={customerPortalApi.useDocuments} downloadDocument={customerPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={customerPortalApi.useNotifications}
+              useMarkNotificationRead={customerPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={customerPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/tenant"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.RentalTenant}>
+            <TenantPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<TenantDashboardPage />} />
+        <Route path="leases" element={<TenantLeasesPage />} />
+        <Route path="leases/:id" element={<TenantLeaseDetailPage />} />
+        <Route path="maintenance" element={<TenantMaintenancePage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={tenantPortalApi.useDocuments} downloadDocument={tenantPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={tenantPortalApi.useNotifications}
+              useMarkNotificationRead={tenantPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={tenantPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/owner"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.PropertyOwner}>
+            <OwnerPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<OwnerDashboardPage />} />
+        <Route path="properties" element={<OwnerPropertiesPage />} />
+        <Route path="properties/:id" element={<OwnerPropertyDetailPage />} />
+        <Route path="reports" element={<OwnerReportsPage />} />
+        <Route path="maintenance" element={<OwnerMaintenancePage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={ownerPortalApi.useDocuments} downloadDocument={ownerPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={ownerPortalApi.useNotifications}
+              useMarkNotificationRead={ownerPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={ownerPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/vendor"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.Vendor}>
+            <VendorPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<VendorDashboardPage />} />
+        <Route path="purchase-orders" element={<VendorPurchaseOrdersPage />} />
+        <Route path="purchase-orders/:id" element={<VendorPurchaseOrderDetailPage />} />
+        <Route path="assigned-work" element={<VendorAssignedWorkPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={vendorPortalApi.useDocuments} downloadDocument={vendorPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={vendorPortalApi.useNotifications}
+              useMarkNotificationRead={vendorPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={vendorPortalApi.useMarkAllNotificationsRead}
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="portal/member"
+        element={
+          <PortalProtectedRoute actorType={PortalActorType.CoworkingMember}>
+            <MemberPortalLayout />
+          </PortalProtectedRoute>
+        }
+      >
+        <Route index element={<MemberDashboardPage />} />
+        <Route path="bookings" element={<MemberBookingsPage />} />
+        <Route path="bookings/:id" element={<MemberBookingDetailPage />} />
+        <Route
+          path="documents"
+          element={<PortalDocumentsPage useDocuments={memberPortalApi.useDocuments} downloadDocument={memberPortalApi.downloadDocument} />}
+        />
+        <Route
+          path="notifications"
+          element={
+            <PortalNotificationsPage
+              useNotifications={memberPortalApi.useNotifications}
+              useMarkNotificationRead={memberPortalApi.useMarkNotificationRead}
+              useMarkAllNotificationsRead={memberPortalApi.useMarkAllNotificationsRead}
+            />
           }
         />
       </Route>

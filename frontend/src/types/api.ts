@@ -2688,3 +2688,94 @@ export interface MaintenanceBacklogRow {
   assignedVendorId: string | null
   assignedVendorName: string | null
 }
+
+// --- External Portal (Milestone 13) ---
+// A portal session is a completely separate identity from an internal AppUser — see
+// src/stores/portalAuthStore.ts and src/lib/portalApiClient.ts. These types describe only the
+// shapes that don't already exist above; everything else (BookingDto, LeaseDto, PaymentDto, etc.)
+// is reused as-is per docs/PORTAL_ARCHITECTURE.md.
+
+export const PortalActorType = {
+  Customer: 'Customer',
+  RentalTenant: 'RentalTenant',
+  PropertyOwner: 'PropertyOwner',
+  Vendor: 'Vendor',
+  CoworkingMember: 'CoworkingMember',
+} as const
+export type PortalActorType = (typeof PortalActorType)[keyof typeof PortalActorType]
+
+export const PortalActorTypeLabel: Record<PortalActorType, string> = {
+  [PortalActorType.Customer]: 'Customer',
+  [PortalActorType.RentalTenant]: 'Tenant',
+  [PortalActorType.PropertyOwner]: 'Property Owner',
+  [PortalActorType.Vendor]: 'Vendor',
+  [PortalActorType.CoworkingMember]: 'Coworking Member',
+}
+
+/** The portal area path each actor type lands on after login. */
+export const PortalActorTypeHomePath: Record<PortalActorType, string> = {
+  [PortalActorType.Customer]: '/portal/customer',
+  [PortalActorType.RentalTenant]: '/portal/tenant',
+  [PortalActorType.PropertyOwner]: '/portal/owner',
+  [PortalActorType.Vendor]: '/portal/vendor',
+  [PortalActorType.CoworkingMember]: '/portal/member',
+}
+
+export interface PortalProfile {
+  id: string
+  email: string
+  actorType: PortalActorType
+  actorId: string
+  displayName: string
+  tenantId: string
+  tenantName: string
+}
+
+export interface PortalAuthResult {
+  accessToken: string
+  accessTokenExpiresAt: string
+  refreshToken: string
+  profile: PortalProfile
+}
+
+/** `GET /portal/customer/payments` — a customer's payments across every one of their bookings. */
+export interface PortalBookingPaymentEntry {
+  bookingId: string
+  bookingNumber: string
+  payment: PaymentDto
+}
+
+/** `GET /portal/tenant/payments` — a tenant's rent payments across every one of their leases. */
+export interface PortalLeasePaymentEntry {
+  leaseId: string
+  leaseNumber: string
+  payment: RentPaymentDto
+}
+
+// --- Owner Portal ---
+
+export interface OwnerPropertyDto {
+  id: string
+  code: string
+  name: string
+  totalUnits: number
+  occupiedUnits: number
+  occupancyRate: number
+}
+
+export interface OwnerUnitDto {
+  id: string
+  unitNumber: string
+  status: PropertyUnitStatus
+  tenantName: string | null
+  marketRentRate: number | null
+}
+
+export interface OwnerPropertyDetailDto {
+  id: string
+  code: string
+  name: string
+  type: PropertyType
+  status: PropertyStatus
+  units: OwnerUnitDto[]
+}
