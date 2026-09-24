@@ -637,8 +637,33 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       with per-actor isolation, and the portal-accounts admin lifecycle (duplicate-invite rejection,
       deactivate blocks login, reactivate restores it) — all passing alongside the existing suite
       (196 total: 12 unit + 184 integration), zero regressions in the 182 pre-existing tests.
-- [x] Frontend: [PENDING — see below; independently verified after the implementing agent's handback
-      following this session's established pattern before this bullet is marked complete].
+- [x] Frontend: a separate External Portal auth surface (`usePortalAuthStore`, persisted under a
+      distinct localStorage key; `portalApiClient`, its own axios instance with its own 401-refresh-
+      then-retry interceptor calling `/portal/auth/refresh`) so a portal session and an internal ERP
+      staff session can coexist in different tabs without either token leaking into the other's
+      requests — mirrors, but never imports from, `useAuthStore`/`apiClient.ts`. A `PortalLayout`
+      shell distinct from the internal `AppShell` (sticky top bar + tab nav, mobile-responsive).
+      Customer, Tenant, and Owner portals fully built (dashboard, list/detail pages, documents,
+      notifications); Vendor and Coworking Member portals built leaner per scope; the Agent Portal
+      is a single tabbed page reusing the existing internal session/`apiClient` directly (no portal
+      auth), linked from the internal Sidebar. A shared `createPortalCommonApi` factory generates the
+      identical documents/notifications react-query hooks each of the five portal areas needs,
+      avoiding five-times duplication. Existing DTOs (`BookingDto`, `LeaseDto`, `PaymentDto`,
+      `DocumentDto`, `NotificationDto`, `PurchaseOrderDto`, `MembershipDto`, etc.) and UI primitives
+      are reused as-is; only portal-specific response shapes (login/profile, owner-report rows) are
+      newly declared in `types/api.ts`.
+      Independently verified after the implementing agent's handback: the agent's assigned worktree
+      turned out to be on a stale, unrelated branch missing Milestones 7–13 entirely, so its raw diff
+      could not be applied directly. The orchestrating session re-derived the exact additive diffs
+      for the three modified files (`App.tsx`, `Sidebar.tsx`, `types/api.ts` — confirmed line-by-line
+      that no pre-existing line was altered or removed) and applied them by hand onto the real
+      branch, then copied the ~40 fully new, self-contained portal/agent-portal files verbatim.
+      `npm run build` re-run independently on the real branch and confirmed to exit 0 with zero
+      TypeScript errors; grepped for stray string-literal status comparisons (none — every status
+      field reuses an existing numeric enum + label map) and for internal `apiClient`/`useAuthStore`
+      imports inside `/portal/*` pages (none, confirming the auth-surface separation held; the Agent
+      Portal's intentional use of the internal client was the only match). No backend files were
+      touched by the frontend work.
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
