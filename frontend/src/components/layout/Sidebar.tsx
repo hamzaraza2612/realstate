@@ -48,6 +48,7 @@ import {
   CheckSquare,
   BarChart3,
   Briefcase,
+  Repeat,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -123,11 +124,16 @@ const navItems: NavItem[] = [
   { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'roles.view' },
   { to: '/organization', label: 'Organization', icon: Building2, permission: 'organizations.view' },
   { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList, permission: 'audit_logs.view' },
+  { to: '/billing', label: 'Billing', icon: CreditCard, permission: 'subscription.view' },
 ]
 
 const platformNavItems: NavItem[] = [
+  { to: '/platform/dashboard', label: 'SaaS Dashboard', icon: LayoutDashboard, superAdminOnly: true },
   { to: '/platform/organizations', label: 'Organizations', icon: Landmark, superAdminOnly: true },
   { to: '/platform/subscription-plans', label: 'Subscription Plans', icon: CreditCard, superAdminOnly: true },
+  { to: '/platform/subscriptions', label: 'Subscriptions', icon: Repeat, superAdminOnly: true },
+  { to: '/platform/invoices', label: 'Billing / Invoices', icon: Receipt, superAdminOnly: true },
+  { to: '/platform/audit-logs', label: 'Platform Audit', icon: ClipboardList, superAdminOnly: true },
 ]
 
 export function Sidebar() {

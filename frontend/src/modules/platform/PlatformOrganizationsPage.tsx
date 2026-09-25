@@ -1,5 +1,6 @@
 import { MoreHorizontal, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,6 +28,7 @@ const statusVariant: Record<TenantStatus, 'success' | 'secondary' | 'destructive
 }
 
 export function PlatformOrganizationsPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
@@ -92,14 +94,18 @@ export function PlatformOrganizationsPage() {
             </TableHeader>
             <TableBody>
               {data.items.map((org) => (
-                <TableRow key={org.id}>
+                <TableRow
+                  key={org.id}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/platform/organizations/${org.id}`)}
+                >
                   <TableCell className="font-medium">{org.name}</TableCell>
                   <TableCell className="text-muted-foreground">{org.slug}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[org.status]}>{TenantStatusLabel[org.status]}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(org.createdAt)}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -107,6 +113,9 @@ export function PlatformOrganizationsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/platform/organizations/${org.id}`)}>
+                          View details
+                        </DropdownMenuItem>
                         {org.status !== TenantStatus.Active && (
                           <DropdownMenuItem onClick={() => handleStatusChange(org.id, TenantStatus.Active)}>
                             Activate

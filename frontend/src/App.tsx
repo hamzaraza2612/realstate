@@ -54,7 +54,13 @@ import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
 import { AuditLogPage } from '@/modules/audit/AuditLogPage'
 import { PlatformOrganizationsPage } from '@/modules/platform/PlatformOrganizationsPage'
+import { PlatformOrganizationDetailPage } from '@/modules/platform/PlatformOrganizationDetailPage'
 import { PlatformSubscriptionPlansPage } from '@/modules/platform/PlatformSubscriptionPlansPage'
+import { PlatformSaaSDashboardPage } from '@/modules/platform/PlatformSaaSDashboardPage'
+import { PlatformSubscriptionsPage } from '@/modules/platform/PlatformSubscriptionsPage'
+import { PlatformInvoicesPage } from '@/modules/platform/PlatformInvoicesPage'
+import { PlatformAuditLogsPage } from '@/modules/platform/PlatformAuditLogsPage'
+import { BillingPage } from '@/modules/billing/BillingPage'
 import { FacilityDashboardPage } from '@/modules/facility/dashboard/FacilityDashboardPage'
 import { FacilitiesPage } from '@/modules/facility/facilities/FacilitiesPage'
 import { SpacesPage } from '@/modules/facility/spaces/SpacesPage'
@@ -803,6 +809,22 @@ export default function App() {
         <Route path="notifications/preferences" element={<NotificationPreferencesPage />} />
         <Route path="approvals" element={<ApprovalInboxPage />} />
         <Route
+          path="billing"
+          element={
+            <PermissionRoute permission="subscription.view">
+              <BillingPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="platform/dashboard"
+          element={
+            <SuperAdminRoute>
+              <PlatformSaaSDashboardPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
           path="platform/organizations"
           element={
             <SuperAdminRoute>
@@ -811,10 +833,42 @@ export default function App() {
           }
         />
         <Route
+          path="platform/organizations/:id"
+          element={
+            <SuperAdminRoute>
+              <PlatformOrganizationDetailPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
           path="platform/subscription-plans"
           element={
             <SuperAdminRoute>
               <PlatformSubscriptionPlansPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="platform/subscriptions"
+          element={
+            <SuperAdminRoute>
+              <PlatformSubscriptionsPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="platform/invoices"
+          element={
+            <SuperAdminRoute>
+              <PlatformInvoicesPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="platform/audit-logs"
+          element={
+            <SuperAdminRoute>
+              <PlatformAuditLogsPage />
             </SuperAdminRoute>
           }
         />

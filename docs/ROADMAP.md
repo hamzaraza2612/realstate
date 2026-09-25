@@ -741,8 +741,36 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       email-sender default, and the background job's trial-expiry transition plus its own
       re-run-is-a-no-op idempotency (with an audit-trail check) — all passing alongside the existing
       suite (238 total: 40 unit + 198 integration), zero regressions in the 196 pre-existing tests.
-- [x] Frontend: [PENDING — see below; independently verified after the implementing agent's handback
-      before this bullet is marked complete].
+- [x] Frontend: a SaaS control-plane admin area under `/platform/*` — a SaaS Dashboard (KPIs
+      aggregated client-side from the subscriptions/organizations/invoices lists, since no dedicated
+      dashboard endpoint exists by design), a Tenant Detail page (`/platform/organizations/:id`, new)
+      with Subscription/Usage/Entitlements tabs — the practical home for per-tenant usage and
+      entitlement management, since the backend only exposes those per-tenant, not as a cross-tenant
+      aggregate — a rewritten Plans page/form (the full Feature/Limit entitlement checklist replacing
+      the old `userLimit`/`projectLimit`/`storageLimitMb`/`features` shape end to end, with zero
+      stale references left anywhere), a cross-tenant Subscriptions page (with a transition dialog
+      offering only the currently-valid next statuses), a Billing/Invoices page (generate + record
+      payment, with a fresh client-generated idempotency key per attempt), and a Platform Audit page
+      (a two-line wrapper around the existing, already-reusable `AuditLogTable` component). A new
+      tenant-facing `/billing` page (plan/status/trial card, usage, enabled features, invoices,
+      payment history — no self-service plan change, per this milestone's own scope boundary) is
+      reachable from the internal Sidebar for any role holding `subscription.view` (every
+      "Organization Owner"/"Organization Admin" automatically). A new `formatCurrency` helper
+      (`Intl.NumberFormat` keyed off each record's own `currency` field) replaces the reports
+      module's hardcoded `$`-only formatter everywhere in the new billing UI.
+      Independently verified after the implementing agent's handback: the agent correctly detected
+      its assigned worktree was on a stale, unrelated commit (the same failure mode as the prior
+      milestone) and fixed it itself — safely resetting only its own dedicated worktree branch to
+      the correct commit before writing any code, exactly as instructed, rather than reconstructing
+      anything by hand. Its diff applied cleanly onto the real branch (`git apply --check` passed
+      with zero conflicts, since it started from the correct base). `npm run build` re-run
+      independently and confirmed to exit 0 with zero TypeScript errors; grepped for the old
+      `SubscriptionPlanDto` field names and for stray string-literal status comparisons (zero
+      matches for either); every new route cross-checked against `App.tsx` (no dead links, no
+      collision with the new `/platform/organizations/:id` route); confirmed the tenant-facing
+      billing module correctly imports the internal `apiClient`/`useAuthStore` (not the Milestone 13
+      portal ones) since it serves internal ERP tenant admins, not external portal users. No backend
+      files, and no Milestone 13 portal files, were touched by the frontend work.
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each

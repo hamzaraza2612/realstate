@@ -100,16 +100,229 @@ export interface AuditLogDto {
   createdAt: string
 }
 
+// --- SaaS Control Plane & Billing (Milestone 14) ---
+// See docs/SAAS_BILLING.md for the full architecture (entitlement resolution order,
+// Tenant.Status<->Subscription.Status mapping, enforced limits/feature gates).
+
+export const BillingCycle = {
+  Monthly: 0,
+  Yearly: 1,
+} as const
+export type BillingCycle = (typeof BillingCycle)[keyof typeof BillingCycle]
+
+export const BillingCycleLabel: Record<BillingCycle, string> = {
+  [BillingCycle.Monthly]: 'Monthly',
+  [BillingCycle.Yearly]: 'Yearly',
+}
+
+export const EntitlementType = {
+  Feature: 0,
+  Limit: 1,
+} as const
+export type EntitlementType = (typeof EntitlementType)[keyof typeof EntitlementType]
+
+export const EntitlementTypeLabel: Record<EntitlementType, string> = {
+  [EntitlementType.Feature]: 'Feature',
+  [EntitlementType.Limit]: 'Limit',
+}
+
+export interface PlanEntitlementDto {
+  code: string
+  type: EntitlementType
+  boolValue: boolean | null
+  numericValue: number | null
+}
+
 export interface SubscriptionPlanDto {
   id: string
   name: string
-  price: number
-  billingCycle: number
-  userLimit: number
-  projectLimit: number
-  storageLimitMb: number
+  code: string
+  description: string | null
+  displayOrder: number
   isActive: boolean
-  features: string[]
+  trialDays: number
+  currency: string
+  price: number
+  setupPrice: number | null
+  billingCycle: BillingCycle
+  metadataJson: string | null
+  entitlements: PlanEntitlementDto[]
+}
+
+export const SubscriptionStatus = {
+  Trialing: 0,
+  Active: 1,
+  PastDue: 2,
+  Paused: 3,
+  Cancelled: 4,
+  Expired: 5,
+} as const
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus]
+
+export const SubscriptionStatusLabel: Record<SubscriptionStatus, string> = {
+  [SubscriptionStatus.Trialing]: 'Trialing',
+  [SubscriptionStatus.Active]: 'Active',
+  [SubscriptionStatus.PastDue]: 'Past Due',
+  [SubscriptionStatus.Paused]: 'Paused',
+  [SubscriptionStatus.Cancelled]: 'Cancelled',
+  [SubscriptionStatus.Expired]: 'Expired',
+}
+
+/** `SubscriptionStatusRules.CanTransition` mirrored client-side purely as a UI convenience so we
+ * never render a transition button that would 400 — the backend remains the actual enforcement. */
+export const SubscriptionValidTransitions: Record<SubscriptionStatus, SubscriptionStatus[]> = {
+  [SubscriptionStatus.Trialing]: [SubscriptionStatus.Active, SubscriptionStatus.Expired, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.Active]: [SubscriptionStatus.PastDue, SubscriptionStatus.Paused, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.PastDue]: [SubscriptionStatus.Active, SubscriptionStatus.Cancelled, SubscriptionStatus.Expired],
+  [SubscriptionStatus.Paused]: [SubscriptionStatus.Active, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.Cancelled]: [SubscriptionStatus.Expired],
+  [SubscriptionStatus.Expired]: [],
+}
+
+export interface SubscriptionDto {
+  id: string
+  tenantId: string
+  tenantName: string
+  planId: string
+  planName: string
+  planCode: string
+  status: SubscriptionStatus
+  trialStartsAt: string | null
+  trialEndsAt: string | null
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  cancelledAt: string | null
+  currency: string
+  priceSnapshot: number
+  billingCycle: BillingCycle
+  createdAt: string
+}
+
+export const UsageState = {
+  Normal: 0,
+  Approaching: 1,
+  AtLimit: 2,
+} as const
+export type UsageState = (typeof UsageState)[keyof typeof UsageState]
+
+export const UsageStateLabel: Record<UsageState, string> = {
+  [UsageState.Normal]: 'Normal',
+  [UsageState.Approaching]: 'Approaching',
+  [UsageState.AtLimit]: 'At Limit',
+}
+
+export interface UsageMetricDto {
+  code: string
+  label: string
+  current: number
+  limit: number | null
+  state: UsageState
+}
+
+export interface TenantUsageDto {
+  users: number
+  properties: number
+  projects: number
+  portalUsers: number
+  activeLeases: number
+  storageBytes: number
+  metrics: UsageMetricDto[]
+}
+
+export interface TenantEntitlementDto {
+  code: string
+  type: EntitlementType
+  enabled: boolean
+  limit: number | null
+}
+
+export interface TenantEntitlementOverrideDto {
+  id: string
+  tenantId: string
+  code: string
+  boolValue: boolean | null
+  numericValue: number | null
+}
+
+export interface TenantEntitlementsDto {
+  effective: TenantEntitlementDto[]
+  overrides: TenantEntitlementOverrideDto[]
+}
+
+export const InvoiceStatus = {
+  Draft: 0,
+  Issued: 1,
+  Paid: 2,
+  Void: 3,
+  Overdue: 4,
+} as const
+export type InvoiceStatus = (typeof InvoiceStatus)[keyof typeof InvoiceStatus]
+
+export const InvoiceStatusLabel: Record<InvoiceStatus, string> = {
+  [InvoiceStatus.Draft]: 'Draft',
+  [InvoiceStatus.Issued]: 'Issued',
+  [InvoiceStatus.Paid]: 'Paid',
+  [InvoiceStatus.Void]: 'Void',
+  [InvoiceStatus.Overdue]: 'Overdue',
+}
+
+export interface InvoiceLineItemDto {
+  id: string
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+export interface InvoiceDto {
+  id: string
+  tenantId: string
+  tenantName: string
+  subscriptionId: string
+  invoiceNumber: string
+  periodStart: string
+  periodEnd: string
+  subtotal: number
+  taxAmount: number
+  total: number
+  currency: string
+  status: InvoiceStatus
+  issuedDate: string | null
+  dueDate: string | null
+  paidDate: string | null
+  externalProviderReference: string | null
+  lineItems: InvoiceLineItemDto[]
+  createdAt: string
+}
+
+export const BillingPaymentStatus = {
+  Pending: 0,
+  Succeeded: 1,
+  Failed: 2,
+  Refunded: 3,
+} as const
+export type BillingPaymentStatus = (typeof BillingPaymentStatus)[keyof typeof BillingPaymentStatus]
+
+export const BillingPaymentStatusLabel: Record<BillingPaymentStatus, string> = {
+  [BillingPaymentStatus.Pending]: 'Pending',
+  [BillingPaymentStatus.Succeeded]: 'Succeeded',
+  [BillingPaymentStatus.Failed]: 'Failed',
+  [BillingPaymentStatus.Refunded]: 'Refunded',
+}
+
+export interface BillingPaymentDto {
+  id: string
+  tenantId: string
+  invoiceId: string
+  amount: number
+  currency: string
+  status: BillingPaymentStatus
+  paymentDate: string
+  provider: string | null
+  providerTransactionId: string | null
+  failureReason: string | null
+  createdAt: string
 }
 
 // --- CRM ---
