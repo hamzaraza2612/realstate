@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Authorization;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Reporting.Finance;
 using RealEstateErp.Shared.Security;
@@ -11,6 +12,7 @@ namespace RealEstateErp.Api.Controllers.Reports;
 /// Sheet/P&amp;L/Cash Flow remain at their existing /finance/reports/* routes — not duplicated here.</summary>
 [Authorize]
 [RequirePermission(Permissions.Reports.View)]
+[RequireEntitlement(EntitlementCodes.AdvancedReporting)]
 [Route("api/v1/reports/finance")]
 public class FinanceReportsExtController : ApiControllerBase
 {

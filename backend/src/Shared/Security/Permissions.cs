@@ -152,6 +152,17 @@ public static class Permissions
         public const string ManageAccounts = "portal.manage_accounts";
     }
 
+    /// <summary>Tenant-facing read access to the tenant's own subscription/usage/entitlements/
+    /// invoices/payment history (Milestone 14) — one tenant-wide permission, same "one permission
+    /// spans a cross-cutting foundation" precedent as Documents.View/Reports.View/Portal.ManageAccounts.
+    /// Never grants access to another tenant's data, and never grants platform-admin actions (those
+    /// are gated by the separate SuperAdminOnly policy, not by any permission code) — see
+    /// docs/SAAS_BILLING.md.</summary>
+    public static class Subscription
+    {
+        public const string View = "subscription.view";
+    }
+
     /// <summary>All permission codes declared above, discovered via reflection for seeding.</summary>
     public static IReadOnlyList<string> All { get; } = DiscoverAll();
 

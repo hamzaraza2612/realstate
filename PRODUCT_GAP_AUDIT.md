@@ -17,7 +17,7 @@ It is **not yet commercially launch-ready**, for three independent reasons, each
 
 1. **Three compounding, confirmed bugs in role/login handling**, found while writing a single regression test for the first: (a) `AuthService.BuildAuthResultAsync` resolved a login's permissions by matching custom role names across **all tenants** (`IgnoreQueryFilters()` with no `TenantId` re-check) — a cross-tenant privilege leak; (b) a database-level global-unique index (`RoleNameIndex`, on `NormalizedName` alone) meant no two tenants could ever create a role with the same name in the first place, a real SaaS-usability blocker that had also been silently masking how exploitable (a) actually was; and (c) the deepest one — role resolution at login/refresh used `UserManager.GetRolesAsync`, which is itself subject to `AppRole`'s tenant query filter, and since login/refresh run **before** any tenant context exists (they're the endpoints that issue the JWT), that filter collapsed to "system roles only," meaning **any user assigned solely a custom tenant role got zero roles and zero permissions on every login and every refresh** — a plain functional break, invisible until now because every pre-existing test happened to use only seeded system roles (e.g. "Sales Agent"). **All three have been fixed and regression-tested in this milestone** (see §4, §6, §15).
 2. **Finance is transaction-capable but not accounting-complete**: ~~no accounts-payable clearing~~, no bank reconciliation, ~~no fiscal-period locking~~, no multi-currency, ~~no formal Balance Sheet/Cash Flow statements~~, no credit/debit notes, and revenue is recognized only on cash receipt. **Updated by Milestone 10**: AP clearing, fiscal-period close/reopen, journal reversal, and Balance Sheet/Profit & Loss/Cash Flow reports are now implemented and tested (see §5 and the Milestone 10 addendum below). Bank reconciliation, multi-currency, and credit/debit notes remain open — fine for recording money movements in a single currency; not yet sufficient for multi-currency operations or formal credit-note-based corrections.
-3. **SaaS commercial infrastructure is scaffolded, not functional**: ~~tenant `Status` (Trial/Suspended/Cancelled)~~ and plan limits exist as columns but are never enforced anywhere at runtime; there is no self-service signup, no platform billing/invoicing of tenants, no trial-expiry automation (Hangfire is wired but zero jobs are registered), and no email capability at all (no password reset, no notifications). **Updated by Milestone 10**: `TenantStatus` is now fully enforced — a Suspended/Cancelled tenant can no longer log in, refresh, or use an already-issued token against any protected API. Plan-limit enforcement, self-service signup, trial-expiry automation, platform billing, and email remain open.
+3. **SaaS commercial infrastructure is scaffolded, not functional**: ~~tenant `Status` (Trial/Suspended/Cancelled)~~ and plan limits exist as columns but are never enforced anywhere at runtime; there is no self-service signup, no platform billing/invoicing of tenants, no trial-expiry automation (Hangfire is wired but zero jobs are registered), and no email capability at all (no password reset, no notifications). **Updated by Milestone 10**: `TenantStatus` is now fully enforced — a Suspended/Cancelled tenant can no longer log in, refresh, or use an already-issued token against any protected API. **Updated by Milestone 14**: plan-limit/feature-entitlement enforcement, trial-expiry automation, and platform billing (invoices + payment recording) are all now real and tested — see §9 and `docs/SAAS_BILLING.md`. Self-service signup remains open (a later go-to-market milestone); a real payment gateway behind the new `IBillingPaymentProvider` seam remains open by design.
 
 None of these are architecture failures — they are scope gaps in modules that were deliberately deferred to later milestones per the existing `ROADMAP.md`. The recommended next milestone (§13) was **Security & Finance Hardening** — that milestone (10) is now complete; see the addendum after §15 for what it closed and what remains.
 
@@ -49,9 +49,9 @@ None of these are architecture failures — they are scope gaps in modules that 
 | Agency / Agent management | **PARTIAL** | Sales bookings carry a `SalesAgentUserId`, but agents are plain internal `AppUser`s with a role — no commission tracking, no agent performance report, no external agency/brokerage entity. |
 | Marketing / Campaigns | **PARTIAL** | `Lead.Source` exists; no Campaign entity, no spend tracking, no channel-attribution reporting. |
 | Maps / Geographic planning | **PARTIAL** | Lat/lng + optional GeoJSON fields exist on Project; frontend renders a dependency-free bounding-box scatter plot, deliberately not a real georeferenced basemap (documented as a known gap in `ARCHITECTURE.md`). |
-| SaaS administration | **PARTIAL** | Tenant entity, Super Admin platform controllers, org CRUD, status field all exist — but `TenantStatus` is never enforced at request time (see §4, §9). |
-| Subscription / Billing / Plans | **PARTIAL** | `SubscriptionPlan`/`PlanFeature`/`TenantFeatureEntitlement` domain exists as a catalog; no platform invoicing, no payment-gateway integration, no enforcement of `UserLimit`/`ProjectLimit`/`StorageLimitMb` anywhere in code. |
-| Usage / Feature entitlements | **PARTIAL** | `TenantFeatureEntitlement` table exists; nothing reads it to gate any feature/module at runtime. |
+| SaaS administration | **IMPLEMENTED (Milestone 14)** | Tenant entity, Super Admin platform controllers, org CRUD, `TenantStatus` fully enforced (M10) and now driven by a real `Subscription` lifecycle (M14) — assign/transition/usage/entitlement-override endpoints all live under `PlatformOrganizationsController`/`PlatformSubscriptionsController`. See §9. |
+| Subscription / Billing / Plans | **IMPLEMENTED (Milestone 14)** | `SubscriptionPlan` (extended) + `Subscription` lifecycle + `Invoice`/`InvoiceLineItem`/`BillingPayment` all real and enforced. No real payment gateway behind `IBillingPaymentProvider` yet (deliberately deferred), no automated recurring billing run (invoice generation is a manual/admin-triggered action). |
+| Usage / Feature entitlements | **IMPLEMENTED (Milestone 14)** | `PlanEntitlement`/`TenantEntitlementOverride` replace the dead `TenantFeatureEntitlement` scaffolding; `ITenantEntitlementService` + `[RequireEntitlement]` actually gate `external_portals`/`advanced_reporting`/`facility` and enforce five numeric limits. Extending to further modules is a one-line change per controller. |
 | Support / Platform administration | **PARTIAL** | Super Admin cross-tenant org list/create/suspend exists; no support-ticket system, no impersonation/support-access mode, no platform-wide audit search UI beyond the raw `PlatformAuditLogsController` list. |
 
 **Should-defer items** (correctly not yet built, per spec's own instruction not to over-build): HR/Payroll, Owner/Investor management, Marketing/Campaigns depth, and a real GIS basemap are all reasonable to leave for a dedicated later milestone — none of the built modules depend on them.
@@ -60,7 +60,7 @@ None of these are architecture failures — they are scope gaps in modules that 
 
 ## 3. Missing Capabilities (summary list)
 
-~~Documents/attachments~~, a **real** transactional email provider (including password reset — the abstraction and a dev-safe logging default now exist, fixed in Milestone 11, but nothing sends actual mail yet — this is now the reason portal invite/reset emails are logged, not delivered, in production), ~~in-app notifications~~, ~~a generic approval-workflow engine~~, ~~any external-actor portal (customer/owner/tenant/member/vendor/agent)~~, HR/Payroll, Owner/Investor management, platform billing/invoicing of tenants, subscription lifecycle automation, ~~tenant-status enforcement~~, bank reconciliation, ~~fiscal period locking~~, multi-currency, credit/debit notes, ~~AP clearing~~, ~~cross-module reporting (profitability, aging, agent performance)~~, and a real charting layer on the already-present `recharts` dependency (partially addressed — see §12). (Struck-through items were fixed in Milestones 10–13; kept here, not deleted, so this list's history stays legible.)
+~~Documents/attachments~~, a **real** transactional email provider (a production `SmtpEmailSender` implementation now exists as of Milestone 14, registered behind the same `IEmailSender` interface — but no live deployment has actually configured/enabled it yet, which is an operational step, not further code), ~~in-app notifications~~, ~~a generic approval-workflow engine~~, ~~any external-actor portal (customer/owner/tenant/member/vendor/agent)~~, HR/Payroll, Owner/Investor management, ~~platform billing/invoicing of tenants~~, ~~subscription lifecycle automation~~, ~~tenant-status enforcement~~, bank reconciliation, ~~fiscal period locking~~, multi-currency (the SaaS billing layer itself is currency-agnostic as of Milestone 14 — real ERP-wide multi-currency for tenant business data remains open, scheduled for Milestone 15), credit/debit notes, ~~AP clearing~~, ~~cross-module reporting (profitability, aging, agent performance)~~, ~~SaaS plan/entitlement enforcement~~, a real payment gateway behind the new `IBillingPaymentProvider` seam (Stripe/UAE/GCC — deliberately deferred), and a real charting layer on the already-present `recharts` dependency (partially addressed — see §12). (Struck-through items were fixed in Milestones 10–14; kept here, not deleted, so this list's history stays legible.)
 
 ---
 
@@ -182,17 +182,18 @@ addendum below for verification performed.
 
 ## 9. SaaS Commercial Readiness
 
-The scaffolding is more built-out than a typical Milestone-8-stage product (a `Tenant` entity with `Trial/Active/Suspended/Cancelled` status and `TrialEndsAt`, a `SubscriptionPlan`/`PlanFeature`/`TenantFeatureEntitlement` catalog, `PlatformOrganizationsController` for Super Admin tenant management) — but **none of it is wired to actually govern anything**:
+**Built in Milestone 14.** A full control-plane/subscription/billing foundation now sits on top of
+the Milestone 10 tenant-status enforcement — full architecture in `docs/SAAS_BILLING.md`.
 
-- ~~`TenantStatus.Suspended`/`Cancelled` can be set via `POST /platform/organizations/{id}/status`, but no middleware, filter, or auth check anywhere blocks a suspended tenant's users from continuing to use the API normally.~~ **Fixed in Milestone 10**: login/refresh reject a Suspended/Cancelled tenant outright, and a new `TenantStatusMiddleware` blocks an already-issued token from any protected endpoint the moment its tenant is suspended — live-verified (401 on login, 403 on a previously-valid token, restored on reactivation).
-- `UserLimit`/`ProjectLimit`/`StorageLimitMb` on `SubscriptionPlan` are stored but never read by any user/project-creation code path.
-- `TenantFeatureEntitlement` rows can be created but nothing checks them before exposing a module/feature.
-- No `IHostedService`/background job exists anywhere (Hangfire is wired with zero jobs registered) — `TrialEndsAt` is never checked, so trials never expire automatically.
-- No self-service tenant signup — the only tenant-creation path is Super-Admin-driven via the Platform API.
-- No platform billing/invoicing of tenants for their own subscription (no Stripe/gateway integration, no Invoice entity at the platform level) — `SubscriptionPlan` is a catalog only.
-- ~~No transactional email capability at all~~ **Updated by Milestone 11**: `IEmailSender`/`ICommunicationService` now exist and are used by the Approvals foundation, but the only registered implementation (`LoggingEmailSender`) logs instead of sending — no real SMTP/SendGrid provider is wired in yet, so this still blocks password reset, welcome emails, and any tenant-suspension notice reaching an actual inbox.
-- `Tenant.Timezone` is stored and validated but never actually used to convert or display any date/time.
-- No currency/locale field anywhere; every frontend dashboard hardcodes `en-US`/`$`.
+- ~~`TenantStatus.Suspended`/`Cancelled` can be set via `POST /platform/organizations/{id}/status`, but no middleware, filter, or auth check anywhere blocks a suspended tenant's users from continuing to use the API normally.~~ **Fixed in Milestone 10**: login/refresh reject a Suspended/Cancelled tenant outright, and a new `TenantStatusMiddleware` blocks an already-issued token from any protected endpoint the moment its tenant is suspended — live-verified (401 on login, 403 on a previously-valid token, restored on reactivation). **Milestone 14 built the richer `Subscription` lifecycle on top without touching this middleware at all** — `Subscription.Status` transitions feed `Tenant.Status` one-directionally via a documented mapping; the two can never contradict each other.
+- ~~`UserLimit`/`ProjectLimit`/`StorageLimitMb` on `SubscriptionPlan` are stored but never read by any user/project-creation code path.~~ **Fixed in Milestone 14**: replaced by a generic `PlanEntitlement`/`TenantEntitlementOverride` numeric-limit mechanism, actually enforced at five creation paths (`max_users`, `max_properties`, `max_projects`, `max_portal_users`, `max_storage_mb`).
+- ~~`TenantFeatureEntitlement` rows can be created but nothing checks them before exposing a module/feature.~~ **Fixed in Milestone 14**: the unused `TenantFeatureEntitlement` table was replaced by `TenantEntitlementOverride`, and a new `[RequireEntitlement]` filter actually gates `external_portals`, `advanced_reporting`, and `facility` (a representative set — extending to more modules is a one-line-per-controller change, not new architecture).
+- ~~No `IHostedService`/background job exists anywhere (Hangfire is wired with zero jobs registered) — `TrialEndsAt` is never checked, so trials never expire automatically.~~ **Fixed in Milestone 14**: an hourly `SubscriptionLifecycleJob` — the first real Hangfire consumer — expires overdue trials, idempotently.
+- No self-service tenant signup — the only tenant-creation path is Super-Admin-driven via the Platform API. **Still open** — explicitly out of scope for Milestone 14 too (self-service signup is a Milestone 20/21 concern).
+- ~~No platform billing/invoicing of tenants for their own subscription (no Stripe/gateway integration, no Invoice entity at the platform level) — `SubscriptionPlan` is a catalog only.~~ **Partially fixed in Milestone 14**: `Invoice`/`InvoiceLineItem`/`BillingPayment` now exist, invoice generation and payment recording work end-to-end (manually triggered, no automated recurring billing run), and `IBillingPaymentProvider` is a real registered extension seam. **Still open**: no real payment gateway (Stripe/UAE/GCC) behind that seam — deliberately deferred, see `docs/SAAS_BILLING.md`.
+- ~~No transactional email capability at all~~ **Updated by Milestone 11, extended by Milestone 14**: `IEmailSender`/`ICommunicationService` exist; a production `SmtpEmailSender` (built-in `System.Net.Mail`, configurable via the `Smtp` section) now exists behind the same interface, registered only when `Smtp:Enabled=true`. **Still open**: no deployment has actually configured and enabled it yet — that's an operational/deployment step, not further code.
+- `Tenant.Timezone` is stored and validated but never actually used to convert or display any date/time. **Still open.**
+- No currency/locale field anywhere on the tenant itself; every frontend dashboard hardcodes `en-US`/`$`. **Partially addressed in Milestone 14**: `SubscriptionPlan`/`Subscription`/`Invoice`/`BillingPayment` all carry a real ISO 4217 `Currency` field (no USD assumption in the billing layer), but the wider ERP-data currency/locale gap (per-tenant display currency, date/number formatting) remains open — scheduled for Milestone 15 (UAE/GCC + Global Localization).
 - Production posture is otherwise genuinely solid: Serilog structured logging, a real `/health` endpoint, fail-closed CORS, environment-variable-driven secrets with no hardcoded defaults in `docker-compose.yml`, a documented Docker Compose deployment procedure, and correctly-scoped rate limiting.
 
 ---
@@ -248,7 +249,7 @@ read-only.
 **P0 — required before serious commercial launch** (data-integrity or trust-breaking if absent):
 - ~~Cross-tenant role/permission leak~~ — **fixed in Milestone 9.**
 - ~~Enforce `TenantStatus`~~ — **fixed in Milestone 10** (Suspended/Cancelled tenants are blocked at login, refresh, and every protected API call).
-- A **real** transactional email provider (minimum: password reset, tenant-suspension notice, portal invite/activation) behind the `IEmailSender` abstraction Milestone 11 added. **Abstraction done, portals built on top of it in Milestone 13, real provider still open** — without it, portal invite/reset links are logged, not delivered, which blocks real-world portal adoption even though the underlying login/reset mechanics are complete and tested.
+- ~~A **real** transactional email provider~~ — **fixed in Milestone 14**: `SmtpEmailSender` (built-in `System.Net.Mail`, configurable via the `Smtp` config section, `LoggingEmailSender` stays the safe default until `Smtp:Enabled=true` is explicitly set) is now registered behind `IEmailSender`. **Still open**: no live deployment has actually turned it on with real credentials yet — an operational/ops task, not code.
 - ~~AP clearing~~ — **fixed in Milestone 10** (vendor payments now reduce the AP balance via `ExpensePayment`).
 - ~~Fiscal-period closing~~ — **fixed in Milestone 10** (Closed periods reject backdated postings; opt-in, no behavior change for tenants that don't define one).
 - TLS documentation/reverse-proxy guidance for production deployment (even if termination stays external, it must be documented as a hard requirement, not assumed). **Still open.**
@@ -259,9 +260,8 @@ read-only.
 - Bank reconciliation and multi-bank-account support (`PaymentMethod` already captured, just not routed).
 - ~~Documents/attachments~~ — **fixed in Milestone 11.**
 - Confirmation dialogs on destructive status transitions (Cancel booking/membership/request) — cheap, mechanical, closes a real UX gap. (Milestone 11 added confirm-dialogs for its *own* new destructive actions — Approve/Reject in the Approval Inbox, document delete — but the pre-existing Sales/Coworking/Maintenance cancel-button gap this item originally referred to is still open.)
-- Subscription lifecycle automation (a single Hangfire recurring job checking `TrialEndsAt`) — the infrastructure to run it already exists and is unused.
+- ~~Subscription lifecycle automation~~ — **fixed in Milestone 14** (an hourly `SubscriptionLifecycleJob` — the first real Hangfire consumer — expires overdue trials idempotently).
 - Wire the two Facility/Mall status-change gaps (`FacilityEventService`, `TenantNoticeService`) into the existing `*StatusRules` pattern.
-- A real SMTP/SendGrid `IEmailSender` implementation — the interface and a dev-safe default exist as of Milestone 11; only a production provider is missing now.
 
 **P2 — valuable later:**
 - ~~Customer/Owner/Tenant/Member/Vendor/Agent portals~~ — **fixed in Milestone 13** (identity
@@ -271,7 +271,7 @@ read-only.
 - Credit/debit notes and a tax engine.
 - ~~Charting~~ — **fixed in Milestone 12** (`recharts` now used in the new `/reports/*` pages — trend/breakdown charts only, not on every report; the pre-existing per-module dashboards from Milestones 1–10 still don't use it, which remains open if wanted there too).
 - ~~Generic approval-workflow engine~~ — **fixed in Milestone 11** (Expense/PurchaseOrder/Booking integrated; extending to further modules is now a matter of registering another `IApprovalLinkedEntityHandler`, not new architecture).
-- Platform billing/invoicing of tenants (Stripe or equivalent) and self-service signup.
+- ~~Platform billing/invoicing of tenants~~ — **fixed in Milestone 14** (`Invoice`/`BillingPayment`, manually-triggered generation/recording, `IBillingPaymentProvider` extension seam). A real payment gateway (Stripe or a UAE/GCC equivalent) behind that seam, and self-service signup, remain open.
 - Optimistic-concurrency tokens across the domain model. **Partially addressed in Milestone 11** — `ApprovalRequest` now uses `xmin`; every other entity remains last-write-wins.
 - Unify or share a Finance-posting base to remove the four-times-duplicated posting logic (only urgent if a fifth posting need appears, or the `CountAsync()+1` entry-numbering race condition is observed in practice under real concurrent load).
 - WhatsApp/SMS/push notification providers — `CommunicationChannel` already names them; no adapter is implemented for any of the three.
@@ -285,21 +285,22 @@ read-only.
 
 ## 13. Recommended Next Milestone
 
-**Milestones 10 through 13** are now complete (see their addenda below). The most commonly
-requested "can the ERP tell me X" capability gap is closed, and the platform now has a working
-external-portal identity foundation with six portal experiences. What remains open per the P0/P1/P2
-roadmap above: a real SMTP/SendGrid `IEmailSender` provider (now blocking real-world portal
-adoption, not just password reset), TLS/reverse-proxy production deployment documentation, and bank
-reconciliation. A real email provider is the natural next small piece of work — it unlocks both
-portal invite/reset delivery and tenant-suspension notices in one implementation — followed by
-SaaS billing/subscription enforcement, which this session's task explicitly deferred out of
-Milestone 13.
+**Milestones 10 through 14** are now complete (see their addenda below). The most commonly
+requested "can the ERP tell me X" capability gap is closed, the platform has a working
+external-portal identity foundation with six portal experiences, and it now has a real,
+enforced SaaS control-plane/subscription/billing foundation (plans, entitlements, usage limits,
+subscription lifecycle, invoices, payment recording — see `docs/SAAS_BILLING.md`). What remains open
+per the P0/P1/P2 roadmap above: TLS/reverse-proxy production deployment documentation, bank
+reconciliation, actually turning on the now-implemented `SmtpEmailSender` in a real deployment, and
+a real payment gateway (Stripe or a UAE/GCC equivalent) behind the new `IBillingPaymentProvider`
+seam. Per this session's own explicit instruction, Milestone 15 (UAE/GCC + Global Localization)
+is next — not pulled forward into Milestone 14.
 
 ---
 
 ## 14. Explicitly Deferred Features
 
-HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campaign tracking (spend, channel attribution), a real georeferenced GIS basemap, platform support-ticket/impersonation tooling, and object storage beyond the local Docker volume already provisioned — all correctly out of scope for the current maturity stage and not blocking anything already built.
+HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campaign tracking (spend, channel attribution), a real georeferenced GIS basemap, platform support-ticket/impersonation tooling, and object storage beyond the local Docker volume already provisioned — all correctly out of scope for the current maturity stage and not blocking anything already built. Milestone 14 explicitly deferred, per its own scope boundary: Stripe/UAE/Saudi/GCC payment-gateway integration, real card processing of any kind, AI, mobile application, and full UAE/global localization — none of these are assumed or blocked by the SaaS control-plane foundation now in place; see `docs/SAAS_BILLING.md`.
 
 ---
 
@@ -320,7 +321,7 @@ HR/Payroll, Owner/Investor management as a distinct entity, deep Marketing/Campa
 | No shared `DataTable`/`Pagination`/`StatCard` frontend component | `frontend/src/modules/**/*Page.tsx`, dashboard pages | ~15-line pattern copy-pasted across 30+ files; will drift if left long enough | No — documented |
 | `recharts` installed, unused | `frontend/package.json` | Dead dependency until Reporting milestone wires it in | No — documented |
 | `documents.manage` is tenant-wide, not per-entity-type | `Shared/Security/Permissions.cs` (`Documents`), `Infrastructure/Services/Documents/DocumentService.cs` | A user who can manage documents on their own module's entities can also delete a document attached to any other entity type in the tenant | No — documented, acceptable foundation-scope tradeoff per Milestone 11's own instructions (avoid a per-entity-type permission mapping that would itself be "unmaintainable") |
-| `IEmailSender` has only a logging (non-sending) implementation | `Infrastructure/Services/Communication/LoggingEmailSender.cs` | No transactional email actually reaches an inbox — blocks password reset, and now blocks real-world delivery of portal invite/activation links (portals themselves were built on top of this in Milestone 13; the mechanics work, only delivery doesn't) | No — by design; a real provider remains the recommended next small piece of work |
+| `IEmailSender`'s default is still a logging (non-sending) implementation | `Infrastructure/Services/Communication/LoggingEmailSender.cs` / `SmtpEmailSender.cs` | A real `SmtpEmailSender` now exists (Milestone 14) and is used whenever `Smtp:Enabled=true`, but no live deployment has actually configured/enabled it yet, so email still doesn't reach a real inbox anywhere today | Partially — real implementation shipped in Milestone 14; enabling it in a live deployment is an ops task, not code |
 | WhatsApp/Sms/Push channels named but not implemented | `Domain/Communication/CommunicationLog.cs` (`CommunicationChannel`) | Requesting these channels always logs `Skipped` — silent no-op, not a failure, which is correct behavior but easy to forget is a no-op if a future caller assumes otherwise | No — explicitly out of scope for Milestone 11 per its own instructions |
 
 ---

@@ -115,8 +115,11 @@ the `SaveChanges` interceptor (diff-based).
   action executes.
 
 ## Background jobs
-Hangfire with PostgreSQL storage for: installment due reminders, overdue
-notices, lease-expiry notices, report generation, notification dispatch.
+Hangfire with PostgreSQL storage, provisioned since Milestone 1. First real recurring job as of
+Milestone 14: an hourly `SubscriptionLifecycleJob` (`Infrastructure/Jobs/`) expiring overdue trial
+subscriptions — idempotent, skipped under the "Testing" host environment. Installment due
+reminders, overdue notices, lease-expiry notices, and report generation remain natural future jobs,
+not yet implemented — see `docs/SAAS_BILLING.md` and `PRODUCT_GAP_AUDIT.md`.
 
 ## Infra layout
 ```

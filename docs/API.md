@@ -397,4 +397,50 @@ to the caller's own `UserId`:
 - `GET performance?from=&to=` — reuses `ISalesReportService.SalesByPeriodAsync` filtered to the
   caller's own agent id. No commission endpoint exists — the domain model has no commission data.
 
+## SaaS Control Plane & Billing (Milestone 14)
+
+Full architecture (entitlement resolution order, Tenant.Status↔Subscription.Status mapping, the
+five enforced limits, the three enforced feature gates) is in `docs/SAAS_BILLING.md`, not repeated
+here. Every entitlement/limit violation returns `{ title, status, code: "feature_not_entitled" |
+"limit_exceeded" }`.
+
+Platform admin (Super Admin only, `PlatformControllerBase`/`SuperAdminOnly` policy — same pattern as
+every pre-existing `/platform/*` route):
+- `GET /api/v1/platform/subscription-plans`, `GET /api/v1/platform/subscription-plans/{id}` —
+  now include `code`, `description`, `displayOrder`, `trialDays`, `currency`, `setupPrice`,
+  `metadataJson`, `entitlements: [{code, type, boolValue, numericValue}]`.
+- `POST /api/v1/platform/subscription-plans`, `PUT /api/v1/platform/subscription-plans/{id}` — body
+  includes `entitlements: [{code, boolValue?, numericValue?}]`; `400 code_taken` if the plan `code`
+  already exists.
+- `GET /api/v1/platform/organizations/{id}/subscription` — the tenant's current non-terminal
+  subscription, `404` if none.
+- `POST /api/v1/platform/organizations/{id}/subscription` body `{ planId, skipTrial }` — assigns a
+  plan and starts a subscription (Trialing unless `skipTrial` or the plan's `trialDays` is 0);
+  `400 already_subscribed` if the tenant already has a non-terminal subscription.
+- `GET /api/v1/platform/organizations/{id}/usage` — `TenantUsageDto` (counts + per-limit
+  Normal/Approaching/AtLimit metrics).
+- `GET /api/v1/platform/organizations/{id}/entitlements` — `{ effective: [...], overrides: [...] }`.
+- `PUT /api/v1/platform/organizations/{id}/entitlements` body `{ code, boolValue?, numericValue? }` —
+  upserts a `TenantEntitlementOverride`.
+- `DELETE /api/v1/platform/organizations/{id}/entitlements/{code}` — removes the override (falls
+  back to the plan's own value).
+- `GET /api/v1/platform/subscriptions` — cross-tenant subscription list.
+- `POST /api/v1/platform/subscriptions/{id}/transition` body `{ toStatus, reason? }` —
+  `400 invalid_transition` if `SubscriptionStatusRules.CanTransition` rejects it;
+  `400 concurrency_conflict` on a losing `xmin` race.
+- `GET /api/v1/platform/invoices?tenantId=&status=` (paged), `GET /api/v1/platform/invoices/{id}`.
+- `POST /api/v1/platform/invoices/generate` body `{ subscriptionId, taxAmount, lineItems?, dueInDays }`.
+- `GET /api/v1/platform/invoices/{id}/payments`.
+- `POST /api/v1/platform/invoices/{id}/payments` body `{ amount, paymentDate, providerTransactionId?, idempotencyKey }`
+  — idempotent on `idempotencyKey`; a repeat request returns the original payment, never a duplicate.
+
+Tenant-facing billing view (`subscription.view` permission — one tenant-wide permission, same
+precedent as `documents.view`/`reports.view`; every action reads the ambient tenant, no id
+parameter anywhere, so there is nothing for a caller to substitute for another tenant's):
+- `GET /api/v1/subscription` — the caller's own current subscription.
+- `GET /api/v1/subscription/usage` — the caller's own usage metrics.
+- `GET /api/v1/subscription/entitlements` — the caller's own effective entitlements.
+- `GET /api/v1/billing/invoices` (paged), `GET /api/v1/billing/invoices/{id}`.
+- `GET /api/v1/billing/payments` — the caller's own payment history.
+
 Further modules append their endpoint list here as they ship.

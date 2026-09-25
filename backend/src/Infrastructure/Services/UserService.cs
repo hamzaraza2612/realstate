@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Subscription;
 using RealEstateErp.Application.Users;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
@@ -16,13 +18,15 @@ public class UserService : IUserService
     private readonly UserManager<AppUser> _userManager;
     private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
+    private readonly ITenantEntitlementService _entitlements;
 
-    public UserService(AppDbContext db, UserManager<AppUser> userManager, ITenantContext tenantContext, IAuditLogger auditLogger)
+    public UserService(AppDbContext db, UserManager<AppUser> userManager, ITenantContext tenantContext, IAuditLogger auditLogger, ITenantEntitlementService entitlements)
     {
         _db = db;
         _userManager = userManager;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
+        _entitlements = entitlements;
     }
 
     public async Task<PagedResult<UserDto>> ListAsync(PagedRequest request, string? search, CancellationToken ct = default)
@@ -59,6 +63,19 @@ public class UserService : IUserService
         if (existing is not null)
         {
             return Result.Failure<UserDto>("A user with this email already exists.", "email_taken");
+        }
+
+        if (_tenantContext.TenantId is { } tenantId)
+        {
+            var limit = await _entitlements.GetLimitAsync(tenantId, EntitlementCodes.MaxUsers, ct);
+            if (limit.HasValue)
+            {
+                var currentUsers = await _db.Users.CountAsync(u => u.TenantId == tenantId, ct);
+                if (currentUsers >= limit.Value)
+                {
+                    return Result.Failure<UserDto>("This organization has reached its plan's user limit.", "limit_exceeded");
+                }
+            }
         }
 
         var user = new AppUser

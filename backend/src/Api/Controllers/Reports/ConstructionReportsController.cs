@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Authorization;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Reporting.Construction;
 using RealEstateErp.Domain.Construction;
@@ -10,6 +11,7 @@ namespace RealEstateErp.Api.Controllers.Reports;
 
 [Authorize]
 [RequirePermission(Permissions.Reports.View)]
+[RequireEntitlement(EntitlementCodes.AdvancedReporting)]
 [Route("api/v1/reports/construction")]
 public class ConstructionReportsController : ApiControllerBase
 {

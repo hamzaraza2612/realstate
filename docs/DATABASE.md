@@ -446,6 +446,79 @@ Applied and schema-verified against the dev database (`psql \d portal_users`,
 `\d portal_refresh_tokens`, `\d portal_password_reset_tokens`, `\d property_owners`, `\d properties`
 all confirm the expected columns/indexes/FK).
 
+## Milestone 14 schema — SaaS Control Plane & Billing
+
+One migration, `AddSaasControlPlane`. Full architectural rationale is in `docs/SAAS_BILLING.md`.
+
+**`subscription_plans`** (existing table, extended) — dropped `UserLimit`/`ProjectLimit`/
+`StorageLimitMb` (replaced by `plan_entitlements` rows) and the `plan_features` relationship;
+added `Code` (unique), `Description`, `DisplayOrder`, `TrialDays`, `Currency`, `SetupPrice`,
+`MetadataJson`. `plan_features`/`tenant_feature_entitlements` tables **dropped** — confirmed
+zero rows in any seeded/dev data before dropping (nothing in the codebase ever wrote to them).
+Indexes: `IX_subscription_plans_Code` (unique), `IX_subscription_plans_IsActive_DisplayOrder`.
+
+**`plan_entitlements`** — a plan's default grant per entitlement code.
+
+| Column | Notes |
+|---|---|
+| `SubscriptionPlanId` | FK → `subscription_plans`, `ON DELETE CASCADE` |
+| `Code` | e.g. `"external_portals"`, `"max_users"` — a compile-time catalog (`EntitlementCodes`), not a DB table |
+| `BoolValue`, `NumericValue` | exactly one meaningful per the code's type (Feature/Limit) |
+
+Index: `IX_plan_entitlements_SubscriptionPlanId_Code` (unique).
+
+**`tenant_entitlement_overrides`** — per-tenant override, same shape as `plan_entitlements` plus
+`TenantId`. Index: `IX_tenant_entitlement_overrides_TenantId_Code` (unique).
+
+**`subscriptions`** — one row per tenant subscription period.
+
+| Column | Notes |
+|---|---|
+| `PlanId` | not a DB foreign key (plans can be deactivated, never deleted, so no FK needed) |
+| `Status` | `SubscriptionStatus` enum (Trialing/Active/PastDue/Paused/Cancelled/Expired) |
+| `TrialStartsAt`/`TrialEndsAt`, `CurrentPeriodStart`/`CurrentPeriodEnd`, `CancelAtPeriodEnd`, `CancelledAt` | lifecycle timestamps |
+| `Currency`, `PriceSnapshot`, `BillingCycle` | snapshotted at subscribe/renew time, independent of the plan's current values |
+| `ExternalProvider`, `ExternalCustomerId`, `ExternalSubscriptionId` | nullable, unpopulated extension fields for a future payment provider |
+| `xmin` (Postgres system column) | optimistic-concurrency token via `IsRowVersion()` — same mechanism `ApprovalRequest` uses |
+
+Indexes: `IX_subscriptions_PlanId`, `IX_subscriptions_Status`, and
+`IX_subscriptions_TenantId_NonTerminal_Unique` — a **filtered partial-unique index** on `TenantId`
+`WHERE "Status" IN (0,1,2,3)` (Trialing/Active/PastDue/Paused), so a tenant can have at most one
+non-terminal subscription while `Cancelled`/`Expired` rows stay as unlimited history — the same
+filtered-partial-unique-index technique already used elsewhere in this schema to prevent
+overlapping leases/bookings.
+
+**`invoices`** / **`invoice_line_items`** — one invoice per billing period.
+
+| Column | Notes |
+|---|---|
+| `InvoiceNumber` | tenant-scoped format `INV-000001`, **not** globally unique — same convention as `BookingNumber`/`LeaseNumber` |
+| `SubscriptionId` | not a DB foreign key (same rationale as `subscriptions.PlanId`) |
+| `Subtotal`/`TaxAmount`/`Total`, `Currency`, `Status`, `IssuedDate`/`DueDate`/`PaidDate` | |
+| `ExternalProviderReference` | nullable, unpopulated extension field |
+
+Indexes: `IX_invoices_TenantId_InvoiceNumber` (unique, tenant-scoped — **not** a global unique
+index, per this milestone's explicit instruction to avoid that for tenant-owned identifiers),
+`IX_invoices_SubscriptionId`, `IX_invoices_TenantId_Status`, `IX_invoices_DueDate`.
+`invoice_line_items.InvoiceId` → `invoices.Id`, `ON DELETE CASCADE`.
+
+**`billing_payments`** — a recorded payment against an invoice.
+
+| Column | Notes |
+|---|---|
+| `InvoiceId` | not a DB foreign key |
+| `Amount`, `Currency`, `Status`, `PaymentDate` | |
+| `Provider` | `"manual"` for this milestone's only path (a platform admin recording a received payment) |
+| `ProviderTransactionId` | nullable extension field |
+| `IdempotencyKey` | unique per `(TenantId, IdempotencyKey)` — same pattern as `payments`/`rent_payments`/`facility_payments` |
+| `FailureReason` | nullable |
+
+Index: `IX_billing_payments_TenantId_IdempotencyKey` (unique), `IX_billing_payments_InvoiceId`.
+
+Applied and schema-verified against both the dev and integration-test databases (`psql \d
+subscriptions`, `\d invoices`, `\d billing_payments`, `\d plan_entitlements`,
+`\d tenant_entitlement_overrides` all confirm the expected columns/indexes).
+
 Later milestones extend this file per-module (
 Subscription) as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds

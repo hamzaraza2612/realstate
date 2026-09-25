@@ -72,7 +72,11 @@ using RealEstateErp.Application.Sales.Dashboard;
 using RealEstateErp.Application.Sales.PaymentPlans;
 using RealEstateErp.Application.Sales.Payments;
 using RealEstateErp.Application.Subscription;
+using RealEstateErp.Application.Billing;
 using RealEstateErp.Application.Users;
+using RealEstateErp.Infrastructure.Services.Subscription;
+using RealEstateErp.Infrastructure.Services.Billing;
+using RealEstateErp.Infrastructure.Jobs;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Infrastructure.Services;
@@ -127,6 +131,7 @@ public static class DependencyInjection
             .AddDefaultTokenProviders();
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, TenantContext>();
@@ -203,7 +208,16 @@ public static class DependencyInjection
         services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
-        services.AddScoped<IEmailSender, LoggingEmailSender>();
+        // LoggingEmailSender stays the default (and the only option any test process ever sees) unless
+        // Smtp:Enabled=true is explicitly configured — see docs/SAAS_BILLING.md.
+        if (configuration.GetValue<bool>($"{SmtpSettings.SectionName}:Enabled"))
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, LoggingEmailSender>();
+        }
         services.AddScoped<ICommunicationService, CommunicationService>();
         services.AddScoped<ICommunicationLogQueryService, CommunicationLogQueryService>();
         services.AddScoped<IApprovalService, ApprovalService>();
@@ -233,6 +247,14 @@ public static class DependencyInjection
         services.AddScoped<IPortalMemberService, PortalMemberService>();
         services.AddSingleton<IPortalPaymentIntentProvider, UnconfiguredPortalPaymentIntentProvider>();
         services.AddScoped<IAgentPortalService, AgentPortalService>();
+
+        services.AddScoped<ITenantEntitlementService, EntitlementService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<ITenantUsageService, TenantUsageService>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
+        services.AddScoped<IBillingPaymentService, BillingPaymentService>();
+        services.AddSingleton<IBillingPaymentProvider, UnconfiguredBillingPaymentProvider>();
+        services.AddScoped<SubscriptionLifecycleJob>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

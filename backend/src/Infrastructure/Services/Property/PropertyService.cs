@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Property.Properties;
+using RealEstateErp.Application.Subscription;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
@@ -12,11 +14,15 @@ public class PropertyService : IPropertyService
 {
     private readonly AppDbContext _db;
     private readonly IAuditLogger _auditLogger;
+    private readonly ITenantContext _tenantContext;
+    private readonly ITenantEntitlementService _entitlements;
 
-    public PropertyService(AppDbContext db, IAuditLogger auditLogger)
+    public PropertyService(AppDbContext db, IAuditLogger auditLogger, ITenantContext tenantContext, ITenantEntitlementService entitlements)
     {
         _db = db;
         _auditLogger = auditLogger;
+        _tenantContext = tenantContext;
+        _entitlements = entitlements;
     }
 
     public async Task<PagedResult<PropertyDto>> ListAsync(PagedRequest request, PropertyFilter filter, CancellationToken ct = default)
@@ -46,6 +52,19 @@ public class PropertyService : IPropertyService
     {
         var codeExists = await _db.Properties.AnyAsync(p => p.Code == request.Code, ct);
         if (codeExists) return Result.Failure<PropertyDto>("A property with this code already exists.", "duplicate_code");
+
+        if (_tenantContext.TenantId is { } tenantId)
+        {
+            var limit = await _entitlements.GetLimitAsync(tenantId, EntitlementCodes.MaxProperties, ct);
+            if (limit.HasValue)
+            {
+                var currentProperties = await _db.Properties.CountAsync(ct);
+                if (currentProperties >= limit.Value)
+                {
+                    return Result.Failure<PropertyDto>("This organization has reached its plan's property limit.", "limit_exceeded");
+                }
+            }
+        }
 
         var property = new PropertyEntity
         {

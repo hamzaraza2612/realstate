@@ -665,6 +665,85 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       Portal's intentional use of the internal client was the only match). No backend files were
       touched by the frontend work.
 
+## Milestone 14 — SaaS Control Plane + Subscription/Billing Foundation ✅
+- [x] Plan model: `SubscriptionPlan` extended (not rebuilt) with `Code`, `Description`,
+      `DisplayOrder`, `TrialDays`, `Currency` (ISO 4217 — never assumed to be USD, no
+      Pakistan-specific pricing anywhere), `SetupPrice`, `MetadataJson`. Pricing is entirely
+      data-driven; zero hardcoded plan-tier checks anywhere in the codebase.
+- [x] Entitlement model: a unified `PlanEntitlement`/`TenantEntitlementOverride` (boolean features +
+      nullable-long limits) replaces the pre-existing but completely unused `PlanFeature`/
+      `TenantFeatureEntitlement` scaffolding (confirmed zero readers anywhere before removing them).
+      `EntitlementCodes` is a compile-time catalog, the same pattern `Permissions.cs` already uses —
+      no new database catalog table. `ITenantEntitlementService` is the single resolution point
+      (override → plan → safe default); a tenant with no plan assigned is always fully unrestricted,
+      preserving all 196 pre-Milestone-14 tests with zero changes.
+- [x] Runtime enforcement — the audit's own "scaffolding exists but enforcement was incomplete"
+      finding is now closed: a new `[RequireEntitlement]` action filter (deliberately not an
+      authorization policy, since `PermissionPolicyProvider` already claims every dotted policy name)
+      gates `external_portals` (all five External Portal areas), `advanced_reporting` (all 8
+      Milestone 12 report controllers), and `facility` (the representative module-gating example);
+      five numeric limits (`max_users`, `max_properties`, `max_projects`, `max_portal_users`,
+      `max_storage_mb`) are enforced with an efficient `COUNT`/`SUM` check at each entity's own
+      creation path. Every violation returns a consistent `{title, status, code}` shape.
+- [x] Usage metering: `ITenantUsageService` answers usage/limit/approaching-limit with aggregate
+      queries only, no full-table scans — Normal/Approaching(≥80%)/AtLimit is a display hint, never
+      itself the enforcement boundary (the exact limit value is).
+- [x] Subscription lifecycle: a new `Subscription` aggregate (Trialing/Active/PastDue/Paused/
+      Cancelled/Expired), `SubscriptionStatusRules.CanTransition` as the single valid-transition
+      source of truth (same convention as `BookingStatusRules`), a filtered partial-unique index
+      guaranteeing at most one non-terminal subscription per tenant, and Postgres `xmin` optimistic
+      concurrency. `TenantStatus` (Milestone 10) remains the **sole** API-access gate — completely
+      unmodified — with `Subscription.Status` feeding into it one-directionally via a documented
+      mapping table (`SubscriptionService.MapToTenantStatus`); verified end-to-end by a test that
+      cancels a subscription and confirms the tenant's already-issued JWT is immediately rejected by
+      the pre-existing, untouched `TenantStatusMiddleware`.
+- [x] Background jobs: the first real Hangfire consumer since Hangfire/Redis were provisioned in
+      Milestone 9 with zero consumers — an hourly `SubscriptionLifecycleJob` expiring overdue trials,
+      idempotent (guarded by `CanTransition` + the `xmin` token) and skipped entirely under the
+      "Testing" host so it never runs against the test database mid-suite.
+- [x] Billing foundation: `Invoice`/`InvoiceLineItem` (tenant-scoped `InvoiceNumber`, same convention
+      as `BookingNumber`/`LeaseNumber` — never a global unique index for a tenant-owned identifier)
+      and `BillingPayment` (idempotency-key pattern copied from the three existing payment tables —
+      Sales `Payment`, Property `RentPayment`, Facility `FacilityPayment`). `IBillingPaymentProvider`
+      is a real, registered extension seam (`UnconfiguredBillingPaymentProvider`, mirrors Milestone
+      13's `IPortalPaymentIntentProvider`) for a future Stripe/UAE/GCC gateway — never called by
+      anything in this milestone, since recording a payment here means "a platform admin confirmed
+      one was already received," not "charge a card." No sensitive payment data of any kind is
+      accepted or persisted.
+- [x] Production email: `IEmailSender` gained one optional `isHtml` parameter (placed after the
+      existing `ct` parameter specifically so every existing positional call site keeps compiling
+      unchanged); a new `SmtpEmailSender` (built-in `System.Net.Mail`, no new dependency) is
+      registered only when `Smtp:Enabled=true` is explicitly configured — `LoggingEmailSender` stays
+      the default everywhere else, including every test (verified by a dedicated test resolving
+      `IEmailSender` and asserting its concrete type).
+- [x] SaaS admin surface: `PlatformSubscriptionsController` (list, transition) and
+      `PlatformInvoicesController` (generate, record payment) alongside extended
+      `PlatformOrganizationsController` (subscription/usage/entitlements sub-resources) and
+      `PlatformSubscriptionPlansController` (now with entitlements) — every one inheriting the
+      pre-existing `PlatformControllerBase`/`SuperAdminOnly` policy, zero new authorization
+      mechanism. Tenant-facing `SubscriptionController`/`BillingController` take no tenant/
+      subscription/invoice id anywhere — every action reads the ambient tenant, so there is nothing
+      for a caller to substitute for another tenant's data — gated by one new tenant-wide permission,
+      `subscription.view` (same "one permission spans a cross-cutting foundation" precedent as
+      `documents.view`/`reports.view`/`portal.manage_accounts`).
+- [x] Database: one migration, `AddSaasControlPlane` — `subscriptions`, `invoices`,
+      `invoice_line_items`, `billing_payments`, `plan_entitlements`, `tenant_entitlement_overrides`
+      (new tables), `subscription_plans` extended, `plan_features`/`tenant_feature_entitlements`
+      dropped (confirmed zero rows anywhere before dropping) — applied and schema-verified against
+      both the dev and test databases (see `docs/DATABASE.md`).
+- [x] Unit/integration tests: 28 new unit tests (`SubscriptionStatusRules`'s full transition matrix,
+      `EntitlementCodes`' catalog integrity) and 14 new integration tests covering plan/entitlement
+      CRUD, trial-then-active subscription assignment, double-assignment rejection, invalid-transition
+      rejection, cancellation driving `TenantStatus` and blocking further API access, feature-gate
+      enforcement (disabled vs. unrestricted-no-plan comparison), both limit-enforcement points
+      demonstrated end-to-end (`max_projects`, `max_users`), platform-admin isolation, cross-tenant
+      subscription/invoice isolation, payment idempotency with invoice auto-marked Paid, the
+      email-sender default, and the background job's trial-expiry transition plus its own
+      re-run-is-a-no-op idempotency (with an audit-trail check) — all passing alongside the existing
+      suite (238 total: 40 unit + 198 integration), zero regressions in the 196 pre-existing tests.
+- [x] Frontend: [PENDING — see below; independently verified after the implementing agent's handback
+      before this bullet is marked complete].
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

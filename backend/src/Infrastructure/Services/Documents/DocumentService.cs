@@ -3,8 +3,10 @@ using Microsoft.Extensions.Configuration;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Documents;
 using RealEstateErp.Application.Notifications;
+using RealEstateErp.Application.Subscription;
 using RealEstateErp.Domain.Documents;
 using RealEstateErp.Domain.Notifications;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
@@ -18,17 +20,20 @@ public class DocumentService : IDocumentService
     private readonly IAuditLogger _auditLogger;
     private readonly IFileStorageService _storage;
     private readonly INotificationService _notificationService;
+    private readonly ITenantEntitlementService _entitlements;
     private readonly long _maxFileSizeBytes;
     private readonly HashSet<string> _allowedContentTypes;
 
     public DocumentService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger,
-        IFileStorageService storage, INotificationService notificationService, IConfiguration configuration)
+        IFileStorageService storage, INotificationService notificationService, IConfiguration configuration,
+        ITenantEntitlementService entitlements)
     {
         _db = db;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
         _storage = storage;
         _notificationService = notificationService;
+        _entitlements = entitlements;
         _maxFileSizeBytes = configuration.GetValue("Storage:MaxFileSizeMb", 25) * 1024L * 1024L;
         _allowedContentTypes = configuration.GetSection("Storage:AllowedContentTypes").Get<string[]>()?.ToHashSet()
             ?? new HashSet<string> { "application/pdf" };
@@ -80,6 +85,20 @@ public class DocumentService : IDocumentService
 
         var validation = await ValidateFileAsync(fileContent, contentType, sizeBytes, ct);
         if (validation is not null) return Result.Failure<DocumentDto>(validation.Value.Message, validation.Value.Code);
+
+        if (_tenantContext.TenantId is { } tenantId)
+        {
+            var storageLimitMb = await _entitlements.GetLimitAsync(tenantId, EntitlementCodes.MaxStorageMb, ct);
+            if (storageLimitMb.HasValue)
+            {
+                var currentBytes = await _db.DocumentVersions.SumAsync(v => (long?)v.SizeBytes, ct) ?? 0;
+                var storageLimitBytes = storageLimitMb.Value * 1024L * 1024L;
+                if (currentBytes + sizeBytes > storageLimitBytes)
+                {
+                    return Result.Failure<DocumentDto>("This organization has reached its plan's storage limit.", "limit_exceeded");
+                }
+            }
+        }
 
         var stored = await _storage.SaveAsync(fileContent, _tenantContext.TenantId ?? Guid.Empty, ct);
 

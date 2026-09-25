@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using RealEstateErp.Api.Authorization;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Domain.Subscription;
 
 namespace RealEstateErp.Api.Controllers.Portal;
 
@@ -10,7 +12,12 @@ namespace RealEstateErp.Api.Controllers.Portal;
 /// token is a valid portal token, but PortalContext.ActorType will be "Vendor", not "Customer" — a
 /// PortalUser only ever has one ActorType by construction, but this makes it impossible for a future
 /// routing mistake to rely on that alone).
+///
+/// [RequireEntitlement(ExternalPortals)] (Milestone 14) gates the whole External Portal area behind
+/// one plan feature — a tenant on a plan that doesn't include portals gets every /portal/* endpoint
+/// rejected with a consistent 403, without a single line changed in any derived controller.
 /// </summary>
+[RequireEntitlement(EntitlementCodes.ExternalPortals)]
 public abstract class PortalControllerBase : ApiControllerBase
 {
     private readonly IPortalContext _portalContext;
