@@ -519,7 +519,85 @@ Applied and schema-verified against both the dev and integration-test databases 
 subscriptions`, `\d invoices`, `\d billing_payments`, `\d plan_entitlements`,
 `\d tenant_entitlement_overrides` all confirm the expected columns/indexes).
 
-Later milestones extend this file per-module (
-Subscription) as they land — each new module's tables and
-relationships are appended here in the same milestone's PR/commit that adds
-the migration.
+## Milestone 15 schema — Localization & Tax Engine Foundation
+
+One migration, `AddSaasLocalizationTaxFoundation`. Full architectural rationale is in
+`docs/LOCALIZATION.md`, `docs/TAX_ENGINE.md`, and `docs/COUNTRY_PACKS.md`.
+
+**`tenants`** (existing table, extended) — 8 new columns for the tenant's localization profile:
+`CountryCode` (varchar(2)), `Currency` (varchar(3)), `Locale` (varchar(20)), `DateFormat`
+(varchar(20)), `FirstDayOfWeek` (int), `DefaultLanguage` (varchar(10)), `SecondaryLanguages`
+(nullable varchar(100)), `MeasurementSystem` (int). All non-nullable columns were given explicit
+`DEFAULT` values matching `Tenant`'s own C# property initializers (`'US'`/`'USD'`/`'en-US'`/
+`'MM/dd/yyyy'`/`'en'`/`1` for Imperial) in the migration's `Up()` — not EF's usual empty-string/zero
+scaffold default — specifically so every pre-Milestone-15 tenant row gets a sensible, non-blank
+localization profile rather than empty strings after this migration runs. `Timezone` (Milestone 10)
+was **not** duplicated — it's reused as-is as part of the same profile.
+
+**`leases`** (existing table, extended) — 4 new nullable columns for the rental-registry
+integration seam (see `docs/COUNTRY_PACKS.md`): `ExternalRegistryProvider` (varchar(40)),
+`ExternalContractReference` (varchar(100)), `ExternalRegistrationStatus` (varchar(40)),
+`ExternalLastSyncedAt` (timestamptz). Unpopulated by any code this milestone.
+
+**`invoices`** (existing table, extended) — 5 new nullable columns for the tax snapshot (see
+`docs/TAX_ENGINE.md`): `TaxRateId` (uuid, not a DB foreign key — kept for traceability only, never
+re-read to recompute), `TaxCode` (varchar(40)), `TaxName` (varchar(200)), `TaxPercentage`
+(numeric(6,3)), `TaxInclusive` (bool, non-nullable, defaults `false`).
+
+**`tax_profiles`** — the global, platform-managed tax-scheme catalog.
+
+| Column | Notes |
+|---|---|
+| `CountryCode` | varchar(2) — not a DB foreign key (`CountryCatalog` is compile-time) |
+| `Code` | unique, e.g. `"AE_VAT"` — globally unique by design (platform-wide reference data, not tenant-owned) |
+| `Name`, `Description`, `IsActive` | |
+
+Indexes: `IX_tax_profiles_Code` (unique), `IX_tax_profiles_CountryCode`.
+
+**`tax_rates`** — versioned rates under a profile.
+
+| Column | Notes |
+|---|---|
+| `TaxProfileId` | FK → `tax_profiles`, `ON DELETE CASCADE` |
+| `RateCode`, `Name`, `Percentage` (numeric(6,3)), `IsInclusive` | |
+| `EffectiveFrom`, `EffectiveTo` (nullable), `IsActive` | historical versioning — never mutate a rate's meaning in place for a past period, add a new row and close the old one out instead |
+
+Indexes: `IX_tax_rates_TaxProfileId_RateCode`, `IX_tax_rates_TaxProfileId_EffectiveFrom`.
+
+**`exchange_rates`** — the manual FX-rate seam, platform-wide (not tenant-owned — a rate is a fact
+about the world). `BaseCurrency`/`QuoteCurrency` (varchar(3)), `Rate` (numeric(18,8) — high
+precision, since FX rates need more than 2 decimal places), `EffectiveAt` (timestamptz), `Source`
+(varchar(50), always `"manual"` this milestone), `IsActive`. Index:
+`IX_exchange_rates_BaseCurrency_QuoteCurrency_EffectiveAt` (not unique — multiple historical rates
+for the same pair are expected; the service picks the most recent as-of a given date).
+
+**`tenant_tax_profiles`** — one row per tenant, its tax registration/legal-entity details.
+
+| Column | Notes |
+|---|---|
+| `TaxProfileId` | FK → `tax_profiles`, `ON DELETE SET NULL` (nullable — a tenant may have no profile selected yet) |
+| `TaxRegistrationNumber` | generic (represents a UAE TRN, Saudi VAT number, etc. — meaning determined by the linked profile's country) |
+| `LegalEntityName`, `LegalAddressLine1/2`, `LegalCity`, `LegalStateOrProvince`, `LegalPostalCode`, `LegalCountryCode` | |
+
+Index: `IX_tenant_tax_profiles_TenantId` (unique — one row per tenant).
+
+**`einvoice_submissions`** — the eInvoice submission audit trail (see `docs/TAX_ENGINE.md`).
+
+| Column | Notes |
+|---|---|
+| `InvoiceId` | not a DB foreign key (same rationale as `invoices.SubscriptionId` in Milestone 14) |
+| `DocumentType` | Invoice/CreditNote/DebitNote enum |
+| `Status` | Pending/Submitted/Accepted/Rejected/Failed/Retrying enum |
+| `Provider` | always `"unconfigured"` this milestone — see `UnconfiguredEInvoiceProvider` |
+| `ExternalReference`, `ProviderResponseJson`, `ErrorDetails`, `RetryCount` | |
+| `SubmittedAt`, `LastAttemptAt` | |
+
+Indexes: `IX_einvoice_submissions_InvoiceId`, `IX_einvoice_submissions_TenantId_Status`.
+
+Applied and schema-verified against both the dev and integration-test databases (`psql \d tenants`,
+`\d tax_profiles`, `\d tax_rates`, `\d exchange_rates`, `\d tenant_tax_profiles`,
+`\d einvoice_submissions`, `\d leases`, `\d invoices` all confirm the expected columns/indexes/FKs
+and the corrected, non-blank default values on `tenants`' new columns).
+
+Later milestones extend this file per-module as they land — each new module's tables and
+relationships are appended here in the same milestone's PR/commit that adds the migration.

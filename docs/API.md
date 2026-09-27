@@ -443,4 +443,45 @@ parameter anywhere, so there is nothing for a caller to substitute for another t
 - `GET /api/v1/billing/invoices` (paged), `GET /api/v1/billing/invoices/{id}`.
 - `GET /api/v1/billing/payments` — the caller's own payment history.
 
+## Localization, Tax Engine & Exchange Rates (Milestone 15)
+
+Full architecture (tenant locale profile, tax engine, eInvoice seam, FX seam, country packs) is in
+`docs/LOCALIZATION.md`, `docs/TAX_ENGINE.md`, and `docs/COUNTRY_PACKS.md`, not repeated here.
+
+Tenant-facing (`/api/v1/localization/*`):
+- `GET /api/v1/localization/countries` — the compile-time country catalog (no permission needed).
+- `GET /api/v1/localization/currencies` — the compile-time currency catalog (no permission needed).
+- `GET /api/v1/localization/tax-rates?countryCode=` — active `TaxRate`s for a country (no
+  permission needed — read-only reference data).
+- `GET /api/v1/localization/current` (`organizations.view`) / `PUT /api/v1/localization/current`
+  (`organizations.manage`) — the caller's own tenant's locale profile.
+- `GET /api/v1/localization/tax-profile` / `PUT /api/v1/localization/tax-profile` (same
+  permissions) — the caller's own tenant's tax registration/legal-entity details.
+
+Platform admin (`PlatformControllerBase`/`SuperAdminOnly`, same policy as every `/platform/*` route):
+- `GET /api/v1/platform/tax-profiles?countryCode=`, `GET /api/v1/platform/tax-profiles/{id}`,
+  `POST /api/v1/platform/tax-profiles`, `PUT /api/v1/platform/tax-profiles/{id}` — the global
+  `TaxProfile` catalog. `400 code_taken` if the profile `code` already exists.
+- `POST /api/v1/platform/tax-profiles/{id}/rates`, `PUT /api/v1/platform/tax-profiles/{id}/rates/{rateId}`
+  — `TaxRate` rows under a profile. `400 rate_code_taken` if the `rateCode` already exists on that
+  profile.
+- `PUT /api/v1/platform/organizations/{id}/localization` — sets any tenant's locale profile.
+- `GET /api/v1/platform/exchange-rates` (paged), `GET /api/v1/platform/exchange-rates/latest?baseCurrency=&quoteCurrency=`
+  (`404 exchange_rate_not_found` if none configured — never invents a rate),
+  `POST /api/v1/platform/exchange-rates` body `{ baseCurrency, quoteCurrency, rate, effectiveAt? }`
+  — the manual FX-rate seam (see `docs/TAX_ENGINE.md`).
+- `GET /api/v1/platform/invoices/{id}/einvoice-submissions`,
+  `POST /api/v1/platform/invoices/{id}/einvoice-submissions?documentType=` — the eInvoice submission
+  audit trail; always fails with `einvoice_provider_not_configured` (see `docs/TAX_ENGINE.md` — no
+  real UAE ASP/ZATCA integration exists).
+
+Changed from Milestone 14:
+- `POST /api/v1/platform/organizations` (create org) now accepts optional `countryCode`, `currency`,
+  `locale` — when `countryCode` is given, unset `currency`/`locale` default from the country catalog.
+- `OrganizationDto` now includes `countryCode`, `currency`, `locale`, `defaultLanguage`.
+- `POST /api/v1/platform/invoices/generate` body now accepts an optional `taxRateCode` — when given,
+  tax is computed by the tax engine and snapshotted (`taxAmount` in the body is then ignored); when
+  omitted, `taxAmount` is used exactly as before. `InvoiceDto` now includes `taxRateId`, `taxCode`,
+  `taxName`, `taxPercentage`, `taxInclusive`.
+
 Further modules append their endpoint list here as they ship.

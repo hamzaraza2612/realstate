@@ -406,3 +406,83 @@ A unified, read-only reporting layer over existing modules' data closing the exa
 - **Query/performance verification:** every report is a direct EF Core LINQ query with server-side `GroupBy`/`Sum`/`Count` and DTO-shaped projections — no full-entity-graph loads; new indexes were added only where a report's own filter predicate justified one (see `docs/DATABASE.md`), not speculatively.
 - **Live verification against the real running API, with two real tenants:** Customer → Booking → Payment Plan → Payment → Executive Dashboard, cross-checked field-for-field against Finance's own Profit & Loss and Cash Flow for the identical period (exact reconciliation: Sales 500,000, Collections/Revenue 200,000, Receivables 300,000, Profit 200,000, Cash Position matching Cash Flow's ClosingCash); Property → Unit → Tenant → Lease → Rent Schedule → Rent Payment → Property occupancy (100%) and rent-collected (exact payment amount) reports; a second tenant confirmed to see zero rows/zero totals across Sales, Finance, and Property reports for the first tenant's data.
 - **Fix scope:** ~30 new backend files (Application DTOs/interfaces + Infrastructure services + 8 report controllers, all under a new `Reporting` namespace), 8 existing entity configurations extended with one justified index each, 1 migration, 1 new test file (20 tests) — fully additive, no existing endpoint's request/response shape changed, no existing test modified.
+
+## Milestone 15 addendum — SaaS Localization & Tax Engine Foundation
+
+Milestone 15 closes the "single-currency, single-language, UAE/Pakistan-hardcoded-nowhere" gap
+implicit in every prior milestone's billing/finance work: tenants can now configure their own
+country, currency, locale, timezone, and language, and a real (if intentionally scoped) tax engine
+computes and immutably snapshots tax on generated invoices instead of requiring a platform admin to
+type a number in by hand. Full architecture is in `docs/LOCALIZATION.md`, `docs/TAX_ENGINE.md`, and
+`docs/COUNTRY_PACKS.md`.
+
+**What was implemented:** an 8-field localization profile living directly on `Tenant` (reusing
+`Timezone` from Milestone 10 rather than duplicating it); compile-time `CountryCatalog`/
+`CurrencyCatalog` reference data (9 countries, 10 currencies, correct per-currency decimal
+precision); a `TaxProfile`/`TaxRate` engine with UAE (5%) and Saudi (15%) VAT seeded and every tax
+amount snapshotted onto its invoice at generation time so a later rate change can never rewrite
+history; a generic `IEInvoiceProvider` seam (`UnconfiguredEInvoiceProvider` only — no real UAE
+ASP/ZATCA integration); nullable Ejar-style integration fields on `Lease`; a manual-only
+`IExchangeRateService` that fails clearly rather than inventing a rate; an `ITenantTimeService`
+correcting invoice-date and report-date-range calendar-day boundaries to the tenant's own timezone
+instead of the server's UTC day.
+
+**What was deliberately not built, per the milestone's own scope:** live UAE/Saudi government or
+ASP integration, a live external FX provider, per-user locale overrides, full-application Arabic
+translation, and tax-rule seeding for Qatar/Bahrain/Kuwait/Oman (present in the catalog, not given
+a tax profile, so as not to invent tax rules nobody asked for) — all documented as explicit
+extension points rather than left ambiguous.
+
+**A design question resolved deliberately, not by default:** whether to add a `Currency` column to
+every existing Finance/Sales/Property/Facility monetary table. The answer is no — a tenant now has
+exactly one operating currency, every one of those tables is already tenant-isolated, and a
+per-row column would only duplicate what `TenantId` already implies. The SaaS billing subsystem
+correctly keeps its own per-row `Currency` because it spans many tenants. See `docs/TAX_ENGINE.md`'s
+"Finance & currency strategy" section for the full reasoning.
+
+**A real (if narrow) gap the timezone audit did not fully close, documented rather than hidden:** a
+few report queries that convert a resolved calendar-date range into a UTC instant window (for
+filtering `DateTimeOffset`-typed columns like `Lead.CreatedAt`) still use UTC midnight as that
+window's boundary rather than the tenant's own UTC offset — a narrow precision issue affecting only
+records created very close to midnight in a non-UTC timezone, not a security or data-loss issue.
+Threading tenant-aware instant-range conversion through every such query was judged out of
+proportion to this milestone and is tracked as a follow-up in `docs/LOCALIZATION.md`.
+
+### Verification performed in Milestone 15
+
+- **Backend tests:** 62/62 unit + 212/212 integration passed (238 pre-existing + 36 new unit + 14
+  new integration), 0 failures, 0 regressions.
+- **Migration/schema:** one new migration, `AddSaasLocalizationTaxFoundation` (8 new `tenants`
+  columns with corrected non-blank defaults, 4 new nullable `leases` columns, 5 new nullable
+  `invoices` columns, and 4 new tables — `tax_profiles`, `tax_rates`, `exchange_rates`,
+  `tenant_tax_profiles`, `einvoice_submissions`) — applied and schema-verified via `psql \d` against
+  both the dev and test databases.
+- **Live verification against the real running API**, the full scenario the milestone specified: a
+  UAE tenant created (`countryCode: "AE"`) and confirmed to default to `AED`/`en-AE`; its active tax
+  rates confirmed at 5% standard / 0% zero-rated; an invoice generated and its tax snapshot verified
+  (subtotal 1000, tax 50.00, total 1050.00, `taxPercentage: 5.0`); the live UAE VAT standard rate
+  then changed to 7.5% and the already-issued invoice re-fetched and confirmed **completely
+  unchanged** (tax still 50.00/5.0%/1050.00), then reverted back to 5%; a Saudi tenant created and
+  confirmed to default to `SAR`, its 15% standard VAT rate confirmed, an invoice generated in
+  Asia/Riyadh at 21:36 UTC correctly showing the *next* calendar day as its issue date (proving the
+  tenant-timezone-aware date fix), and its tax computed correctly (subtotal 2000, tax 300.00, total
+  2300.00); a Pakistan tenant created and confirmed to default to `PKR`/`en-PK` completely
+  unaffected by the UAE/Saudi tenants' configuration, with an empty tax-rate list (no PK profile
+  seeded, degrading gracefully to zero tax rather than erroring); tenant isolation confirmed (the
+  Saudi tenant's owner token sees only its own `SAR` localization/subscription, gets a 404 fetching
+  the UAE tenant's invoice by id, and its finance dashboard is correctly scoped); Arabic
+  configured as the Saudi tenant's default language via `PUT /localization/current`.
+- **Docker limitation:** full `docker compose up` remains unexercised — this sandbox's network
+  policy still blocks Docker Hub image pulls, unchanged from every prior milestone's report;
+  `docker compose config` was not re-verified as part of this milestone since no compose file
+  changed.
+- **Fix scope:** ~35 new backend files (5 new domain entities/enums, 5 new Application DTO/interface
+  files, 8 new Infrastructure service files, 3 new API controllers, extensions to
+  `InvoiceService`/`OrganizationService`/`DbSeeder`/`AppDbContext`/`DependencyInjection`/5 report
+  services), 1 migration, 3 new test files (36 unit + 14 integration tests) — additive throughout;
+  the only pre-existing public API shape widened rather than broken was
+  `GenerateInvoiceRequest`/`InvoiceDto` (new optional/nullable fields only) and
+  `CreateOrganizationRequest`/`OrganizationDto` (same); no existing test was modified, only extended
+  test infrastructure (`TestBase.CreateOrganizationWithCountryAsync`, purely additive) and one
+  shared reporting helper's signature (`ReportDateRange.Resolve`, updated at all — and only —
+  5 real call sites, each in this same milestone's diff).

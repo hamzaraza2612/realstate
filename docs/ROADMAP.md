@@ -772,6 +772,77 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       portal ones) since it serves internal ERP tenant admins, not external portal users. No backend
       files, and no Milestone 13 portal files, were touched by the frontend work.
 
+## Milestone 15 — SaaS Localization & Tax Engine Foundation ✅
+- [x] Localization model: 8 new fields live directly on `Tenant` (`CountryCode`, `Currency`,
+      `Locale`, `DateFormat`, `FirstDayOfWeek`, `DefaultLanguage`, `SecondaryLanguages`,
+      `MeasurementSystem`), reusing `Timezone` from Milestone 10 rather than duplicating it — the
+      tenant itself is the single source of truth, no separate profile table. Neutral defaults
+      (`US`/`USD`/`en-US`) mean an existing tenant's behavior is unchanged unless it opts into a
+      country. Exposed at `GET/PUT /api/v1/localization/current`, reusing the existing
+      `organizations.view`/`organizations.manage` permissions — no new permission needed.
+- [x] Country/currency model: `CountryCatalog`/`CurrencyCatalog` — compile-time catalogs (the same
+      pattern `Permissions`/`EntitlementCodes` already use), not database tables, since this is
+      fixed ISO reference data. Nine countries (UAE, Saudi Arabia, Pakistan, UK, US, Qatar, Bahrain,
+      Kuwait, Oman) and ten currencies, each with its own correct decimal precision (BHD/KWD/OMR use
+      3, not a hardcoded 2 — `CurrencyCatalog.Round` always reads it).
+- [x] Tax engine: new `TaxProfile`/`TaxRate` platform-managed catalog (Super-Admin-only,
+      `ITaxProfileService`) plus `ITaxCalculationService` as the single computation point — never a
+      hardcoded percentage anywhere. UAE VAT (5% standard, 0% zero-rated) and Saudi VAT (15%
+      standard, 0% zero-rated) seeded via `DbSeeder`; every other catalog country deliberately left
+      unseeded rather than inventing tax rules for it. Computed tax is snapshotted onto `Invoice`
+      (`TaxRateId`/`TaxCode`/`TaxName`/`TaxPercentage`/`TaxInclusive`) at generation time — verified
+      by a dedicated test and live that raising a rate's percentage afterward never changes an
+      already-issued invoice.
+- [x] eInvoice architecture: one generic `IEInvoiceProvider` interface (not one per country) plus
+      `EInvoiceSubmission` as the audit trail, exposed at
+      `/api/v1/platform/invoices/{id}/einvoice-submissions`. Only `UnconfiguredEInvoiceProvider` is
+      registered (mirrors Milestone 14's `UnconfiguredBillingPaymentProvider`) — always fails
+      cleanly; no real UAE ASP or Saudi ZATCA/FATOORA integration exists, and none is claimed. Kept
+      strictly separate from ordinary PDF invoice generation.
+- [x] Saudi rental readiness: 4 nullable columns on `Lease` (`ExternalRegistryProvider`,
+      `ExternalContractReference`, `ExternalRegistrationStatus`, `ExternalLastSyncedAt`) as the
+      seam a future Ejar (or equivalent) integration would populate — unpopulated by any code this
+      milestone; no fake Ejar API call anywhere.
+- [x] Exchange rates: `ExchangeRate` (platform-wide) + `IExchangeRateService` — a manual-entry-only
+      seam (`SetRateAsync`), never an external FX provider. `ConvertAsync` treats same-currency as
+      an always-succeeding identity, derives an exact inverse when only the reverse pair was
+      recorded, and fails clearly with `exchange_rate_not_found` rather than inventing a rate when
+      neither exists — all three paths covered by tests.
+- [x] Finance/currency strategy documented, not over-built: existing Finance/Sales/Property/Facility
+      tables gained **no** new currency column, since each tenant now has exactly one operating
+      currency (`Tenant.Currency`) and every one of those tables is already tenant-isolated — adding
+      a per-row column would just duplicate what `TenantId` already implies. The SaaS billing
+      subsystem (`Invoice`/`Subscription`/`BillingPayment`) keeps its own explicit per-row
+      `Currency`, correctly, since those rows span many tenants. See `docs/TAX_ENGINE.md`.
+- [x] Timezone audit: a full-repository grep for `DateTime.Now`/`DateTime.Today` (the genuinely
+      dangerous server-local-time pattern) found **zero matches** — every timestamp already used
+      `DateTimeOffset.UtcNow` consistently. The actual gap was UTC-day-boundary assumptions for
+      tenant-facing calendar dates; a new `ITenantTimeService` (wrapping a pure, fully-unit-tested
+      `TenantClock` helper covering Asia/Dubai, Asia/Riyadh, Asia/Karachi, Europe/London, and
+      America/New_York) now drives invoice issue/due dates and every report's default date-range
+      resolution, verified live: an invoice generated in the evening UTC correctly shows the next
+      calendar day as its issue date for a UAE/Saudi tenant. One narrow, documented limitation
+      remains (a few report instant-range filters still use UTC midnight as their day boundary — see
+      `docs/LOCALIZATION.md`).
+- [x] Reporting: verified that no report can mix currencies, because every report is already
+      tenant-scoped and a tenant has exactly one currency — nothing to mix. Confirmed live and by a
+      dedicated test generating invoices for a UAE and a Pakistan tenant and checking neither
+      currency figure leaks into or gets summed with the other.
+- [x] Database: one migration, `AddSaasLocalizationTaxFoundation` — 8 new `tenants` columns
+      (with corrected, non-blank default values so existing tenants aren't left with empty-string
+      locale settings), 4 new nullable `leases` columns, 5 new nullable `invoices` columns, and 4 new
+      tables (`tax_profiles`, `tax_rates`, `exchange_rates`, `tenant_tax_profiles`,
+      `einvoice_submissions`) — applied and schema-verified against both the dev and test databases.
+- [x] Unit/integration tests: 36 new unit tests (`TenantClock` across all 5 required timezones,
+      `CountryCatalog`/`CurrencyCatalog` lookups and currency-precision rounding) and 14 new
+      integration tests (country/currency catalogs, tenant localization CRUD with cross-tenant
+      isolation, platform tax-profile authorization, UAE 5%/Saudi 15% VAT computed end to end, no
+      tax for an unconfigured country, the tax-snapshot-immutability scenario, exchange-rate
+      identity/missing-rate/round-trip/inverse behavior, and cross-tenant currency non-mixing) — all
+      passing alongside the existing suite (274 total: 62 unit + 212 integration), zero regressions
+      in the 238 pre-existing tests.
+- [ ] Frontend: [PENDING — see below once independently verified]
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than
