@@ -91,7 +91,11 @@ export function InvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: st
 
               <div className="flex flex-col items-end gap-1 text-sm">
                 <span>Subtotal: {formatCurrency(invoice.subtotal, invoice.currency)}</span>
-                <span>Tax: {formatCurrency(invoice.taxAmount, invoice.currency)}</span>
+                <span>
+                  Tax
+                  {invoice.taxCode ? ` (${invoice.taxCode} ${invoice.taxPercentage}%${invoice.taxInclusive ? ', inclusive' : ''})` : ''}:{' '}
+                  {formatCurrency(invoice.taxAmount, invoice.currency)}
+                </span>
                 <span className="font-semibold">Total: {formatCurrency(invoice.total, invoice.currency)}</span>
               </div>
 

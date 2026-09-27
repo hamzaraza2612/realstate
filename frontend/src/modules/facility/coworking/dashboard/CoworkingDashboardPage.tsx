@@ -7,13 +7,16 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
 import { useAllFacilities } from '@/modules/facility/facilities/api'
+import { money } from '@/modules/reports/format'
 import { FacilityType } from '@/types/api'
 import { useCoworkingDashboard } from './api'
 
 const ALL = 'all'
 
+/** Delegates to the shared, currency-aware formatter (Milestone 15) instead of hardcoding
+ * en-US formatting — see modules/reports/format.ts's money(). */
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)
+  return money(value)
 }
 
 export function CoworkingDashboardPage() {

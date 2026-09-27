@@ -67,6 +67,11 @@ export interface OrganizationDto {
   subscriptionPlanId: string | null
   trialEndsAt: string | null
   createdAt: string
+  // --- SaaS localization + tax engine foundation (Milestone 15) ---
+  countryCode: string | null
+  currency: string | null
+  locale: string | null
+  defaultLanguage: string | null
 }
 
 export const TenantStatus = {
@@ -294,6 +299,14 @@ export interface InvoiceDto {
   externalProviderReference: string | null
   lineItems: InvoiceLineItemDto[]
   createdAt: string
+  // --- Tax engine foundation (Milestone 15) — the tax rate snapshotted onto this invoice at
+  // generation time, if any. Null fields mean no tax profile applied (pre-M15 invoice, or a
+  // tenant with no tax profile configured) — always render the plain taxAmount line then. ---
+  taxRateId: string | null
+  taxCode: string | null
+  taxName: string | null
+  taxPercentage: number | null
+  taxInclusive: boolean
 }
 
 export const BillingPaymentStatus = {
@@ -322,6 +335,144 @@ export interface BillingPaymentDto {
   provider: string | null
   providerTransactionId: string | null
   failureReason: string | null
+  createdAt: string
+}
+
+// --- SaaS localization + tax engine foundation (Milestone 15) ---
+// See LocalizationController (tenant-facing, /api/v1/localization/*) and the platform-admin
+// tax-profile/exchange-rate endpoints under PlatformControllerBase. `firstDayOfWeek` and
+// `measurementSystem` are C# enums serialized as numbers (not enum names, unlike the report
+// endpoints' `Record<Enum, number>` dictionaries — see `labelForEnumName` in reports/format.ts).
+
+export interface CountryDto {
+  alpha2: string
+  alpha3: string
+  name: string
+  defaultCurrency: string
+  defaultLocale: string
+  defaultTimezone: string
+  phoneCountryCode: string
+  defaultTaxProfileCode: string | null
+}
+
+export interface CurrencyDto {
+  code: string
+  name: string
+  symbol: string
+  decimalPlaces: number
+}
+
+/** .NET `DayOfWeek`: Sunday = 0 .. Saturday = 6. */
+export const FirstDayOfWeek = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+} as const
+export type FirstDayOfWeek = (typeof FirstDayOfWeek)[keyof typeof FirstDayOfWeek]
+
+export const FirstDayOfWeekLabel: Record<FirstDayOfWeek, string> = {
+  [FirstDayOfWeek.Sunday]: 'Sunday',
+  [FirstDayOfWeek.Monday]: 'Monday',
+  [FirstDayOfWeek.Tuesday]: 'Tuesday',
+  [FirstDayOfWeek.Wednesday]: 'Wednesday',
+  [FirstDayOfWeek.Thursday]: 'Thursday',
+  [FirstDayOfWeek.Friday]: 'Friday',
+  [FirstDayOfWeek.Saturday]: 'Saturday',
+}
+
+export const MeasurementSystem = {
+  Metric: 0,
+  Imperial: 1,
+} as const
+export type MeasurementSystem = (typeof MeasurementSystem)[keyof typeof MeasurementSystem]
+
+export const MeasurementSystemLabel: Record<MeasurementSystem, string> = {
+  [MeasurementSystem.Metric]: 'Metric',
+  [MeasurementSystem.Imperial]: 'Imperial',
+}
+
+export interface TenantLocalizationDto {
+  countryCode: string | null
+  currency: string
+  locale: string
+  timezone: string
+  dateFormat: string
+  firstDayOfWeek: FirstDayOfWeek
+  defaultLanguage: string
+  secondaryLanguages: string[]
+  measurementSystem: MeasurementSystem
+}
+
+export interface UpdateTenantLocalizationRequest {
+  countryCode: string | null
+  currency: string
+  locale: string
+  timezone: string
+  dateFormat: string
+  firstDayOfWeek: FirstDayOfWeek
+  defaultLanguage: string
+  secondaryLanguages: string[] | null
+  measurementSystem: MeasurementSystem
+}
+
+export interface TaxRateDto {
+  id: string
+  taxProfileId: string
+  rateCode: string
+  name: string
+  percentage: number
+  isInclusive: boolean
+  effectiveFrom: string
+  effectiveTo: string | null
+  isActive: boolean
+}
+
+export interface TaxProfileDto {
+  id: string
+  countryCode: string
+  code: string
+  name: string
+  description: string | null
+  isActive: boolean
+  rates: TaxRateDto[]
+}
+
+export interface TenantTaxProfileDto {
+  taxProfileId: string | null
+  taxProfileCode: string | null
+  taxProfileName: string | null
+  taxRegistrationNumber: string | null
+  legalEntityName: string | null
+  legalAddressLine1: string | null
+  legalAddressLine2: string | null
+  legalCity: string | null
+  legalStateOrProvince: string | null
+  legalPostalCode: string | null
+  legalCountryCode: string | null
+}
+
+export interface UpdateTenantTaxProfileRequest {
+  taxProfileId: string | null
+  taxRegistrationNumber: string | null
+  legalEntityName: string | null
+  legalAddressLine1: string | null
+  legalAddressLine2: string | null
+  legalCity: string | null
+  legalStateOrProvince: string | null
+  legalPostalCode: string | null
+  legalCountryCode: string | null
+}
+
+export interface ExchangeRateDto {
+  id: string
+  baseCurrency: string
+  quoteCurrency: string
+  rate: number
+  effectiveAt: string
   createdAt: string
 }
 

@@ -1,14 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
+import { useCountries } from '@/modules/settings/api'
 import { useCreatePlatformOrganization } from './api'
+
+const NO_COUNTRY = 'none'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -18,6 +22,7 @@ const schema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers, and hyphens only'),
   timezone: z.string().min(1, 'Timezone is required'),
   contactEmail: z.string().email('Enter a valid email').optional().or(z.literal('')),
+  countryCode: z.string(),
   ownerFullName: z.string().min(1, "Owner's name is required"),
   ownerEmail: z.string().min(1, 'Owner email is required').email('Enter a valid email'),
   ownerPassword: z.string().min(8, 'Password must be at least 8 characters'),
@@ -27,15 +32,28 @@ type FormValues = z.infer<typeof schema>
 
 export function CreateOrganizationDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const createOrg = useCreatePlatformOrganization()
+  const { data: countries } = useCountries()
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { timezone: 'UTC' } })
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { timezone: 'UTC', countryCode: NO_COUNTRY } })
 
   useEffect(() => {
-    if (open) reset({ name: '', slug: '', timezone: 'UTC', contactEmail: '', ownerFullName: '', ownerEmail: '', ownerPassword: '' })
+    if (open) {
+      reset({
+        name: '',
+        slug: '',
+        timezone: 'UTC',
+        contactEmail: '',
+        countryCode: NO_COUNTRY,
+        ownerFullName: '',
+        ownerEmail: '',
+        ownerPassword: '',
+      })
+    }
   }, [open, reset])
 
   async function onSubmit(values: FormValues) {
@@ -50,6 +68,10 @@ export function CreateOrganizationDialog({ open, onOpenChange }: { open: boolean
         ownerFullName: values.ownerFullName,
         ownerEmail: values.ownerEmail,
         ownerPassword: values.ownerPassword,
+        // The backend fills sensible currency/locale defaults from the country when set — we
+        // deliberately don't pass currency/locale explicitly here, letting it decide (see
+        // POST /platform/organizations in the Milestone 15 backend notes).
+        countryCode: values.countryCode === NO_COUNTRY ? null : values.countryCode,
       })
       toast({ title: 'Organization created', variant: 'success' })
       onOpenChange(false)
@@ -89,6 +111,30 @@ export function CreateOrganizationDialog({ open, onOpenChange }: { open: boolean
               <Input id="contactEmail" type="email" {...register('contactEmail')} />
               {errors.contactEmail && <p className="text-xs text-destructive">{errors.contactEmail.message}</p>}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="countryCode">Country (optional)</Label>
+            <Controller
+              control={control}
+              name="countryCode"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="countryCode">
+                    <SelectValue placeholder="Select a country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_COUNTRY}>No default (set later)</SelectItem>
+                    {(countries ?? []).map((c) => (
+                      <SelectItem key={c.alpha2} value={c.alpha2}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">When set, currency and locale default sensibly from the country.</p>
           </div>
 
           <div className="border-t pt-4">

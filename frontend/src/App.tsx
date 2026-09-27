@@ -52,10 +52,12 @@ import { FiscalPeriodsPage } from '@/modules/finance/fiscalPeriods/FiscalPeriods
 import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
+import { LocalizationSettingsPage } from '@/modules/settings/LocalizationSettingsPage'
 import { AuditLogPage } from '@/modules/audit/AuditLogPage'
 import { PlatformOrganizationsPage } from '@/modules/platform/PlatformOrganizationsPage'
 import { PlatformOrganizationDetailPage } from '@/modules/platform/PlatformOrganizationDetailPage'
 import { PlatformSubscriptionPlansPage } from '@/modules/platform/PlatformSubscriptionPlansPage'
+import { PlatformTaxProfilesPage } from '@/modules/platform/PlatformTaxProfilesPage'
 import { PlatformSaaSDashboardPage } from '@/modules/platform/PlatformSaaSDashboardPage'
 import { PlatformSubscriptionsPage } from '@/modules/platform/PlatformSubscriptionsPage'
 import { PlatformInvoicesPage } from '@/modules/platform/PlatformInvoicesPage'
@@ -723,6 +725,14 @@ export default function App() {
           }
         />
         <Route
+          path="settings/localization"
+          element={
+            <PermissionRoute permission="organizations.view">
+              <LocalizationSettingsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="audit-logs"
           element={
             <PermissionRoute permission="audit_logs.view">
@@ -853,6 +863,14 @@ export default function App() {
           element={
             <SuperAdminRoute>
               <PlatformSubscriptionsPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="platform/tax-profiles"
+          element={
+            <SuperAdminRoute>
+              <PlatformTaxProfilesPage />
             </SuperAdminRoute>
           }
         />

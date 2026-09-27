@@ -6,11 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
+import { money } from '@/modules/reports/format'
 import { JournalEntryStatusLabel } from '@/types/api'
 import { useFinanceDashboard } from './api'
 
+/** Delegates to the shared, currency-aware formatter (Milestone 15) instead of hardcoding
+ * `$`/en-US formatting — see modules/reports/format.ts's money(). */
 function fmt(value: number) {
-  return `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)}`
+  return money(value)
 }
 
 export function FinanceDashboardPage() {

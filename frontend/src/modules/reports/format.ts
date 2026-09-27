@@ -1,8 +1,20 @@
-/** Matches every other module's hardcoded en-US/$ money formatting (a documented, deferred
- * multi-currency gap — not addressed here). */
+import { useLocalizationStore } from '@/stores/localizationStore'
+
+/** Currency- and locale-aware money formatter (Milestone 15) — reads the tenant's own currency
+ * and locale from the localization store instead of hardcoding `$`/`en-US`, the same approach as
+ * `lib/utils.ts`'s `formatCurrency`. Falls back to USD/browser-default only when the localization
+ * store hasn't loaded yet (e.g. this page rendered before `AppShell`'s bootstrap fetch resolved,
+ * or the viewer has no tenant localization profile at all) — never throws. */
 export function money(value: number | null | undefined) {
   if (value == null) return 'N/A'
-  return `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)}`
+  const localization = useLocalizationStore.getState().data
+  const currency = localization?.currency ?? 'USD'
+  const locale = localization?.locale
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
+  } catch {
+    return `${new Intl.NumberFormat(locale).format(value)} ${currency}`
+  }
 }
 
 export function percent(value: number | null | undefined) {
@@ -12,7 +24,7 @@ export function percent(value: number | null | undefined) {
 
 export function count(value: number | null | undefined) {
   if (value == null) return 'N/A'
-  return new Intl.NumberFormat('en-US').format(value)
+  return new Intl.NumberFormat(useLocalizationStore.getState().data?.locale).format(value)
 }
 
 const MONTH_NAMES = [

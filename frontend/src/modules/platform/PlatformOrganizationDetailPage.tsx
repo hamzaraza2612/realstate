@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,14 @@ import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { useCountries } from '@/modules/settings/api'
 import {
   BillingCycleLabel,
   EntitlementType,
+  FirstDayOfWeek,
+  FirstDayOfWeekLabel,
+  MeasurementSystem,
+  MeasurementSystemLabel,
   SubscriptionStatusLabel,
   TenantStatus,
   TenantStatusLabel,
@@ -34,6 +39,7 @@ import {
   usePlatformSubscriptionPlans,
   useRemoveEntitlementOverride,
   useSetEntitlementOverride,
+  useUpdateOrganizationLocalization,
 } from './api'
 import { TransitionSubscriptionDialog } from './TransitionSubscriptionDialog'
 
@@ -84,8 +90,69 @@ export function PlatformOrganizationDetailPage() {
   const [overrideBool, setOverrideBool] = useState(true)
   const [overrideNumeric, setOverrideNumeric] = useState('')
 
+  const { data: countries } = useCountries()
+  const updateLocalization = useUpdateOrganizationLocalization(id)
+  const [locForm, setLocForm] = useState({
+    countryCode: '',
+    currency: '',
+    locale: '',
+    timezone: '',
+    dateFormat: 'MM/DD/YYYY',
+    firstDayOfWeek: String(FirstDayOfWeek.Sunday),
+    defaultLanguage: 'en',
+    measurementSystem: String(MeasurementSystem.Metric),
+  })
+
+  // Seeds the edit form from what OrganizationDto already carries (countryCode/currency/locale) —
+  // the fuller TenantLocalizationDto (dateFormat/firstDayOfWeek/measurementSystem) is only
+  // exposed via the tenant-scoped `/localization/current`, which a platform admin can't call for
+  // another tenant, so those fields start from sane defaults instead of the tenant's actual saved
+  // values.
+  useEffect(() => {
+    if (org) {
+      setLocForm((f) => ({
+        ...f,
+        countryCode: org.countryCode ?? '',
+        currency: org.currency ?? '',
+        locale: org.locale ?? '',
+        timezone: org.timezone,
+        defaultLanguage: org.defaultLanguage === 'ar' ? 'ar' : 'en',
+      }))
+    }
+  }, [org])
+
   if (isLoading) return <LoadingState label="Loading organization…" />
   if (isError || !org) return <ErrorState message="Could not load this organization." onRetry={() => refetch()} />
+
+  function handleLocCountryChange(value: string) {
+    const country = countries?.find((c) => c.alpha2 === value)
+    setLocForm((f) => ({
+      ...f,
+      countryCode: value,
+      currency: country?.defaultCurrency ?? f.currency,
+      locale: country?.defaultLocale ?? f.locale,
+      timezone: country?.defaultTimezone ?? f.timezone,
+    }))
+  }
+
+  async function handleSaveLocalization() {
+    try {
+      await updateLocalization.mutateAsync({
+        countryCode: locForm.countryCode || null,
+        currency: locForm.currency,
+        locale: locForm.locale,
+        timezone: locForm.timezone,
+        dateFormat: locForm.dateFormat,
+        firstDayOfWeek: Number(locForm.firstDayOfWeek) as FirstDayOfWeek,
+        defaultLanguage: locForm.defaultLanguage,
+        secondaryLanguages: null,
+        measurementSystem: Number(locForm.measurementSystem) as MeasurementSystem,
+      })
+      toast({ title: 'Localization updated', variant: 'success' })
+    } catch (error) {
+      toast({ title: 'Could not update localization', description: extractErrorMessage(error), variant: 'destructive' })
+    }
+  }
 
   async function handleAssignPlan() {
     if (!assignPlanId) return
@@ -140,6 +207,7 @@ export function PlatformOrganizationDetailPage() {
           <TabsTrigger value="subscription">Subscription</TabsTrigger>
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="entitlements">Entitlements</TabsTrigger>
+          <TabsTrigger value="localization">Localization</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -435,6 +503,134 @@ export function PlatformOrganizationDetailPage() {
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="localization">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Current localization</CardTitle>
+                <CardDescription>Read-only summary from this tenant's organization record.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-muted-foreground">Country</p>
+                  <p className="font-medium">{countries?.find((c) => c.alpha2 === org.countryCode)?.name ?? org.countryCode ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Currency</p>
+                  <p className="font-medium">{org.currency ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Locale</p>
+                  <p className="font-medium">{org.locale ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Timezone</p>
+                  <p className="font-medium">{org.timezone}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Default language</p>
+                  <p className="font-medium">{org.defaultLanguage ?? '—'}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit localization</CardTitle>
+                <CardDescription>
+                  Configures this tenant's localization directly — useful right after onboarding, before the tenant sets it themselves
+                  under Settings → Localization.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Country</Label>
+                  <Select value={locForm.countryCode} onValueChange={handleLocCountryChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(countries ?? []).map((c) => (
+                        <SelectItem key={c.alpha2} value={c.alpha2}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="loc-currency">Currency</Label>
+                  <Input
+                    id="loc-currency"
+                    value={locForm.currency}
+                    onChange={(e) => setLocForm((f) => ({ ...f, currency: e.target.value.toUpperCase() }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="loc-locale">Locale</Label>
+                  <Input id="loc-locale" value={locForm.locale} onChange={(e) => setLocForm((f) => ({ ...f, locale: e.target.value }))} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="loc-timezone">Timezone</Label>
+                  <Input id="loc-timezone" value={locForm.timezone} onChange={(e) => setLocForm((f) => ({ ...f, timezone: e.target.value }))} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="loc-date-format">Date format</Label>
+                  <Input
+                    id="loc-date-format"
+                    value={locForm.dateFormat}
+                    onChange={(e) => setLocForm((f) => ({ ...f, dateFormat: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>First day of week</Label>
+                  <Select value={locForm.firstDayOfWeek} onValueChange={(v) => setLocForm((f) => ({ ...f, firstDayOfWeek: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(FirstDayOfWeekLabel).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Default language</Label>
+                  <Select value={locForm.defaultLanguage} onValueChange={(v) => setLocForm((f) => ({ ...f, defaultLanguage: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="ar">العربية</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Measurement system</Label>
+                  <Select value={locForm.measurementSystem} onValueChange={(v) => setLocForm((f) => ({ ...f, measurementSystem: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={String(MeasurementSystem.Metric)}>{MeasurementSystemLabel[MeasurementSystem.Metric]}</SelectItem>
+                      <SelectItem value={String(MeasurementSystem.Imperial)}>{MeasurementSystemLabel[MeasurementSystem.Imperial]}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSaveLocalization} disabled={updateLocalization.isPending}>
+                  {updateLocalization.isPending ? 'Saving…' : 'Save localization'}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
