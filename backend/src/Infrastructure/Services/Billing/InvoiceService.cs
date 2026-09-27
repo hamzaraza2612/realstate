@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Billing;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Localization;
 using RealEstateErp.Domain.Billing;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
@@ -13,12 +14,17 @@ public class InvoiceService : IInvoiceService
     private readonly AppDbContext _db;
     private readonly ITenantContext _tenantContext;
     private readonly IAuditLogger _auditLogger;
+    private readonly ITaxCalculationService _taxCalculationService;
+    private readonly ITenantTimeService _tenantTimeService;
 
-    public InvoiceService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger)
+    public InvoiceService(AppDbContext db, ITenantContext tenantContext, IAuditLogger auditLogger,
+        ITaxCalculationService taxCalculationService, ITenantTimeService tenantTimeService)
     {
         _db = db;
         _tenantContext = tenantContext;
         _auditLogger = auditLogger;
+        _taxCalculationService = taxCalculationService;
+        _tenantTimeService = tenantTimeService;
     }
 
     public async Task<PagedResult<InvoiceDto>> ListAsync(PagedRequest request, InvoiceFilter filter, CancellationToken ct = default)
@@ -57,8 +63,38 @@ public class InvoiceService : IInvoiceService
         }).Select(l => new InvoiceLineItem { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Amount = l.Quantity * l.UnitPrice }).ToList();
 
         var subtotal = lineItems.Sum(l => l.Amount);
-        var total = subtotal + request.TaxAmount;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayForTenantAsync(subscription.TenantId, ct);
+
+        // Tax: computed via the tax engine (snapshotted, auditable, never recomputed later) when a
+        // rate code is given; otherwise the caller's explicit TaxAmount is used as-is — see
+        // GenerateInvoiceRequest's doc comment.
+        var taxAmount = request.TaxAmount;
+        Guid? taxRateId = null;
+        string? taxCode = null, taxName = null;
+        decimal? taxPercentage = null;
+        var taxInclusive = false;
+
+        if (!string.IsNullOrWhiteSpace(request.TaxRateCode))
+        {
+            var tenantCountry = await _db.Tenants.IgnoreQueryFilters()
+                .Where(t => t.Id == subscription.TenantId).Select(t => t.CountryCode).FirstOrDefaultAsync(ct) ?? "US";
+            var taxResult = await _taxCalculationService.CalculateAsync(tenantCountry, request.TaxRateCode, subtotal, today, ct);
+            if (taxResult.Applied)
+            {
+                taxAmount = taxResult.TaxAmount;
+                taxRateId = taxResult.TaxRateId;
+                taxCode = taxResult.RateCode;
+                taxName = taxResult.RateName;
+                taxPercentage = taxResult.Percentage;
+                taxInclusive = taxResult.IsInclusive;
+            }
+            else
+            {
+                taxAmount = 0;
+            }
+        }
+
+        var total = subtotal + taxAmount;
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -71,13 +107,18 @@ public class InvoiceService : IInvoiceService
                 PeriodStart = DateOnly.FromDateTime(subscription.CurrentPeriodStart.UtcDateTime),
                 PeriodEnd = DateOnly.FromDateTime(subscription.CurrentPeriodEnd.UtcDateTime),
                 Subtotal = subtotal,
-                TaxAmount = request.TaxAmount,
+                TaxAmount = taxAmount,
                 Total = total,
                 Currency = subscription.Currency,
                 Status = InvoiceStatus.Issued,
                 IssuedDate = today,
                 DueDate = today.AddDays(request.DueInDays),
-                LineItems = lineItems
+                LineItems = lineItems,
+                TaxRateId = taxRateId,
+                TaxCode = taxCode,
+                TaxName = taxName,
+                TaxPercentage = taxPercentage,
+                TaxInclusive = taxInclusive
             };
 
             _db.Invoices.Add(invoice);
@@ -109,6 +150,6 @@ public class InvoiceService : IInvoiceService
             invoice.Currency, invoice.Status, invoice.IssuedDate, invoice.DueDate, invoice.PaidDate,
             invoice.ExternalProviderReference,
             invoice.LineItems.Select(l => new InvoiceLineItemDto(l.Id, l.Description, l.Quantity, l.UnitPrice, l.Amount)).ToList(),
-            invoice.CreatedAt);
+            invoice.CreatedAt, invoice.TaxRateId, invoice.TaxCode, invoice.TaxName, invoice.TaxPercentage, invoice.TaxInclusive);
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Reporting.Common;
 using RealEstateErp.Application.Reporting.Property;
 using RealEstateErp.Domain.Property;
@@ -9,10 +10,12 @@ namespace RealEstateErp.Infrastructure.Services.Reporting;
 public class PropertyReportService : IPropertyReportService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantTimeService _tenantTimeService;
 
-    public PropertyReportService(AppDbContext db)
+    public PropertyReportService(AppDbContext db, ITenantTimeService tenantTimeService)
     {
         _db = db;
+        _tenantTimeService = tenantTimeService;
     }
 
     public async Task<IReadOnlyList<PropertyOccupancyRowDto>> OccupancyAsync(CancellationToken ct = default)
@@ -34,7 +37,7 @@ public class PropertyReportService : IPropertyReportService
 
     public async Task<IReadOnlyList<RentBilledRowDto>> RentBilledAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var scheduleAmounts = await _db.RentSchedules
             .Where(r => r.DueDate >= resolvedFrom && r.DueDate <= resolvedTo)
@@ -53,7 +56,7 @@ public class PropertyReportService : IPropertyReportService
 
     public async Task<IReadOnlyList<RentCollectedRowDto>> RentCollectedAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var paymentAmounts = await _db.RentPayments
             .Where(p => p.PaymentDate >= resolvedFrom && p.PaymentDate <= resolvedTo)
@@ -72,7 +75,7 @@ public class PropertyReportService : IPropertyReportService
 
     public async Task<IReadOnlyList<OverdueRentRowDto>> OverdueRentAsync(CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayAsync(ct);
 
         var openSchedules = await _db.RentSchedules
             .Where(r => r.Status == RentScheduleStatus.Pending || r.Status == RentScheduleStatus.PartiallyPaid)
@@ -114,7 +117,7 @@ public class PropertyReportService : IPropertyReportService
 
     public async Task<IReadOnlyList<TenantAgingRowDto>> TenantAgingAsync(CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayAsync(ct);
 
         var openSchedules = await _db.RentSchedules
             .Where(r => r.Status != RentScheduleStatus.Cancelled && r.Amount > r.PaidAmount)

@@ -15,6 +15,7 @@ using MeetingRoom = RealEstateErp.Domain.Facility.Coworking.MeetingRoom;
 using Membership = RealEstateErp.Domain.Facility.Coworking.Membership;
 using MembershipPlan = RealEstateErp.Domain.Facility.Coworking.MembershipPlan;
 using RealEstateErp.Domain.Finance;
+using RealEstateErp.Domain.Localization;
 using RealEstateErp.Domain.Materials;
 using RealEstateErp.Domain.Procurement;
 using RealEstateErp.Domain.Projects;
@@ -113,6 +114,11 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Domain.Portal.PortalRefreshToken> PortalRefreshTokens => Set<Domain.Portal.PortalRefreshToken>();
     public DbSet<Domain.Portal.PortalPasswordResetToken> PortalPasswordResetTokens => Set<Domain.Portal.PortalPasswordResetToken>();
     public DbSet<PropertyOwner> PropertyOwners => Set<PropertyOwner>();
+    public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
+    public DbSet<TaxRate> TaxRates => Set<TaxRate>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+    public DbSet<TenantTaxProfile> TenantTaxProfiles => Set<TenantTaxProfile>();
+    public DbSet<EInvoiceSubmission> EInvoiceSubmissions => Set<EInvoiceSubmission>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Reporting.Common;
 using RealEstateErp.Application.Reporting.Facility;
 using RealEstateErp.Domain.Facility;
@@ -14,10 +15,12 @@ namespace RealEstateErp.Infrastructure.Services.Reporting;
 public class FacilityReportService : IFacilityReportService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantTimeService _tenantTimeService;
 
-    public FacilityReportService(AppDbContext db)
+    public FacilityReportService(AppDbContext db, ITenantTimeService tenantTimeService)
     {
         _db = db;
+        _tenantTimeService = tenantTimeService;
     }
 
     public async Task<IReadOnlyList<FacilityUtilizationRowDto>> UtilizationAsync(CancellationToken ct = default)
@@ -57,7 +60,7 @@ public class FacilityReportService : IFacilityReportService
 
     public async Task<IReadOnlyList<ServiceChargeCollectionRowDto>> ServiceChargeCollectionAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var charges = await _db.ServiceChargeCharges
             .Where(c => c.DueDate >= resolvedFrom && c.DueDate <= resolvedTo)
@@ -82,7 +85,7 @@ public class FacilityReportService : IFacilityReportService
 
     public async Task<IReadOnlyList<FacilityRevenueRowDto>> RevenueAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var payments = await _db.FacilityPayments
             .Where(p => p.PaymentDate >= resolvedFrom && p.PaymentDate <= resolvedTo)
@@ -228,7 +231,7 @@ public class FacilityReportService : IFacilityReportService
 
     public async Task<IReadOnlyList<MeetingRoomUtilizationRowDto>> MeetingRoomUtilizationAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
         var fromUtc = new DateTimeOffset(resolvedFrom.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
         var toUtc = new DateTimeOffset(resolvedTo.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
 
@@ -262,7 +265,7 @@ public class FacilityReportService : IFacilityReportService
 
     public async Task<IReadOnlyList<BookingTrendRowDto>> BookingTrendsAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
         var fromUtc = new DateTimeOffset(resolvedFrom.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
         var toUtc = new DateTimeOffset(resolvedTo.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
 
@@ -280,7 +283,7 @@ public class FacilityReportService : IFacilityReportService
 
     public async Task<IReadOnlyList<MaintenanceBacklogRowDto>> MaintenanceBacklogAsync(CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayAsync(ct);
         var openStatuses = new[] { MaintenanceStatus.Open, MaintenanceStatus.Assigned, MaintenanceStatus.InProgress, MaintenanceStatus.OnHold };
 
         var requests = await _db.MaintenanceRequests

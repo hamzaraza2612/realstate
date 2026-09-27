@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Billing;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Localization;
+using RealEstateErp.Domain.Localization;
 using RealEstateErp.Shared.Pagination;
 
 namespace RealEstateErp.Api.Controllers;
@@ -9,17 +11,24 @@ namespace RealEstateErp.Api.Controllers;
 /// <summary>Super Admin billing operations — generating invoices and recording payments received
 /// against them. This milestone has no automated recurring billing engine and no real payment
 /// gateway (see IBillingPaymentProvider); invoice generation and payment recording are both explicit
-/// platform-admin actions. See docs/SAAS_BILLING.md.</summary>
+/// platform-admin actions. See docs/SAAS_BILLING.md. The eInvoice submission sub-resource
+/// (Milestone 15) proves IEInvoiceProvider's seam is actually wired end-to-end — see
+/// UnconfiguredEInvoiceProvider and docs/TAX_ENGINE.md; it always fails cleanly, never claiming a
+/// real UAE/Saudi government or ASP integration.</summary>
 [Route("api/v1/platform/invoices")]
 public class PlatformInvoicesController : PlatformControllerBase
 {
     private readonly IInvoiceService _invoiceService;
     private readonly IBillingPaymentService _paymentService;
+    private readonly IEInvoiceSubmissionService _eInvoiceSubmissionService;
 
-    public PlatformInvoicesController(IInvoiceService invoiceService, IBillingPaymentService paymentService, ITenantContext tenantContext) : base(tenantContext)
+    public PlatformInvoicesController(
+        IInvoiceService invoiceService, IBillingPaymentService paymentService,
+        IEInvoiceSubmissionService eInvoiceSubmissionService, ITenantContext tenantContext) : base(tenantContext)
     {
         _invoiceService = invoiceService;
         _paymentService = paymentService;
+        _eInvoiceSubmissionService = eInvoiceSubmissionService;
     }
 
     [HttpGet]
@@ -51,6 +60,19 @@ public class PlatformInvoicesController : PlatformControllerBase
     {
         var result = await _paymentService.RecordPaymentAsync(
             new RecordBillingPaymentRequest(id, body.Amount, body.PaymentDate, body.ProviderTransactionId, body.IdempotencyKey), ct);
+        return result.Succeeded
+            ? Ok(ApiResponse.Ok(result.Value))
+            : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
+    }
+
+    [HttpGet("{id:guid}/einvoice-submissions")]
+    public async Task<IActionResult> ListEInvoiceSubmissions(Guid id, CancellationToken ct) =>
+        Ok(ApiResponse.Ok(await _eInvoiceSubmissionService.ListForInvoiceAsync(id, ct)));
+
+    [HttpPost("{id:guid}/einvoice-submissions")]
+    public async Task<IActionResult> SubmitEInvoice(Guid id, [FromQuery] EInvoiceDocumentType documentType, CancellationToken ct)
+    {
+        var result = await _eInvoiceSubmissionService.SubmitAsync(new EInvoiceSubmissionRequest(id, documentType), ct);
         return result.Succeeded
             ? Ok(ApiResponse.Ok(result.Value))
             : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RealEstateErp.Domain.Localization;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Shared.Security;
@@ -51,6 +52,7 @@ public static class DbSeeder
         await SeedPermissionsAsync(db);
         await SeedSystemRolesAsync(db, roleManager);
         await SeedSuperAdminAsync(userManager, config, logger);
+        await SeedTaxProfilesAsync(db);
 
         if (config.GetValue<bool>("SeedDemoData"))
         {
@@ -127,6 +129,57 @@ public static class DbSeeder
         else
         {
             logger.LogError("Failed to seed Super Admin: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+    }
+
+    /// <summary>
+    /// Seeds the first two real tax profiles (Milestone 15): UAE VAT (5% standard, 0% zero-rated)
+    /// and Saudi VAT (15% standard, 0% zero-rated) — the two country packs this milestone actually
+    /// completes end to end. Every other GCC country in CountryCatalog intentionally has no seeded
+    /// TaxProfile yet: the architecture supports adding one (see docs/TAX_ENGINE.md), but this
+    /// milestone doesn't invent tax rules it hasn't been told to implement. Idempotent by Code, so
+    /// re-running (every app start) never duplicates rows or overwrites an admin's later edits.
+    /// </summary>
+    private static async Task SeedTaxProfilesAsync(AppDbContext db)
+    {
+        var effectiveFrom = new DateOnly(2018, 1, 1);
+
+        await SeedProfileAsync(db, "AE", "AE_VAT", "UAE VAT", new[]
+        {
+            ("STANDARD", "Standard Rate", 5.00m, false),
+            ("ZERO_RATED", "Zero-Rated", 0.00m, false),
+        }, effectiveFrom);
+
+        await SeedProfileAsync(db, "SA", "SA_VAT", "Saudi VAT", new[]
+        {
+            ("STANDARD", "Standard Rate", 15.00m, false),
+            ("ZERO_RATED", "Zero-Rated", 0.00m, false),
+        }, new DateOnly(2020, 7, 1));
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedProfileAsync(AppDbContext db, string countryCode, string code, string name,
+        (string RateCode, string RateName, decimal Percentage, bool IsInclusive)[] rates, DateOnly effectiveFrom)
+    {
+        var profile = await db.TaxProfiles.Include(p => p.Rates).FirstOrDefaultAsync(p => p.Code == code);
+        if (profile is null)
+        {
+            profile = new TaxProfile { CountryCode = countryCode, Code = code, Name = name };
+            db.TaxProfiles.Add(profile);
+        }
+
+        foreach (var (rateCode, rateName, percentage, isInclusive) in rates)
+        {
+            if (profile.Rates.Any(r => r.RateCode == rateCode)) continue;
+            profile.Rates.Add(new TaxRate
+            {
+                RateCode = rateCode,
+                Name = rateName,
+                Percentage = percentage,
+                IsInclusive = isInclusive,
+                EffectiveFrom = effectiveFrom
+            });
         }
     }
 }

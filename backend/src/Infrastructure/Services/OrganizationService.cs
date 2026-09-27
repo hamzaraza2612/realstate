@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Organizations;
+using RealEstateErp.Domain.Localization;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
@@ -78,6 +79,11 @@ public class OrganizationService : IOrganizationService
 
         await using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
+        // A given CountryCode seeds sensible Currency/Locale defaults from the compile-time catalog
+        // (Domain.Localization.CountryCatalog); an explicit Currency/Locale still wins if also
+        // supplied. Omitting CountryCode entirely keeps Tenant's own neutral defaults untouched —
+        // this milestone never assumes a country for a platform admin who didn't say one.
+        var countryInfo = CountryCatalog.Find(request.CountryCode);
         var tenant = new Tenant
         {
             Name = request.Name,
@@ -89,6 +95,18 @@ public class OrganizationService : IOrganizationService
             Status = TenantStatus.Trial,
             TrialEndsAt = DateTimeOffset.UtcNow.AddDays(14)
         };
+        if (countryInfo is not null)
+        {
+            tenant.CountryCode = countryInfo.Alpha2;
+            tenant.Currency = request.Currency ?? countryInfo.DefaultCurrency;
+            tenant.Locale = request.Locale ?? countryInfo.DefaultLocale;
+        }
+        else
+        {
+            if (request.CountryCode is not null) tenant.CountryCode = request.CountryCode;
+            if (request.Currency is not null) tenant.Currency = request.Currency;
+            if (request.Locale is not null) tenant.Locale = request.Locale;
+        }
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync(ct);
 
@@ -156,5 +174,6 @@ public class OrganizationService : IOrganizationService
 
     private static OrganizationDto ToDto(Tenant t) => new(
         t.Id, t.Name, t.Slug, t.Status, t.Timezone, t.ContactEmail, t.ContactPhone,
-        t.SubscriptionPlanId, t.TrialEndsAt, t.CreatedAt);
+        t.SubscriptionPlanId, t.TrialEndsAt, t.CreatedAt,
+        t.CountryCode, t.Currency, t.Locale, t.DefaultLanguage);
 }

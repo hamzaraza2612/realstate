@@ -16,6 +16,9 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         b.Property(x => x.TaxAmount).HasColumnType("numeric(18,2)");
         b.Property(x => x.Total).HasColumnType("numeric(18,2)");
         b.Property(x => x.ExternalProviderReference).HasMaxLength(200);
+        b.Property(x => x.TaxCode).HasMaxLength(40);
+        b.Property(x => x.TaxName).HasMaxLength(200);
+        b.Property(x => x.TaxPercentage).HasColumnType("numeric(6,3)");
         // Tenant-scoped uniqueness, not global — matches BookingNumber/LeaseNumber convention.
         b.HasIndex(x => new { x.TenantId, x.InvoiceNumber }).IsUnique();
         b.HasIndex(x => x.SubscriptionId);

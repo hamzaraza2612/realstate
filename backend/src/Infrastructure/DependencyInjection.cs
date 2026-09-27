@@ -73,9 +73,11 @@ using RealEstateErp.Application.Sales.PaymentPlans;
 using RealEstateErp.Application.Sales.Payments;
 using RealEstateErp.Application.Subscription;
 using RealEstateErp.Application.Billing;
+using RealEstateErp.Application.Localization;
 using RealEstateErp.Application.Users;
 using RealEstateErp.Infrastructure.Services.Subscription;
 using RealEstateErp.Infrastructure.Services.Billing;
+using RealEstateErp.Infrastructure.Services.Localization;
 using RealEstateErp.Infrastructure.Jobs;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
@@ -255,6 +257,15 @@ public static class DependencyInjection
         services.AddScoped<IBillingPaymentService, BillingPaymentService>();
         services.AddSingleton<IBillingPaymentProvider, UnconfiguredBillingPaymentProvider>();
         services.AddScoped<SubscriptionLifecycleJob>();
+
+        services.AddScoped<ITenantTimeService, TenantTimeService>();
+        services.AddScoped<ILocalizationService, LocalizationService>();
+        services.AddScoped<ITaxProfileService, TaxProfileService>();
+        services.AddScoped<ITaxCalculationService, TaxCalculationService>();
+        services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        services.AddScoped<ITenantTaxProfileService, TenantTaxProfileService>();
+        services.AddSingleton<IEInvoiceProvider, UnconfiguredEInvoiceProvider>();
+        services.AddScoped<IEInvoiceSubmissionService, EInvoiceSubmissionService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

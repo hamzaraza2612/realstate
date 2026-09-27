@@ -36,6 +36,17 @@ public class Invoice : TenantEntity
     /// <summary>Nullable extension field for a future payment provider's own invoice/reference id.</summary>
     public string? ExternalProviderReference { get; set; }
 
+    // --- Tax snapshot (Milestone 15) ----------------------------------------------------------
+    // Captured at generation time from Localization.TaxRate — never recomputed later. Raising the
+    // referenced TaxRate's Percentage, or superseding it with a new rate row, must never change what
+    // an already-issued invoice shows; TaxRateId is kept only for traceability, not for re-deriving
+    // these values. Null when no tax was applicable (e.g. no TaxProfile configured for the tenant).
+    public Guid? TaxRateId { get; set; }
+    public string? TaxCode { get; set; }
+    public string? TaxName { get; set; }
+    public decimal? TaxPercentage { get; set; }
+    public bool TaxInclusive { get; set; }
+
     public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
 }
 

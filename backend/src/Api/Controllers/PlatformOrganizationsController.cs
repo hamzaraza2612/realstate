@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Common.Interfaces;
+using RealEstateErp.Application.Localization;
 using RealEstateErp.Application.Organizations;
 using RealEstateErp.Application.Subscription;
 using RealEstateErp.Shared.Pagination;
@@ -17,16 +18,19 @@ public class PlatformOrganizationsController : PlatformControllerBase
     private readonly ISubscriptionService _subscriptionService;
     private readonly ITenantUsageService _usageService;
     private readonly ITenantEntitlementService _entitlementService;
+    private readonly ILocalizationService _localizationService;
 
     public PlatformOrganizationsController(
         IOrganizationService organizationService, ISubscriptionService subscriptionService,
         ITenantUsageService usageService, ITenantEntitlementService entitlementService,
+        ILocalizationService localizationService,
         ITenantContext tenantContext) : base(tenantContext)
     {
         _organizationService = organizationService;
         _subscriptionService = subscriptionService;
         _usageService = usageService;
         _entitlementService = entitlementService;
+        _localizationService = localizationService;
     }
 
     [HttpGet]
@@ -97,6 +101,13 @@ public class PlatformOrganizationsController : PlatformControllerBase
     {
         await _entitlementService.RemoveOverrideAsync(id, code, ct);
         return NoContent();
+    }
+
+    [HttpPut("{id:guid}/localization")]
+    public async Task<IActionResult> UpdateLocalization(Guid id, UpdateTenantLocalizationRequest request, CancellationToken ct)
+    {
+        var result = await _localizationService.UpdateForTenantAsync(id, request, ct);
+        return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : NotFound(new { title = result.Error, status = 404 });
     }
 }
 

@@ -11,15 +11,22 @@ public record InvoiceDto(
     Guid Id, Guid TenantId, string TenantName, Guid SubscriptionId, string InvoiceNumber,
     DateOnly PeriodStart, DateOnly PeriodEnd, decimal Subtotal, decimal TaxAmount, decimal Total,
     string Currency, InvoiceStatus Status, DateOnly IssuedDate, DateOnly DueDate, DateOnly? PaidDate,
-    string? ExternalProviderReference, IReadOnlyList<InvoiceLineItemDto> LineItems, DateTimeOffset CreatedAt);
+    string? ExternalProviderReference, IReadOnlyList<InvoiceLineItemDto> LineItems, DateTimeOffset CreatedAt,
+    Guid? TaxRateId, string? TaxCode, string? TaxName, decimal? TaxPercentage, bool TaxInclusive);
 
 public record InvoiceLineItemInput(string Description, decimal Quantity, decimal UnitPrice);
 
 /// <summary>Generates an invoice for a subscription's current billing period. Amounts are computed
 /// from the supplied line items (defaulting to a single "Subscription: {plan name}" line at the
 /// subscription's PriceSnapshot when none are given) — this milestone has no automated recurring
-/// billing engine; a platform admin (or, later, a scheduled job) triggers generation explicitly.</summary>
-public record GenerateInvoiceRequest(Guid SubscriptionId, decimal TaxAmount, IReadOnlyList<InvoiceLineItemInput>? LineItems, int DueInDays);
+/// billing engine; a platform admin (or, later, a scheduled job) triggers generation explicitly.
+///
+/// Tax: when TaxRateCode is supplied (e.g. "STANDARD"), tax is computed by ITaxCalculationService
+/// against the subscription's tenant's country and snapshotted onto the invoice — TaxAmount is then
+/// ignored. When TaxRateCode is null, TaxAmount is used as an explicit manual override (this
+/// milestone's original behavior, preserved for a country/tenant with no configured tax profile, or
+/// a platform admin who wants to enter a figure directly) and no tax snapshot fields are set.</summary>
+public record GenerateInvoiceRequest(Guid SubscriptionId, decimal TaxAmount, IReadOnlyList<InvoiceLineItemInput>? LineItems, int DueInDays, string? TaxRateCode = null);
 
 public record InvoiceFilter(Guid? TenantId, InvoiceStatus? Status);
 
