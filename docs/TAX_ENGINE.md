@@ -169,3 +169,16 @@ a "total" figure across tenants, so there is nothing to silently mix.
 - Live ZATCA/FATOORA integration (Saudi Arabia).
 - A live external FX rate provider.
 - Regulatory/legal tax-compliance certification of any kind — this is architecture, not tax advice.
+- A UI for a tenant's own `TenantTaxProfile` (registration number/legal entity/address) — the
+  `GET/PUT /api/v1/localization/tax-profile` endpoints and their frontend API hooks exist, but no
+  page consumes them yet; the natural home is a "Legal & Tax Registration" card on the Settings →
+  Localization page.
+- A platform-admin UI for viewing/editing another tenant's *full* localization profile beyond
+  country/currency/locale/timezone: `PlatformOrganizationDetailPage`'s Localization tab can't
+  pre-fill `dateFormat`/`firstDayOfWeek`/`measurementSystem` with a tenant's actual saved values,
+  because no platform endpoint currently returns another tenant's full `TenantLocalizationDto` (only
+  `OrganizationDto`'s four summary fields — see `docs/LOCALIZATION.md`). A real, narrow gap, not a
+  frontend bug: closing it means adding a platform-scoped read endpoint, e.g.
+  `GET /api/v1/platform/organizations/{id}/localization`.
+- A platform admin UI for the manual exchange-rate seam (`IExchangeRateService` and its API hooks
+  exist and are tested; no `/platform/exchange-rates` page was built this milestone).

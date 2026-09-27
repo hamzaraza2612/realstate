@@ -841,7 +841,52 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       identity/missing-rate/round-trip/inverse behavior, and cross-tenant currency non-mixing) — all
       passing alongside the existing suite (274 total: 62 unit + 212 integration), zero regressions
       in the 238 pre-existing tests.
-- [ ] Frontend: [PENDING — see below once independently verified]
+- [x] Frontend: a dependency-free i18n system (`lib/i18n/` — `en`/`ar` resource dictionaries,
+      `I18nProvider`/`useI18n()`, language persisted client-side, `t()` always falls back
+      English-then-raw-key so nothing renders blank) wired at the app root in `main.tsx`, with its
+      initial language bridged from a new `localizationStore` (zustand, fetch-once from
+      `GET /localization/current`, bootstrapped from `AppShell`) so a returning user's tenant
+      default language applies automatically until they choose otherwise. Sidebar nav labels
+      (`labelKey` replacing every hardcoded `label`, tenant and platform sections alike) and every
+      string on the new Settings → Localization page are translated end to end into both languages;
+      the rest of the ~100-page app is left for M17 by design. RTL verified functional: `dir`/`lang`
+      flip reactively on `<html>`, and the two logical-property fixes the persistent shell actually
+      needed (`Sidebar`'s `border-r`→`border-e`, `Topbar`'s notification-badge `-right-0.5`→`-end-0.5`)
+      were applied — the rest of the shell already used direction-agnostic flex/gap classes.
+      The pre-existing hardcoded `$`/`en-US` `money()` helper (`modules/reports/format.ts`, used by
+      every dashboard) now reads the tenant's real currency/locale from `localizationStore`; 8
+      dashboard pages found to have their *own* separately-hardcoded `en-US` formatters (Sales,
+      Coworking, Mall, Facility, Finance, Procurement, Construction, Property/Rental) were fixed the
+      same way. `lib/utils.ts` gained `formatDateTime`/`formatNumber`/`formatPercentage`, and
+      `formatCurrency`/`formatDate` now accept an optional locale override, defaulting to the store.
+      New pages: Settings → Localization (`/settings/localization` — country/currency/language/
+      timezone/date-format/first-day-of-week/measurement-system form with a live preview panel and a
+      read-only tax-configuration card, Save gated on `organizations.manage`) and a platform Tax
+      Profiles admin page (`/platform/tax-profiles`, Super-Admin-only — list profiles with their
+      rates, create a profile, add/edit a rate). `PlatformOrganizationDetailPage` gained a
+      Localization tab (view + edit via the platform localization endpoint); the Create Organization
+      dialog gained an optional Country select; both invoice detail dialogs now show the tax
+      breakdown (e.g. "VAT 5% — 50.00 AED") when a tax snapshot is present, falling back to the
+      plain amount otherwise.
+      Independently verified after the implementing agent's handback: two earlier attempts landed
+      on the wrong branch (a worktree default of `main` rather than this feature branch, an
+      environment quirk distinct from — and now confirmed not the same as — the prior milestones'
+      stale-worktree failure mode); the corrected delegation instructed the agent to fix its own
+      worktree's branch rather than stop, which the third attempt did successfully before writing
+      any code. Its finished commit was cherry-picked onto the real branch cleanly. `npm run build`
+      was re-run independently and confirmed to exit 0 with zero TypeScript errors; the `money()`
+      fix was independently grepped and confirmed (only a doc-comment mention of `$`/`en-US`
+      remains); `Sidebar.tsx`, `main.tsx`/`AppShell.tsx`'s provider wiring, and `App.tsx`'s new
+      routes were independently read and confirmed to follow this codebase's existing conventions
+      exactly (numeric-enum + label-map pattern, `PermissionRoute`/`SuperAdminRoute` guards, no
+      stray string-literal comparisons). Honestly flagged by the agent and left as real, scoped gaps
+      rather than silently incomplete: the tenant-facing tax-registration (`TenantTaxProfile`)
+      PUT is wired in the API hook layer but has no UI yet; the platform Exchange Rates page was not
+      built (API hooks only); a platform admin editing a tenant's Localization tab cannot pre-fill
+      `dateFormat`/`firstDayOfWeek`/`measurementSystem` with that tenant's actual saved values,
+      since no platform endpoint returns another tenant's full `TenantLocalizationDto` (only
+      `OrganizationDto`'s four summary fields) — a real, narrow API gap, not a frontend bug. No
+      backend files were touched by the frontend work.
 
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
