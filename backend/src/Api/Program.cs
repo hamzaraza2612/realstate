@@ -136,9 +136,17 @@ try
     // job registered against the test database has no business running mid-test-suite, and
     // Hangfire's own scheduler polling could otherwise introduce test flakiness. See
     // RealEstateErp.Infrastructure.Jobs.SubscriptionLifecycleJob and docs/SAAS_BILLING.md.
+    //
+    // Uses the DI-resolved IRecurringJobManager, not the static RecurringJob.AddOrUpdate API: the
+    // static API reads the global JobStorage.Current, which Hangfire only guarantees is set once
+    // something has actually resolved IGlobalConfiguration/IRecurringJobManager from the container —
+    // timing that held in local `dotnet run` testing but proved environment-dependent under Docker,
+    // where the container crash-looped with "Current JobStorage instance has not been initialized
+    // yet." Resolving the manager from `app.Services` sidesteps the static global entirely.
     if (!app.Environment.IsEnvironment("Testing"))
     {
-        RecurringJob.AddOrUpdate<RealEstateErp.Infrastructure.Jobs.SubscriptionLifecycleJob>(
+        var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+        recurringJobManager.AddOrUpdate<RealEstateErp.Infrastructure.Jobs.SubscriptionLifecycleJob>(
             "subscription-lifecycle", job => job.RunAsync(CancellationToken.None), Cron.Hourly);
     }
 
