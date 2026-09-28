@@ -53,6 +53,7 @@ import { UsersPage } from '@/modules/users/UsersPage'
 import { RolesPage } from '@/modules/roles/RolesPage'
 import { OrganizationSettingsPage } from '@/modules/organization/OrganizationSettingsPage'
 import { LocalizationSettingsPage } from '@/modules/settings/LocalizationSettingsPage'
+import { CommandCenterPage } from '@/modules/commandCenter/CommandCenterPage'
 import { AuditLogPage } from '@/modules/audit/AuditLogPage'
 import { PlatformOrganizationsPage } from '@/modules/platform/PlatformOrganizationsPage'
 import { PlatformOrganizationDetailPage } from '@/modules/platform/PlatformOrganizationDetailPage'
@@ -729,6 +730,14 @@ export default function App() {
           element={
             <PermissionRoute permission="organizations.view">
               <LocalizationSettingsPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="command-center"
+          element={
+            <PermissionRoute permission="ai.view">
+              <CommandCenterPage />
             </PermissionRoute>
           }
         />
