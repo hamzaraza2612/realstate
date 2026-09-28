@@ -125,6 +125,17 @@ UAE-only product with hacks bolted on — every country-specific value is either
 data, a compile-time reference catalog, or an explicit adapter interface, never a hardcoded
 currency/rate/format in business logic.
 
+## AI Business Intelligence (Milestone 16)
+
+Full architecture is in `docs/AI_ARCHITECTURE.md`. One principle worth stating here: AI is a new
+*client* of the existing application/reporting services and the existing approval engine, never a
+new privilege or a parallel data-access path. `IAiProvider` (one configurable Anthropic adapter plus
+a safe unconfigured default, mirroring the `IBillingPaymentProvider`/`IEInvoiceProvider` pattern) is
+the only vendor-specific code in the system; every business fact the AI can state comes from a named,
+permission-gated tool wrapping an existing reporting/application service, and every write the AI
+proposes becomes an `AiActionProposal` routed through the existing generic Approval Inbox — there is
+no second approval engine and no raw database access from the AI layer.
+
 ## Background jobs
 Hangfire with PostgreSQL storage, provisioned since Milestone 1. First real recurring job as of
 Milestone 14: an hourly `SubscriptionLifecycleJob` (`Infrastructure/Jobs/`) expiring overdue trial

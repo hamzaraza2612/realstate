@@ -486,3 +486,90 @@ proportion to this milestone and is tracked as a follow-up in `docs/LOCALIZATION
   test infrastructure (`TestBase.CreateOrganizationWithCountryAsync`, purely additive) and one
   shared reporting helper's signature (`ReportDateRange.Resolve`, updated at all — and only —
   5 real call sites, each in this same milestone's diff).
+
+## Milestone 16 addendum — AI Business Intelligence / AI Command Center
+
+Milestone 16 closes the "ERP with no AI at all" gap: a Business Command Center now gives management
+a deterministic Business Health view and an itemized What Needs Attention list built entirely from
+existing reporting data, plus an "Ask Your Business" conversational layer that can only read data
+through named, permission-checked tools and can only write through the existing approval pipeline.
+Full architecture is in `docs/AI_ARCHITECTURE.md`.
+
+**What was implemented:** `IAiProvider` abstraction (`AnthropicAiProvider` + `UnconfiguredAiProvider`,
+mirroring the Milestone 14/15 unconfigured-provider pattern); the `ai` feature entitlement on the
+existing Milestone 14 entitlement system plus `ai.view` RBAC permission; `AiConversation`/`AiMessage`
+with the fact-vs-narrative hallucination defense (`FactsJson` populated from tool results, never
+parsed from model text); `IBusinessHealthService`/`IAttentionEngineService` built entirely on
+Milestone 12 reporting services; a 14-tool READ registry plus one deliberately low-risk WRITE tool
+(`crm.create_follow_up`); `AiActionProposal` routed through the **existing** Milestone 11 Approval
+Inbox rather than a second approval engine; tenant-aware AI rate limiting; audit entries on the
+**existing** generic `AuditLog` rather than a new table; and a native (not generic-chatbot-styled)
+`/command-center` frontend page.
+
+**What was deliberately not built, per the milestone's own scope:** a full autonomous agent that
+executes multi-step plans without approval; any form of unrestricted/arbitrary AI database access;
+destructive AI-executable actions (delete/cancel/refund/close-period/change-subscription/
+change-tenant-status are not exposed as tools at all); a financial what-if simulator; unrestricted AI
+memory beyond ordinary conversation history; document intelligence/OCR; a mobile AI UI (the REST API
+is mobile-ready by construction, same as every other module); and any live external-provider
+verification — **this sandbox has no `ANTHROPIC_API_KEY` configured**, so no live model call has
+been made or claimed. All AI-loop behavior is verified with a deterministic `FakeAiProvider` test
+double instead.
+
+**A design question resolved deliberately, not by default:** whether to create all five tables the
+spec suggested as likely (`AiConversation`, `AiMessage`, `AiActionProposal`, `AiUsageRecord`,
+`AiAuditEvent`). The answer is four, not five — the existing generic `AuditLog` infrastructure
+(Milestone 1) already cleanly represents every AI audit need, so a fifth `AiAuditEvent` table would
+only duplicate it.
+
+**A security property proven by test, not just claimed:** `AiCommandCenterTests` includes a scripted
+model that is explicitly instructed (via the `FakeAiProvider` test double) to call a tool the calling
+user is not authorized for (`finance.receivables_aging` from a "Sales Manager" role that has `ai.view`
+but not `finance.reports.view`); the call is denied at tool-execution time regardless of what the
+model requested, and no facts from that tool ever reach the response — proving authorization is
+re-checked per tool call, never inherited from the fact that the user could open the Command Center
+at all.
+
+### Verification performed in Milestone 16
+
+- **Backend tests:** 62/62 unit + 225/225 integration passed (274 pre-existing + 13 new AI-specific
+  integration tests + 1 corrected pre-existing unit test whose hardcoded entitlement count needed to
+  grow by one), 0 failures, 0 regressions.
+- **Migration/schema:** one new migration, `AddAiCommandCenterFoundation` (4 new tables:
+  `ai_conversations`, `ai_messages`, `ai_action_proposals`, `ai_usage_records`) — applied and
+  schema-verified via `psql \dt ai_*` against the dev database.
+- **Security/hallucination/write-action tests** (see `tests/IntegrationTests/AiCommandCenterTests.cs`):
+  tenant isolation (a conversation created by one tenant returns 404 for another tenant's owner),
+  same-tenant user isolation (a conversation is invisible to a different user in the same tenant),
+  tool-permission denial even when the scripted model explicitly requests an unauthorized tool, the
+  fact-vs-narrative hallucination defense (a scripted model's prose claims "receivables are
+  effectively zero" while `FactsJson` still carries the real, non-zero `TotalOutstanding` the tool
+  actually returned), an unknown/malformed tool call handled gracefully with no facts and no crash,
+  the full propose→approve→execute pipeline including a proven-idempotent duplicate execution request
+  (a second `ExecuteInternalAsync` call on an already-`Executed` proposal does not create a second
+  Activity record) and proposal expiry (`ExpiresAt` in the past → execution fails with `expired`
+  rather than running), reject-never-executes, audit records created for both `Propose` and `Execute`,
+  and the `ai` entitlement gate blocking only `/api/v1/ai/*` (403 `feature_not_entitled`) while
+  `GET /api/v1/organizations/me` on the same tenant continues to succeed.
+- **Live verification against the real running API:** business-data-only scenario confirmed working
+  end to end — a fresh tenant's Command Center summary returning a real, deterministic
+  `BusinessHealthDto` (correctly all-`Healthy`/no-data-to-evaluate for a brand-new empty tenant) and
+  `aiProviderConfigured: false`; an "Ask" call against a real conversation correctly returning `503
+  ai_provider_not_configured`; a second tenant assigned a plan with the `ai` entitlement explicitly
+  disabled, confirmed to get `403 feature_not_entitled` from the Command Center while
+  `GET /api/v1/organizations/me` on that same tenant kept returning `200`; cross-tenant conversation
+  access confirmed `404`. This pass found and fixed one real bug: `BusinessHealthService.SalesAsync`
+  reported "Critical" for a zero-lead tenant instead of "nothing to evaluate," inconsistent with the
+  Construction/Rental dimensions' own no-data handling — fixed, rebuilt, and re-verified live, then
+  the full suite re-run (287/287 still green). **Full live verification of "Ask Your Business"
+  against a real external AI model was not possible and is not claimed** — this sandbox has no
+  `ANTHROPIC_API_KEY`; that portion of the scenario is instead covered by the deterministic
+  integration tests above, which exercise the identical code path (`AiConversationService`,
+  tool-authorization re-checks, the propose/approve/execute pipeline) against a scripted
+  `FakeAiProvider` rather than `AnthropicAiProvider`.
+- **Fix scope:** ~25 new backend files (3 new domain entity/enum files, 8 new Application DTO/
+  interface files, 12 new Infrastructure service/tool files, 3 new API controllers), 1 migration, 2
+  new test files (1 new integration test file with 13 tests, plus a `FakeAiProvider` test double) —
+  additive throughout; no existing public API shape was changed. Frontend work (`/command-center`)
+  was delegated and independently verified — see the Milestone 16 entry in `docs/ROADMAP.md` for what
+  was built and confirmed working.
