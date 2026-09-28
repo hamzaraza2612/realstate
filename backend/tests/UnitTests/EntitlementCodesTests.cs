@@ -16,7 +16,7 @@ public class EntitlementCodesTests
             EntitlementCodes.Procurement, EntitlementCodes.Rental, EntitlementCodes.Facility, EntitlementCodes.Mall,
             EntitlementCodes.Coworking, EntitlementCodes.ExternalPortals, EntitlementCodes.Documents,
             EntitlementCodes.Approvals, EntitlementCodes.Reporting, EntitlementCodes.AdvancedReporting,
-            EntitlementCodes.ApiAccess, EntitlementCodes.MaxUsers, EntitlementCodes.MaxProperties,
+            EntitlementCodes.ApiAccess, EntitlementCodes.Ai, EntitlementCodes.MaxUsers, EntitlementCodes.MaxProperties,
             EntitlementCodes.MaxProjects, EntitlementCodes.MaxPortalUsers, EntitlementCodes.MaxStorageMb
         };
         values.Should().OnlyHaveUniqueItems();

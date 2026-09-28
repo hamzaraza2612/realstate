@@ -176,6 +176,18 @@ public static class Permissions
         public const string ManageCatalogs = "localization.manage_catalogs";
     }
 
+    /// <summary>Gates who WITHIN an AI-entitled tenant may use the Command Center — separate from
+    /// the "ai" plan entitlement (Domain.Subscription.EntitlementCodes.Ai), which gates whether the
+    /// tenant's plan includes AI at all. A tenant could plausibly want AI available only to managers,
+    /// not every staff member — this permission is the RBAC half of that; the entitlement is the
+    /// billing half. Individual AI tools additionally require their own module permission (e.g.
+    /// finance.reports.view for a finance tool) — this permission alone only grants access to ask
+    /// questions and see Business Health/Attention items, not to any specific business data.</summary>
+    public static class Ai
+    {
+        public const string View = "ai.view";
+    }
+
     /// <summary>All permission codes declared above, discovered via reflection for seeding.</summary>
     public static IReadOnlyList<string> All { get; } = DiscoverAll();
 

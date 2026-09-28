@@ -75,9 +75,12 @@ using RealEstateErp.Application.Subscription;
 using RealEstateErp.Application.Billing;
 using RealEstateErp.Application.Localization;
 using RealEstateErp.Application.Users;
+using RealEstateErp.Application.Ai;
 using RealEstateErp.Infrastructure.Services.Subscription;
 using RealEstateErp.Infrastructure.Services.Billing;
 using RealEstateErp.Infrastructure.Services.Localization;
+using RealEstateErp.Infrastructure.Services.Ai;
+using RealEstateErp.Infrastructure.Services.Ai.Tools;
 using RealEstateErp.Infrastructure.Jobs;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Infrastructure.Persistence;
@@ -266,6 +269,53 @@ public static class DependencyInjection
         services.AddScoped<ITenantTaxProfileService, TenantTaxProfileService>();
         services.AddSingleton<IEInvoiceProvider, UnconfiguredEInvoiceProvider>();
         services.AddScoped<IEInvoiceSubmissionService, EInvoiceSubmissionService>();
+
+        services.Configure<AiSettings>(configuration.GetSection(AiSettings.SectionName));
+        // Mirrors Milestone 14/15's SmtpEmailSender/UnconfiguredBillingPaymentProvider pattern exactly:
+        // the real provider is only wired up when explicitly enabled AND a key is present, so a
+        // deployment (or the test suite) that never configures AI automatically gets the safe
+        // always-fails default instead of a provider that would throw on first use.
+        var aiSettings = configuration.GetSection(AiSettings.SectionName).Get<AiSettings>() ?? new AiSettings();
+        if (aiSettings.Enabled && !string.IsNullOrWhiteSpace(aiSettings.ApiKey))
+        {
+            services.AddScoped<IAiProvider, AnthropicAiProvider>();
+        }
+        else
+        {
+            services.AddScoped<IAiProvider, UnconfiguredAiProvider>();
+        }
+
+        services.AddScoped<IAiRateLimiter, AiRateLimiter>();
+        services.AddScoped<IAiToolRegistry, AiToolRegistry>();
+
+        // READ tools — every one wraps an existing, already-tenant-filtered reporting/application
+        // service; none of them ever construct a raw query themselves.
+        services.AddScoped<IAiTool, ExecutiveDashboardTool>();
+        services.AddScoped<IAiTool, ReceivablesAgingTool>();
+        services.AddScoped<IAiTool, PayablesAgingTool>();
+        services.AddScoped<IAiTool, CashPositionTool>();
+        services.AddScoped<IAiTool, ProfitAndLossTool>();
+        services.AddScoped<IAiTool, SalesSummaryTool>();
+        services.AddScoped<IAiTool, CollectionsSummaryTool>();
+        services.AddScoped<IAiTool, LeadFunnelTool>();
+        services.AddScoped<IAiTool, ProjectPerformanceTool>();
+        services.AddScoped<IAiTool, ConstructionProgressTool>();
+        services.AddScoped<IAiTool, ProcurementExposureTool>();
+        services.AddScoped<IAiTool, RentalPerformanceTool>();
+        services.AddScoped<IAiTool, MaintenanceBacklogTool>();
+        services.AddScoped<IAiTool, TenantUsageTool>();
+        // WRITE tool — never executed directly from a conversation turn; see CreateFollowUpTool's own
+        // doc comment and AiConversationService's write-tool branch.
+        services.AddScoped<IAiTool, CreateFollowUpTool>();
+
+        services.AddScoped<IBusinessHealthService, BusinessHealthService>();
+        services.AddScoped<IAttentionEngineService, AttentionEngineService>();
+        services.AddScoped<IAiActionProposalService, AiActionProposalService>();
+        // Reuses the existing generic Approval Inbox exactly like Expense/PurchaseOrder/Booking above —
+        // no separate "approve an AI action" endpoint exists anywhere in the API layer.
+        services.AddScoped<IApprovalLinkedEntityHandler, AiActionProposalApprovalHandler>();
+        services.AddScoped<IAiConversationService, AiConversationService>();
+        services.AddScoped<ICommandCenterService, CommandCenterService>();
 
         services.AddHangfire((sp, config) => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

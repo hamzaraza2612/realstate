@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Domain.Administration;
+using RealEstateErp.Domain.Ai;
 using RealEstateErp.Domain.Construction;
 using RealEstateErp.Domain.Crm;
 using RealEstateErp.Domain.Facility;
@@ -114,6 +115,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Domain.Portal.PortalRefreshToken> PortalRefreshTokens => Set<Domain.Portal.PortalRefreshToken>();
     public DbSet<Domain.Portal.PortalPasswordResetToken> PortalPasswordResetTokens => Set<Domain.Portal.PortalPasswordResetToken>();
     public DbSet<PropertyOwner> PropertyOwners => Set<PropertyOwner>();
+    public DbSet<AiConversation> AiConversations => Set<AiConversation>();
+    public DbSet<AiMessage> AiMessages => Set<AiMessage>();
+    public DbSet<AiActionProposal> AiActionProposals => Set<AiActionProposal>();
+    public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
     public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
     public DbSet<TaxRate> TaxRates => Set<TaxRate>();
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
