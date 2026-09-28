@@ -665,6 +665,229 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       Portal's intentional use of the internal client was the only match). No backend files were
       touched by the frontend work.
 
+## Milestone 14 — SaaS Control Plane + Subscription/Billing Foundation ✅
+- [x] Plan model: `SubscriptionPlan` extended (not rebuilt) with `Code`, `Description`,
+      `DisplayOrder`, `TrialDays`, `Currency` (ISO 4217 — never assumed to be USD, no
+      Pakistan-specific pricing anywhere), `SetupPrice`, `MetadataJson`. Pricing is entirely
+      data-driven; zero hardcoded plan-tier checks anywhere in the codebase.
+- [x] Entitlement model: a unified `PlanEntitlement`/`TenantEntitlementOverride` (boolean features +
+      nullable-long limits) replaces the pre-existing but completely unused `PlanFeature`/
+      `TenantFeatureEntitlement` scaffolding (confirmed zero readers anywhere before removing them).
+      `EntitlementCodes` is a compile-time catalog, the same pattern `Permissions.cs` already uses —
+      no new database catalog table. `ITenantEntitlementService` is the single resolution point
+      (override → plan → safe default); a tenant with no plan assigned is always fully unrestricted,
+      preserving all 196 pre-Milestone-14 tests with zero changes.
+- [x] Runtime enforcement — the audit's own "scaffolding exists but enforcement was incomplete"
+      finding is now closed: a new `[RequireEntitlement]` action filter (deliberately not an
+      authorization policy, since `PermissionPolicyProvider` already claims every dotted policy name)
+      gates `external_portals` (all five External Portal areas), `advanced_reporting` (all 8
+      Milestone 12 report controllers), and `facility` (the representative module-gating example);
+      five numeric limits (`max_users`, `max_properties`, `max_projects`, `max_portal_users`,
+      `max_storage_mb`) are enforced with an efficient `COUNT`/`SUM` check at each entity's own
+      creation path. Every violation returns a consistent `{title, status, code}` shape.
+- [x] Usage metering: `ITenantUsageService` answers usage/limit/approaching-limit with aggregate
+      queries only, no full-table scans — Normal/Approaching(≥80%)/AtLimit is a display hint, never
+      itself the enforcement boundary (the exact limit value is).
+- [x] Subscription lifecycle: a new `Subscription` aggregate (Trialing/Active/PastDue/Paused/
+      Cancelled/Expired), `SubscriptionStatusRules.CanTransition` as the single valid-transition
+      source of truth (same convention as `BookingStatusRules`), a filtered partial-unique index
+      guaranteeing at most one non-terminal subscription per tenant, and Postgres `xmin` optimistic
+      concurrency. `TenantStatus` (Milestone 10) remains the **sole** API-access gate — completely
+      unmodified — with `Subscription.Status` feeding into it one-directionally via a documented
+      mapping table (`SubscriptionService.MapToTenantStatus`); verified end-to-end by a test that
+      cancels a subscription and confirms the tenant's already-issued JWT is immediately rejected by
+      the pre-existing, untouched `TenantStatusMiddleware`.
+- [x] Background jobs: the first real Hangfire consumer since Hangfire/Redis were provisioned in
+      Milestone 9 with zero consumers — an hourly `SubscriptionLifecycleJob` expiring overdue trials,
+      idempotent (guarded by `CanTransition` + the `xmin` token) and skipped entirely under the
+      "Testing" host so it never runs against the test database mid-suite.
+- [x] Billing foundation: `Invoice`/`InvoiceLineItem` (tenant-scoped `InvoiceNumber`, same convention
+      as `BookingNumber`/`LeaseNumber` — never a global unique index for a tenant-owned identifier)
+      and `BillingPayment` (idempotency-key pattern copied from the three existing payment tables —
+      Sales `Payment`, Property `RentPayment`, Facility `FacilityPayment`). `IBillingPaymentProvider`
+      is a real, registered extension seam (`UnconfiguredBillingPaymentProvider`, mirrors Milestone
+      13's `IPortalPaymentIntentProvider`) for a future Stripe/UAE/GCC gateway — never called by
+      anything in this milestone, since recording a payment here means "a platform admin confirmed
+      one was already received," not "charge a card." No sensitive payment data of any kind is
+      accepted or persisted.
+- [x] Production email: `IEmailSender` gained one optional `isHtml` parameter (placed after the
+      existing `ct` parameter specifically so every existing positional call site keeps compiling
+      unchanged); a new `SmtpEmailSender` (built-in `System.Net.Mail`, no new dependency) is
+      registered only when `Smtp:Enabled=true` is explicitly configured — `LoggingEmailSender` stays
+      the default everywhere else, including every test (verified by a dedicated test resolving
+      `IEmailSender` and asserting its concrete type).
+- [x] SaaS admin surface: `PlatformSubscriptionsController` (list, transition) and
+      `PlatformInvoicesController` (generate, record payment) alongside extended
+      `PlatformOrganizationsController` (subscription/usage/entitlements sub-resources) and
+      `PlatformSubscriptionPlansController` (now with entitlements) — every one inheriting the
+      pre-existing `PlatformControllerBase`/`SuperAdminOnly` policy, zero new authorization
+      mechanism. Tenant-facing `SubscriptionController`/`BillingController` take no tenant/
+      subscription/invoice id anywhere — every action reads the ambient tenant, so there is nothing
+      for a caller to substitute for another tenant's data — gated by one new tenant-wide permission,
+      `subscription.view` (same "one permission spans a cross-cutting foundation" precedent as
+      `documents.view`/`reports.view`/`portal.manage_accounts`).
+- [x] Database: one migration, `AddSaasControlPlane` — `subscriptions`, `invoices`,
+      `invoice_line_items`, `billing_payments`, `plan_entitlements`, `tenant_entitlement_overrides`
+      (new tables), `subscription_plans` extended, `plan_features`/`tenant_feature_entitlements`
+      dropped (confirmed zero rows anywhere before dropping) — applied and schema-verified against
+      both the dev and test databases (see `docs/DATABASE.md`).
+- [x] Unit/integration tests: 28 new unit tests (`SubscriptionStatusRules`'s full transition matrix,
+      `EntitlementCodes`' catalog integrity) and 14 new integration tests covering plan/entitlement
+      CRUD, trial-then-active subscription assignment, double-assignment rejection, invalid-transition
+      rejection, cancellation driving `TenantStatus` and blocking further API access, feature-gate
+      enforcement (disabled vs. unrestricted-no-plan comparison), both limit-enforcement points
+      demonstrated end-to-end (`max_projects`, `max_users`), platform-admin isolation, cross-tenant
+      subscription/invoice isolation, payment idempotency with invoice auto-marked Paid, the
+      email-sender default, and the background job's trial-expiry transition plus its own
+      re-run-is-a-no-op idempotency (with an audit-trail check) — all passing alongside the existing
+      suite (238 total: 40 unit + 198 integration), zero regressions in the 196 pre-existing tests.
+- [x] Frontend: a SaaS control-plane admin area under `/platform/*` — a SaaS Dashboard (KPIs
+      aggregated client-side from the subscriptions/organizations/invoices lists, since no dedicated
+      dashboard endpoint exists by design), a Tenant Detail page (`/platform/organizations/:id`, new)
+      with Subscription/Usage/Entitlements tabs — the practical home for per-tenant usage and
+      entitlement management, since the backend only exposes those per-tenant, not as a cross-tenant
+      aggregate — a rewritten Plans page/form (the full Feature/Limit entitlement checklist replacing
+      the old `userLimit`/`projectLimit`/`storageLimitMb`/`features` shape end to end, with zero
+      stale references left anywhere), a cross-tenant Subscriptions page (with a transition dialog
+      offering only the currently-valid next statuses), a Billing/Invoices page (generate + record
+      payment, with a fresh client-generated idempotency key per attempt), and a Platform Audit page
+      (a two-line wrapper around the existing, already-reusable `AuditLogTable` component). A new
+      tenant-facing `/billing` page (plan/status/trial card, usage, enabled features, invoices,
+      payment history — no self-service plan change, per this milestone's own scope boundary) is
+      reachable from the internal Sidebar for any role holding `subscription.view` (every
+      "Organization Owner"/"Organization Admin" automatically). A new `formatCurrency` helper
+      (`Intl.NumberFormat` keyed off each record's own `currency` field) replaces the reports
+      module's hardcoded `$`-only formatter everywhere in the new billing UI.
+      Independently verified after the implementing agent's handback: the agent correctly detected
+      its assigned worktree was on a stale, unrelated commit (the same failure mode as the prior
+      milestone) and fixed it itself — safely resetting only its own dedicated worktree branch to
+      the correct commit before writing any code, exactly as instructed, rather than reconstructing
+      anything by hand. Its diff applied cleanly onto the real branch (`git apply --check` passed
+      with zero conflicts, since it started from the correct base). `npm run build` re-run
+      independently and confirmed to exit 0 with zero TypeScript errors; grepped for the old
+      `SubscriptionPlanDto` field names and for stray string-literal status comparisons (zero
+      matches for either); every new route cross-checked against `App.tsx` (no dead links, no
+      collision with the new `/platform/organizations/:id` route); confirmed the tenant-facing
+      billing module correctly imports the internal `apiClient`/`useAuthStore` (not the Milestone 13
+      portal ones) since it serves internal ERP tenant admins, not external portal users. No backend
+      files, and no Milestone 13 portal files, were touched by the frontend work.
+
+## Milestone 15 — SaaS Localization & Tax Engine Foundation ✅
+- [x] Localization model: 8 new fields live directly on `Tenant` (`CountryCode`, `Currency`,
+      `Locale`, `DateFormat`, `FirstDayOfWeek`, `DefaultLanguage`, `SecondaryLanguages`,
+      `MeasurementSystem`), reusing `Timezone` from Milestone 10 rather than duplicating it — the
+      tenant itself is the single source of truth, no separate profile table. Neutral defaults
+      (`US`/`USD`/`en-US`) mean an existing tenant's behavior is unchanged unless it opts into a
+      country. Exposed at `GET/PUT /api/v1/localization/current`, reusing the existing
+      `organizations.view`/`organizations.manage` permissions — no new permission needed.
+- [x] Country/currency model: `CountryCatalog`/`CurrencyCatalog` — compile-time catalogs (the same
+      pattern `Permissions`/`EntitlementCodes` already use), not database tables, since this is
+      fixed ISO reference data. Nine countries (UAE, Saudi Arabia, Pakistan, UK, US, Qatar, Bahrain,
+      Kuwait, Oman) and ten currencies, each with its own correct decimal precision (BHD/KWD/OMR use
+      3, not a hardcoded 2 — `CurrencyCatalog.Round` always reads it).
+- [x] Tax engine: new `TaxProfile`/`TaxRate` platform-managed catalog (Super-Admin-only,
+      `ITaxProfileService`) plus `ITaxCalculationService` as the single computation point — never a
+      hardcoded percentage anywhere. UAE VAT (5% standard, 0% zero-rated) and Saudi VAT (15%
+      standard, 0% zero-rated) seeded via `DbSeeder`; every other catalog country deliberately left
+      unseeded rather than inventing tax rules for it. Computed tax is snapshotted onto `Invoice`
+      (`TaxRateId`/`TaxCode`/`TaxName`/`TaxPercentage`/`TaxInclusive`) at generation time — verified
+      by a dedicated test and live that raising a rate's percentage afterward never changes an
+      already-issued invoice.
+- [x] eInvoice architecture: one generic `IEInvoiceProvider` interface (not one per country) plus
+      `EInvoiceSubmission` as the audit trail, exposed at
+      `/api/v1/platform/invoices/{id}/einvoice-submissions`. Only `UnconfiguredEInvoiceProvider` is
+      registered (mirrors Milestone 14's `UnconfiguredBillingPaymentProvider`) — always fails
+      cleanly; no real UAE ASP or Saudi ZATCA/FATOORA integration exists, and none is claimed. Kept
+      strictly separate from ordinary PDF invoice generation.
+- [x] Saudi rental readiness: 4 nullable columns on `Lease` (`ExternalRegistryProvider`,
+      `ExternalContractReference`, `ExternalRegistrationStatus`, `ExternalLastSyncedAt`) as the
+      seam a future Ejar (or equivalent) integration would populate — unpopulated by any code this
+      milestone; no fake Ejar API call anywhere.
+- [x] Exchange rates: `ExchangeRate` (platform-wide) + `IExchangeRateService` — a manual-entry-only
+      seam (`SetRateAsync`), never an external FX provider. `ConvertAsync` treats same-currency as
+      an always-succeeding identity, derives an exact inverse when only the reverse pair was
+      recorded, and fails clearly with `exchange_rate_not_found` rather than inventing a rate when
+      neither exists — all three paths covered by tests.
+- [x] Finance/currency strategy documented, not over-built: existing Finance/Sales/Property/Facility
+      tables gained **no** new currency column, since each tenant now has exactly one operating
+      currency (`Tenant.Currency`) and every one of those tables is already tenant-isolated — adding
+      a per-row column would just duplicate what `TenantId` already implies. The SaaS billing
+      subsystem (`Invoice`/`Subscription`/`BillingPayment`) keeps its own explicit per-row
+      `Currency`, correctly, since those rows span many tenants. See `docs/TAX_ENGINE.md`.
+- [x] Timezone audit: a full-repository grep for `DateTime.Now`/`DateTime.Today` (the genuinely
+      dangerous server-local-time pattern) found **zero matches** — every timestamp already used
+      `DateTimeOffset.UtcNow` consistently. The actual gap was UTC-day-boundary assumptions for
+      tenant-facing calendar dates; a new `ITenantTimeService` (wrapping a pure, fully-unit-tested
+      `TenantClock` helper covering Asia/Dubai, Asia/Riyadh, Asia/Karachi, Europe/London, and
+      America/New_York) now drives invoice issue/due dates and every report's default date-range
+      resolution, verified live: an invoice generated in the evening UTC correctly shows the next
+      calendar day as its issue date for a UAE/Saudi tenant. One narrow, documented limitation
+      remains (a few report instant-range filters still use UTC midnight as their day boundary — see
+      `docs/LOCALIZATION.md`).
+- [x] Reporting: verified that no report can mix currencies, because every report is already
+      tenant-scoped and a tenant has exactly one currency — nothing to mix. Confirmed live and by a
+      dedicated test generating invoices for a UAE and a Pakistan tenant and checking neither
+      currency figure leaks into or gets summed with the other.
+- [x] Database: one migration, `AddSaasLocalizationTaxFoundation` — 8 new `tenants` columns
+      (with corrected, non-blank default values so existing tenants aren't left with empty-string
+      locale settings), 4 new nullable `leases` columns, 5 new nullable `invoices` columns, and 4 new
+      tables (`tax_profiles`, `tax_rates`, `exchange_rates`, `tenant_tax_profiles`,
+      `einvoice_submissions`) — applied and schema-verified against both the dev and test databases.
+- [x] Unit/integration tests: 36 new unit tests (`TenantClock` across all 5 required timezones,
+      `CountryCatalog`/`CurrencyCatalog` lookups and currency-precision rounding) and 14 new
+      integration tests (country/currency catalogs, tenant localization CRUD with cross-tenant
+      isolation, platform tax-profile authorization, UAE 5%/Saudi 15% VAT computed end to end, no
+      tax for an unconfigured country, the tax-snapshot-immutability scenario, exchange-rate
+      identity/missing-rate/round-trip/inverse behavior, and cross-tenant currency non-mixing) — all
+      passing alongside the existing suite (274 total: 62 unit + 212 integration), zero regressions
+      in the 238 pre-existing tests.
+- [x] Frontend: a dependency-free i18n system (`lib/i18n/` — `en`/`ar` resource dictionaries,
+      `I18nProvider`/`useI18n()`, language persisted client-side, `t()` always falls back
+      English-then-raw-key so nothing renders blank) wired at the app root in `main.tsx`, with its
+      initial language bridged from a new `localizationStore` (zustand, fetch-once from
+      `GET /localization/current`, bootstrapped from `AppShell`) so a returning user's tenant
+      default language applies automatically until they choose otherwise. Sidebar nav labels
+      (`labelKey` replacing every hardcoded `label`, tenant and platform sections alike) and every
+      string on the new Settings → Localization page are translated end to end into both languages;
+      the rest of the ~100-page app is left for M17 by design. RTL verified functional: `dir`/`lang`
+      flip reactively on `<html>`, and the two logical-property fixes the persistent shell actually
+      needed (`Sidebar`'s `border-r`→`border-e`, `Topbar`'s notification-badge `-right-0.5`→`-end-0.5`)
+      were applied — the rest of the shell already used direction-agnostic flex/gap classes.
+      The pre-existing hardcoded `$`/`en-US` `money()` helper (`modules/reports/format.ts`, used by
+      every dashboard) now reads the tenant's real currency/locale from `localizationStore`; 8
+      dashboard pages found to have their *own* separately-hardcoded `en-US` formatters (Sales,
+      Coworking, Mall, Facility, Finance, Procurement, Construction, Property/Rental) were fixed the
+      same way. `lib/utils.ts` gained `formatDateTime`/`formatNumber`/`formatPercentage`, and
+      `formatCurrency`/`formatDate` now accept an optional locale override, defaulting to the store.
+      New pages: Settings → Localization (`/settings/localization` — country/currency/language/
+      timezone/date-format/first-day-of-week/measurement-system form with a live preview panel and a
+      read-only tax-configuration card, Save gated on `organizations.manage`) and a platform Tax
+      Profiles admin page (`/platform/tax-profiles`, Super-Admin-only — list profiles with their
+      rates, create a profile, add/edit a rate). `PlatformOrganizationDetailPage` gained a
+      Localization tab (view + edit via the platform localization endpoint); the Create Organization
+      dialog gained an optional Country select; both invoice detail dialogs now show the tax
+      breakdown (e.g. "VAT 5% — 50.00 AED") when a tax snapshot is present, falling back to the
+      plain amount otherwise.
+      Independently verified after the implementing agent's handback: two earlier attempts landed
+      on the wrong branch (a worktree default of `main` rather than this feature branch, an
+      environment quirk distinct from — and now confirmed not the same as — the prior milestones'
+      stale-worktree failure mode); the corrected delegation instructed the agent to fix its own
+      worktree's branch rather than stop, which the third attempt did successfully before writing
+      any code. Its finished commit was cherry-picked onto the real branch cleanly. `npm run build`
+      was re-run independently and confirmed to exit 0 with zero TypeScript errors; the `money()`
+      fix was independently grepped and confirmed (only a doc-comment mention of `$`/`en-US`
+      remains); `Sidebar.tsx`, `main.tsx`/`AppShell.tsx`'s provider wiring, and `App.tsx`'s new
+      routes were independently read and confirmed to follow this codebase's existing conventions
+      exactly (numeric-enum + label-map pattern, `PermissionRoute`/`SuperAdminRoute` guards, no
+      stray string-literal comparisons). Honestly flagged by the agent and left as real, scoped gaps
+      rather than silently incomplete: the tenant-facing tax-registration (`TenantTaxProfile`)
+      PUT is wired in the API hook layer but has no UI yet; the platform Exchange Rates page was not
+      built (API hooks only); a platform admin editing a tenant's Localization tab cannot pre-fill
+      `dateFormat`/`firstDayOfWeek`/`measurementSystem` with that tenant's actual saved values,
+      since no platform endpoint returns another tenant's full `TenantLocalizationDto` (only
+      `OrganizationDto`'s four summary fields) — a real, narrow API gap, not a frontend bug. No
+      backend files were touched by the frontend work.
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Reporting.Common;
 using RealEstateErp.Application.Reporting.Sales;
 using RealEstateErp.Domain.Crm;
@@ -11,10 +12,12 @@ namespace RealEstateErp.Infrastructure.Services.Reporting;
 public class SalesReportService : ISalesReportService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantTimeService _tenantTimeService;
 
-    public SalesReportService(AppDbContext db)
+    public SalesReportService(AppDbContext db, ITenantTimeService tenantTimeService)
     {
         _db = db;
+        _tenantTimeService = tenantTimeService;
     }
 
     private IQueryable<Booking> FilteredBookings(SalesReportFilter filter)
@@ -86,7 +89,7 @@ public class SalesReportService : ISalesReportService
 
     public async Task<BookingConversionDto> BookingConversionAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
         var fromUtc = resolvedFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc = resolvedTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
 

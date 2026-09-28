@@ -11,7 +11,11 @@ namespace RealEstateErp.Application.Communication;
 /// interface; nothing above this layer changes.</summary>
 public interface IEmailSender
 {
-    Task<Result> SendAsync(string toAddress, string subject, string body, CancellationToken ct = default);
+    /// <summary>isHtml defaults to false (plain text) so every existing positional caller (passing ct
+    /// as the 4th argument) keeps compiling and behaving exactly as before; a caller that wants a
+    /// formatted SaaS lifecycle email (see docs/SAAS_BILLING.md's email events) passes isHtml: true
+    /// by name along with an HTML body.</summary>
+    Task<Result> SendAsync(string toAddress, string subject, string body, CancellationToken ct = default, bool isHtml = false);
 }
 
 /// <summary>The single entry point every module calls to notify a user — resolves the user's

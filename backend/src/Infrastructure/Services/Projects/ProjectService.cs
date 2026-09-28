@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Projects.Projects;
+using RealEstateErp.Application.Subscription;
 using RealEstateErp.Domain.Projects;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
@@ -12,11 +14,15 @@ public class ProjectService : IProjectService
 {
     private readonly AppDbContext _db;
     private readonly IAuditLogger _auditLogger;
+    private readonly ITenantContext _tenantContext;
+    private readonly ITenantEntitlementService _entitlements;
 
-    public ProjectService(AppDbContext db, IAuditLogger auditLogger)
+    public ProjectService(AppDbContext db, IAuditLogger auditLogger, ITenantContext tenantContext, ITenantEntitlementService entitlements)
     {
         _db = db;
         _auditLogger = auditLogger;
+        _tenantContext = tenantContext;
+        _entitlements = entitlements;
     }
 
     public async Task<PagedResult<ProjectDto>> ListAsync(PagedRequest request, ProjectFilter filter, CancellationToken ct = default)
@@ -49,6 +55,19 @@ public class ProjectService : IProjectService
     {
         var codeExists = await _db.Projects.AnyAsync(p => p.Code == request.Code, ct);
         if (codeExists) return Result.Failure<ProjectDto>("A project with this code already exists.", "duplicate_code");
+
+        if (_tenantContext.TenantId is { } tenantId)
+        {
+            var limit = await _entitlements.GetLimitAsync(tenantId, EntitlementCodes.MaxProjects, ct);
+            if (limit.HasValue)
+            {
+                var currentProjects = await _db.Projects.CountAsync(ct);
+                if (currentProjects >= limit.Value)
+                {
+                    return Result.Failure<ProjectDto>("This organization has reached its plan's project limit.", "limit_exceeded");
+                }
+            }
+        }
 
         var project = new Project
         {

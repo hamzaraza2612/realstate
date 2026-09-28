@@ -3,12 +3,17 @@ using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Authorization;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Facility.Facilities;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Shared.Pagination;
 using RealEstateErp.Shared.Security;
 
 namespace RealEstateErp.Api.Controllers;
 
+/// <summary>[RequireEntitlement(Facility)] (Milestone 14) is the representative example of gating a
+/// whole sellable module behind one plan feature — see docs/SAAS_BILLING.md for the full list of
+/// which modules are actually enforced this way vs. defined-but-not-yet-gated.</summary>
 [Authorize]
+[RequireEntitlement(EntitlementCodes.Facility)]
 [Route("api/v1/facilities")]
 public class FacilitiesController : ApiControllerBase
 {

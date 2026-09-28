@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Portal;
+using RealEstateErp.Application.Subscription;
 using RealEstateErp.Domain.Portal;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Infrastructure.Persistence;
 using RealEstateErp.Shared.Common;
 using RealEstateErp.Shared.Pagination;
@@ -17,10 +19,12 @@ public class PortalAccountService : IPortalAccountService
     private readonly ITenantContext _tenantContext;
     private readonly PortalActorResolver _actorResolver;
     private readonly PortalPasswordResetIssuer _resetIssuer;
+    private readonly ITenantEntitlementService _entitlements;
 
     public PortalAccountService(
         AppDbContext db, IPasswordHasher<PortalUser> passwordHasher, IAuditLogger auditLogger,
-        ITenantContext tenantContext, PortalActorResolver actorResolver, PortalPasswordResetIssuer resetIssuer)
+        ITenantContext tenantContext, PortalActorResolver actorResolver, PortalPasswordResetIssuer resetIssuer,
+        ITenantEntitlementService entitlements)
     {
         _db = db;
         _passwordHasher = passwordHasher;
@@ -28,6 +32,7 @@ public class PortalAccountService : IPortalAccountService
         _tenantContext = tenantContext;
         _actorResolver = actorResolver;
         _resetIssuer = resetIssuer;
+        _entitlements = entitlements;
     }
 
     public async Task<PagedResult<PortalAccountDto>> ListAsync(PagedRequest request, PortalAccountFilter filter, CancellationToken ct = default)
@@ -80,6 +85,16 @@ public class PortalAccountService : IPortalAccountService
         if (emailTaken)
         {
             return Result.Failure<PortalAccountDto>("A portal account with this email already exists for this organization.", "email_taken");
+        }
+
+        var portalUserLimit = await _entitlements.GetLimitAsync(tenantId, EntitlementCodes.MaxPortalUsers, ct);
+        if (portalUserLimit.HasValue)
+        {
+            var currentPortalUsers = await _db.PortalUsers.CountAsync(u => u.IsActive, ct);
+            if (currentPortalUsers >= portalUserLimit.Value)
+            {
+                return Result.Failure<PortalAccountDto>("This organization has reached its plan's portal user limit.", "limit_exceeded");
+            }
         }
 
         var user = new PortalUser

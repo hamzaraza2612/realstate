@@ -397,4 +397,91 @@ to the caller's own `UserId`:
 - `GET performance?from=&to=` — reuses `ISalesReportService.SalesByPeriodAsync` filtered to the
   caller's own agent id. No commission endpoint exists — the domain model has no commission data.
 
+## SaaS Control Plane & Billing (Milestone 14)
+
+Full architecture (entitlement resolution order, Tenant.Status↔Subscription.Status mapping, the
+five enforced limits, the three enforced feature gates) is in `docs/SAAS_BILLING.md`, not repeated
+here. Every entitlement/limit violation returns `{ title, status, code: "feature_not_entitled" |
+"limit_exceeded" }`.
+
+Platform admin (Super Admin only, `PlatformControllerBase`/`SuperAdminOnly` policy — same pattern as
+every pre-existing `/platform/*` route):
+- `GET /api/v1/platform/subscription-plans`, `GET /api/v1/platform/subscription-plans/{id}` —
+  now include `code`, `description`, `displayOrder`, `trialDays`, `currency`, `setupPrice`,
+  `metadataJson`, `entitlements: [{code, type, boolValue, numericValue}]`.
+- `POST /api/v1/platform/subscription-plans`, `PUT /api/v1/platform/subscription-plans/{id}` — body
+  includes `entitlements: [{code, boolValue?, numericValue?}]`; `400 code_taken` if the plan `code`
+  already exists.
+- `GET /api/v1/platform/organizations/{id}/subscription` — the tenant's current non-terminal
+  subscription, `404` if none.
+- `POST /api/v1/platform/organizations/{id}/subscription` body `{ planId, skipTrial }` — assigns a
+  plan and starts a subscription (Trialing unless `skipTrial` or the plan's `trialDays` is 0);
+  `400 already_subscribed` if the tenant already has a non-terminal subscription.
+- `GET /api/v1/platform/organizations/{id}/usage` — `TenantUsageDto` (counts + per-limit
+  Normal/Approaching/AtLimit metrics).
+- `GET /api/v1/platform/organizations/{id}/entitlements` — `{ effective: [...], overrides: [...] }`.
+- `PUT /api/v1/platform/organizations/{id}/entitlements` body `{ code, boolValue?, numericValue? }` —
+  upserts a `TenantEntitlementOverride`.
+- `DELETE /api/v1/platform/organizations/{id}/entitlements/{code}` — removes the override (falls
+  back to the plan's own value).
+- `GET /api/v1/platform/subscriptions` — cross-tenant subscription list.
+- `POST /api/v1/platform/subscriptions/{id}/transition` body `{ toStatus, reason? }` —
+  `400 invalid_transition` if `SubscriptionStatusRules.CanTransition` rejects it;
+  `400 concurrency_conflict` on a losing `xmin` race.
+- `GET /api/v1/platform/invoices?tenantId=&status=` (paged), `GET /api/v1/platform/invoices/{id}`.
+- `POST /api/v1/platform/invoices/generate` body `{ subscriptionId, taxAmount, lineItems?, dueInDays }`.
+- `GET /api/v1/platform/invoices/{id}/payments`.
+- `POST /api/v1/platform/invoices/{id}/payments` body `{ amount, paymentDate, providerTransactionId?, idempotencyKey }`
+  — idempotent on `idempotencyKey`; a repeat request returns the original payment, never a duplicate.
+
+Tenant-facing billing view (`subscription.view` permission — one tenant-wide permission, same
+precedent as `documents.view`/`reports.view`; every action reads the ambient tenant, no id
+parameter anywhere, so there is nothing for a caller to substitute for another tenant's):
+- `GET /api/v1/subscription` — the caller's own current subscription.
+- `GET /api/v1/subscription/usage` — the caller's own usage metrics.
+- `GET /api/v1/subscription/entitlements` — the caller's own effective entitlements.
+- `GET /api/v1/billing/invoices` (paged), `GET /api/v1/billing/invoices/{id}`.
+- `GET /api/v1/billing/payments` — the caller's own payment history.
+
+## Localization, Tax Engine & Exchange Rates (Milestone 15)
+
+Full architecture (tenant locale profile, tax engine, eInvoice seam, FX seam, country packs) is in
+`docs/LOCALIZATION.md`, `docs/TAX_ENGINE.md`, and `docs/COUNTRY_PACKS.md`, not repeated here.
+
+Tenant-facing (`/api/v1/localization/*`):
+- `GET /api/v1/localization/countries` — the compile-time country catalog (no permission needed).
+- `GET /api/v1/localization/currencies` — the compile-time currency catalog (no permission needed).
+- `GET /api/v1/localization/tax-rates?countryCode=` — active `TaxRate`s for a country (no
+  permission needed — read-only reference data).
+- `GET /api/v1/localization/current` (`organizations.view`) / `PUT /api/v1/localization/current`
+  (`organizations.manage`) — the caller's own tenant's locale profile.
+- `GET /api/v1/localization/tax-profile` / `PUT /api/v1/localization/tax-profile` (same
+  permissions) — the caller's own tenant's tax registration/legal-entity details.
+
+Platform admin (`PlatformControllerBase`/`SuperAdminOnly`, same policy as every `/platform/*` route):
+- `GET /api/v1/platform/tax-profiles?countryCode=`, `GET /api/v1/platform/tax-profiles/{id}`,
+  `POST /api/v1/platform/tax-profiles`, `PUT /api/v1/platform/tax-profiles/{id}` — the global
+  `TaxProfile` catalog. `400 code_taken` if the profile `code` already exists.
+- `POST /api/v1/platform/tax-profiles/{id}/rates`, `PUT /api/v1/platform/tax-profiles/{id}/rates/{rateId}`
+  — `TaxRate` rows under a profile. `400 rate_code_taken` if the `rateCode` already exists on that
+  profile.
+- `PUT /api/v1/platform/organizations/{id}/localization` — sets any tenant's locale profile.
+- `GET /api/v1/platform/exchange-rates` (paged), `GET /api/v1/platform/exchange-rates/latest?baseCurrency=&quoteCurrency=`
+  (`404 exchange_rate_not_found` if none configured — never invents a rate),
+  `POST /api/v1/platform/exchange-rates` body `{ baseCurrency, quoteCurrency, rate, effectiveAt? }`
+  — the manual FX-rate seam (see `docs/TAX_ENGINE.md`).
+- `GET /api/v1/platform/invoices/{id}/einvoice-submissions`,
+  `POST /api/v1/platform/invoices/{id}/einvoice-submissions?documentType=` — the eInvoice submission
+  audit trail; always fails with `einvoice_provider_not_configured` (see `docs/TAX_ENGINE.md` — no
+  real UAE ASP/ZATCA integration exists).
+
+Changed from Milestone 14:
+- `POST /api/v1/platform/organizations` (create org) now accepts optional `countryCode`, `currency`,
+  `locale` — when `countryCode` is given, unset `currency`/`locale` default from the country catalog.
+- `OrganizationDto` now includes `countryCode`, `currency`, `locale`, `defaultLanguage`.
+- `POST /api/v1/platform/invoices/generate` body now accepts an optional `taxRateCode` — when given,
+  tax is computed by the tax engine and snapshotted (`taxAmount` in the body is then ignored); when
+  omitted, `taxAmount` is used exactly as before. `InvoiceDto` now includes `taxRateId`, `taxCode`,
+  `taxName`, `taxPercentage`, `taxInclusive`.
+
 Further modules append their endpoint list here as they ship.

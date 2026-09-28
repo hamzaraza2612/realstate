@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Reporting.Common;
 using RealEstateErp.Application.Reporting.Finance;
 using RealEstateErp.Domain.Construction;
@@ -10,15 +11,17 @@ namespace RealEstateErp.Infrastructure.Services.Reporting;
 public class FinanceReportsExtensionService : IFinanceReportsExtensionService
 {
     private readonly AppDbContext _db;
+    private readonly ITenantTimeService _tenantTimeService;
 
-    public FinanceReportsExtensionService(AppDbContext db)
+    public FinanceReportsExtensionService(AppDbContext db, ITenantTimeService tenantTimeService)
     {
         _db = db;
+        _tenantTimeService = tenantTimeService;
     }
 
     public async Task<ArAgingReportDto> GetArAgingAsync(CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayAsync(ct);
 
         var installments = await _db.Installments
             .Where(i => i.Status != Domain.Sales.InstallmentStatus.Cancelled && i.Amount > i.PaidAmount)
@@ -52,7 +55,7 @@ public class FinanceReportsExtensionService : IFinanceReportsExtensionService
 
     public async Task<ApAgingReportDto> GetApAgingAsync(CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = await _tenantTimeService.TodayAsync(ct);
 
         var expenses = await _db.Expenses
             .Where(e => e.Status == ExpenseStatus.Approved && e.Amount > e.PaidAmount)
@@ -108,7 +111,7 @@ public class FinanceReportsExtensionService : IFinanceReportsExtensionService
     private async Task<IReadOnlyList<MonthlyTrendRowDto>> MonthlyJournalTrendAsync(
         AccountType type, Func<decimal, decimal, decimal> amount, DateOnly? from, DateOnly? to, CancellationToken ct)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var rows = await (
                 from line in _db.JournalLines
@@ -128,7 +131,7 @@ public class FinanceReportsExtensionService : IFinanceReportsExtensionService
 
     public async Task<IReadOnlyList<MonthlyTrendRowDto>> GetCollectionsTrendAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var salesPayments = await _db.Payments
             .Where(p => p.PaymentDate >= resolvedFrom && p.PaymentDate <= resolvedTo)

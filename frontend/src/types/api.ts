@@ -67,6 +67,11 @@ export interface OrganizationDto {
   subscriptionPlanId: string | null
   trialEndsAt: string | null
   createdAt: string
+  // --- SaaS localization + tax engine foundation (Milestone 15) ---
+  countryCode: string | null
+  currency: string | null
+  locale: string | null
+  defaultLanguage: string | null
 }
 
 export const TenantStatus = {
@@ -100,16 +105,375 @@ export interface AuditLogDto {
   createdAt: string
 }
 
+// --- SaaS Control Plane & Billing (Milestone 14) ---
+// See docs/SAAS_BILLING.md for the full architecture (entitlement resolution order,
+// Tenant.Status<->Subscription.Status mapping, enforced limits/feature gates).
+
+export const BillingCycle = {
+  Monthly: 0,
+  Yearly: 1,
+} as const
+export type BillingCycle = (typeof BillingCycle)[keyof typeof BillingCycle]
+
+export const BillingCycleLabel: Record<BillingCycle, string> = {
+  [BillingCycle.Monthly]: 'Monthly',
+  [BillingCycle.Yearly]: 'Yearly',
+}
+
+export const EntitlementType = {
+  Feature: 0,
+  Limit: 1,
+} as const
+export type EntitlementType = (typeof EntitlementType)[keyof typeof EntitlementType]
+
+export const EntitlementTypeLabel: Record<EntitlementType, string> = {
+  [EntitlementType.Feature]: 'Feature',
+  [EntitlementType.Limit]: 'Limit',
+}
+
+export interface PlanEntitlementDto {
+  code: string
+  type: EntitlementType
+  boolValue: boolean | null
+  numericValue: number | null
+}
+
 export interface SubscriptionPlanDto {
   id: string
   name: string
-  price: number
-  billingCycle: number
-  userLimit: number
-  projectLimit: number
-  storageLimitMb: number
+  code: string
+  description: string | null
+  displayOrder: number
   isActive: boolean
-  features: string[]
+  trialDays: number
+  currency: string
+  price: number
+  setupPrice: number | null
+  billingCycle: BillingCycle
+  metadataJson: string | null
+  entitlements: PlanEntitlementDto[]
+}
+
+export const SubscriptionStatus = {
+  Trialing: 0,
+  Active: 1,
+  PastDue: 2,
+  Paused: 3,
+  Cancelled: 4,
+  Expired: 5,
+} as const
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus]
+
+export const SubscriptionStatusLabel: Record<SubscriptionStatus, string> = {
+  [SubscriptionStatus.Trialing]: 'Trialing',
+  [SubscriptionStatus.Active]: 'Active',
+  [SubscriptionStatus.PastDue]: 'Past Due',
+  [SubscriptionStatus.Paused]: 'Paused',
+  [SubscriptionStatus.Cancelled]: 'Cancelled',
+  [SubscriptionStatus.Expired]: 'Expired',
+}
+
+/** `SubscriptionStatusRules.CanTransition` mirrored client-side purely as a UI convenience so we
+ * never render a transition button that would 400 — the backend remains the actual enforcement. */
+export const SubscriptionValidTransitions: Record<SubscriptionStatus, SubscriptionStatus[]> = {
+  [SubscriptionStatus.Trialing]: [SubscriptionStatus.Active, SubscriptionStatus.Expired, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.Active]: [SubscriptionStatus.PastDue, SubscriptionStatus.Paused, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.PastDue]: [SubscriptionStatus.Active, SubscriptionStatus.Cancelled, SubscriptionStatus.Expired],
+  [SubscriptionStatus.Paused]: [SubscriptionStatus.Active, SubscriptionStatus.Cancelled],
+  [SubscriptionStatus.Cancelled]: [SubscriptionStatus.Expired],
+  [SubscriptionStatus.Expired]: [],
+}
+
+export interface SubscriptionDto {
+  id: string
+  tenantId: string
+  tenantName: string
+  planId: string
+  planName: string
+  planCode: string
+  status: SubscriptionStatus
+  trialStartsAt: string | null
+  trialEndsAt: string | null
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  cancelledAt: string | null
+  currency: string
+  priceSnapshot: number
+  billingCycle: BillingCycle
+  createdAt: string
+}
+
+export const UsageState = {
+  Normal: 0,
+  Approaching: 1,
+  AtLimit: 2,
+} as const
+export type UsageState = (typeof UsageState)[keyof typeof UsageState]
+
+export const UsageStateLabel: Record<UsageState, string> = {
+  [UsageState.Normal]: 'Normal',
+  [UsageState.Approaching]: 'Approaching',
+  [UsageState.AtLimit]: 'At Limit',
+}
+
+export interface UsageMetricDto {
+  code: string
+  label: string
+  current: number
+  limit: number | null
+  state: UsageState
+}
+
+export interface TenantUsageDto {
+  users: number
+  properties: number
+  projects: number
+  portalUsers: number
+  activeLeases: number
+  storageBytes: number
+  metrics: UsageMetricDto[]
+}
+
+export interface TenantEntitlementDto {
+  code: string
+  type: EntitlementType
+  enabled: boolean
+  limit: number | null
+}
+
+export interface TenantEntitlementOverrideDto {
+  id: string
+  tenantId: string
+  code: string
+  boolValue: boolean | null
+  numericValue: number | null
+}
+
+export interface TenantEntitlementsDto {
+  effective: TenantEntitlementDto[]
+  overrides: TenantEntitlementOverrideDto[]
+}
+
+export const InvoiceStatus = {
+  Draft: 0,
+  Issued: 1,
+  Paid: 2,
+  Void: 3,
+  Overdue: 4,
+} as const
+export type InvoiceStatus = (typeof InvoiceStatus)[keyof typeof InvoiceStatus]
+
+export const InvoiceStatusLabel: Record<InvoiceStatus, string> = {
+  [InvoiceStatus.Draft]: 'Draft',
+  [InvoiceStatus.Issued]: 'Issued',
+  [InvoiceStatus.Paid]: 'Paid',
+  [InvoiceStatus.Void]: 'Void',
+  [InvoiceStatus.Overdue]: 'Overdue',
+}
+
+export interface InvoiceLineItemDto {
+  id: string
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+export interface InvoiceDto {
+  id: string
+  tenantId: string
+  tenantName: string
+  subscriptionId: string
+  invoiceNumber: string
+  periodStart: string
+  periodEnd: string
+  subtotal: number
+  taxAmount: number
+  total: number
+  currency: string
+  status: InvoiceStatus
+  issuedDate: string | null
+  dueDate: string | null
+  paidDate: string | null
+  externalProviderReference: string | null
+  lineItems: InvoiceLineItemDto[]
+  createdAt: string
+  // --- Tax engine foundation (Milestone 15) — the tax rate snapshotted onto this invoice at
+  // generation time, if any. Null fields mean no tax profile applied (pre-M15 invoice, or a
+  // tenant with no tax profile configured) — always render the plain taxAmount line then. ---
+  taxRateId: string | null
+  taxCode: string | null
+  taxName: string | null
+  taxPercentage: number | null
+  taxInclusive: boolean
+}
+
+export const BillingPaymentStatus = {
+  Pending: 0,
+  Succeeded: 1,
+  Failed: 2,
+  Refunded: 3,
+} as const
+export type BillingPaymentStatus = (typeof BillingPaymentStatus)[keyof typeof BillingPaymentStatus]
+
+export const BillingPaymentStatusLabel: Record<BillingPaymentStatus, string> = {
+  [BillingPaymentStatus.Pending]: 'Pending',
+  [BillingPaymentStatus.Succeeded]: 'Succeeded',
+  [BillingPaymentStatus.Failed]: 'Failed',
+  [BillingPaymentStatus.Refunded]: 'Refunded',
+}
+
+export interface BillingPaymentDto {
+  id: string
+  tenantId: string
+  invoiceId: string
+  amount: number
+  currency: string
+  status: BillingPaymentStatus
+  paymentDate: string
+  provider: string | null
+  providerTransactionId: string | null
+  failureReason: string | null
+  createdAt: string
+}
+
+// --- SaaS localization + tax engine foundation (Milestone 15) ---
+// See LocalizationController (tenant-facing, /api/v1/localization/*) and the platform-admin
+// tax-profile/exchange-rate endpoints under PlatformControllerBase. `firstDayOfWeek` and
+// `measurementSystem` are C# enums serialized as numbers (not enum names, unlike the report
+// endpoints' `Record<Enum, number>` dictionaries — see `labelForEnumName` in reports/format.ts).
+
+export interface CountryDto {
+  alpha2: string
+  alpha3: string
+  name: string
+  defaultCurrency: string
+  defaultLocale: string
+  defaultTimezone: string
+  phoneCountryCode: string
+  defaultTaxProfileCode: string | null
+}
+
+export interface CurrencyDto {
+  code: string
+  name: string
+  symbol: string
+  decimalPlaces: number
+}
+
+/** .NET `DayOfWeek`: Sunday = 0 .. Saturday = 6. */
+export const FirstDayOfWeek = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+} as const
+export type FirstDayOfWeek = (typeof FirstDayOfWeek)[keyof typeof FirstDayOfWeek]
+
+export const FirstDayOfWeekLabel: Record<FirstDayOfWeek, string> = {
+  [FirstDayOfWeek.Sunday]: 'Sunday',
+  [FirstDayOfWeek.Monday]: 'Monday',
+  [FirstDayOfWeek.Tuesday]: 'Tuesday',
+  [FirstDayOfWeek.Wednesday]: 'Wednesday',
+  [FirstDayOfWeek.Thursday]: 'Thursday',
+  [FirstDayOfWeek.Friday]: 'Friday',
+  [FirstDayOfWeek.Saturday]: 'Saturday',
+}
+
+export const MeasurementSystem = {
+  Metric: 0,
+  Imperial: 1,
+} as const
+export type MeasurementSystem = (typeof MeasurementSystem)[keyof typeof MeasurementSystem]
+
+export const MeasurementSystemLabel: Record<MeasurementSystem, string> = {
+  [MeasurementSystem.Metric]: 'Metric',
+  [MeasurementSystem.Imperial]: 'Imperial',
+}
+
+export interface TenantLocalizationDto {
+  countryCode: string | null
+  currency: string
+  locale: string
+  timezone: string
+  dateFormat: string
+  firstDayOfWeek: FirstDayOfWeek
+  defaultLanguage: string
+  secondaryLanguages: string[]
+  measurementSystem: MeasurementSystem
+}
+
+export interface UpdateTenantLocalizationRequest {
+  countryCode: string | null
+  currency: string
+  locale: string
+  timezone: string
+  dateFormat: string
+  firstDayOfWeek: FirstDayOfWeek
+  defaultLanguage: string
+  secondaryLanguages: string[] | null
+  measurementSystem: MeasurementSystem
+}
+
+export interface TaxRateDto {
+  id: string
+  taxProfileId: string
+  rateCode: string
+  name: string
+  percentage: number
+  isInclusive: boolean
+  effectiveFrom: string
+  effectiveTo: string | null
+  isActive: boolean
+}
+
+export interface TaxProfileDto {
+  id: string
+  countryCode: string
+  code: string
+  name: string
+  description: string | null
+  isActive: boolean
+  rates: TaxRateDto[]
+}
+
+export interface TenantTaxProfileDto {
+  taxProfileId: string | null
+  taxProfileCode: string | null
+  taxProfileName: string | null
+  taxRegistrationNumber: string | null
+  legalEntityName: string | null
+  legalAddressLine1: string | null
+  legalAddressLine2: string | null
+  legalCity: string | null
+  legalStateOrProvince: string | null
+  legalPostalCode: string | null
+  legalCountryCode: string | null
+}
+
+export interface UpdateTenantTaxProfileRequest {
+  taxProfileId: string | null
+  taxRegistrationNumber: string | null
+  legalEntityName: string | null
+  legalAddressLine1: string | null
+  legalAddressLine2: string | null
+  legalCity: string | null
+  legalStateOrProvince: string | null
+  legalPostalCode: string | null
+  legalCountryCode: string | null
+}
+
+export interface ExchangeRateDto {
+  id: string
+  baseCurrency: string
+  quoteCurrency: string
+  rate: number
+  effectiveAt: string
+  createdAt: string
 }
 
 // --- CRM ---

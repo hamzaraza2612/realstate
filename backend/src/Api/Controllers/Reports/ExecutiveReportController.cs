@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Authorization;
+using RealEstateErp.Domain.Subscription;
 using RealEstateErp.Api.Common;
 using RealEstateErp.Application.Reporting.Executive;
 using RealEstateErp.Shared.Security;
@@ -9,6 +10,7 @@ namespace RealEstateErp.Api.Controllers.Reports;
 
 [Authorize]
 [RequirePermission(Permissions.Reports.View)]
+[RequireEntitlement(EntitlementCodes.AdvancedReporting)]
 [Route("api/v1/reports/executive")]
 public class ExecutiveReportController : ApiControllerBase
 {

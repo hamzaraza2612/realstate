@@ -6,11 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
+import { money } from '@/modules/reports/format'
 import { PurchaseOrderStatus, PurchaseOrderStatusLabel } from '@/types/api'
 import { useProcurementDashboard } from './api'
 
+/** Delegates to the shared, currency-aware formatter (Milestone 15) instead of hardcoding
+ * en-US formatting — see modules/reports/format.ts's money(). */
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)
+  return money(value)
 }
 
 const statusVariant: Record<PurchaseOrderStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {

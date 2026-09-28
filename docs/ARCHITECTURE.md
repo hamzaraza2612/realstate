@@ -114,9 +114,23 @@ the `SaveChanges` interceptor (diff-based).
 - FluentValidation validators run automatically via an MVC filter before the
   action executes.
 
+## Localization & tax (Milestone 15)
+
+Full architecture is in `docs/LOCALIZATION.md` (tenant locale profile, timezone handling, i18n/RTL),
+`docs/TAX_ENGINE.md` (configurable `TaxProfile`/`TaxRate` engine, historical invoice snapshotting,
+the generic `IEInvoiceProvider`/`IExchangeRateService` seams, and the Finance-module currency
+strategy), and `docs/COUNTRY_PACKS.md` (the country-pack pattern and per-country status). One
+principle worth stating here: this is one global ERP with country-configurable behavior, not a
+UAE-only product with hacks bolted on — every country-specific value is either tenant configuration
+data, a compile-time reference catalog, or an explicit adapter interface, never a hardcoded
+currency/rate/format in business logic.
+
 ## Background jobs
-Hangfire with PostgreSQL storage for: installment due reminders, overdue
-notices, lease-expiry notices, report generation, notification dispatch.
+Hangfire with PostgreSQL storage, provisioned since Milestone 1. First real recurring job as of
+Milestone 14: an hourly `SubscriptionLifecycleJob` (`Infrastructure/Jobs/`) expiring overdue trial
+subscriptions — idempotent, skipped under the "Testing" host environment. Installment due
+reminders, overdue notices, lease-expiry notices, and report generation remain natural future jobs,
+not yet implemented — see `docs/SAAS_BILLING.md` and `PRODUCT_GAP_AUDIT.md`.
 
 ## Infra layout
 ```

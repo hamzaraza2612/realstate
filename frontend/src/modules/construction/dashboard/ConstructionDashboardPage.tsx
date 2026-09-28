@@ -5,11 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { money } from '@/modules/reports/format'
 import { WorkPackageStatus, WorkPackageStatusLabel } from '@/types/api'
 import { useConstructionDashboard } from './api'
 
+/** Delegates to the shared, currency-aware formatter (Milestone 15) instead of hardcoding
+ * en-US formatting — see modules/reports/format.ts's money(). */
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)
+  return money(value)
 }
 
 const statusVariant: Record<WorkPackageStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {

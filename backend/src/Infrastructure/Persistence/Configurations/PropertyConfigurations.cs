@@ -93,6 +93,9 @@ public class LeaseConfiguration : IEntityTypeConfiguration<Lease>
         b.Property(x => x.SecurityDeposit).HasColumnType("numeric(18,2)");
         b.Property(x => x.Terms).HasMaxLength(4000);
         b.Property(x => x.Notes).HasMaxLength(2000);
+        b.Property(x => x.ExternalRegistryProvider).HasMaxLength(40);
+        b.Property(x => x.ExternalContractReference).HasMaxLength(100);
+        b.Property(x => x.ExternalRegistrationStatus).HasMaxLength(40);
 
         b.HasIndex(x => new { x.TenantId, x.LeaseNumber }).IsUnique();
         b.HasIndex(x => new { x.TenantId, x.Status });

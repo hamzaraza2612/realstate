@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Construction.Dashboard;
 using RealEstateErp.Application.Crm.Dashboard;
 using RealEstateErp.Application.Finance.Reports;
@@ -26,22 +27,25 @@ public class ExecutiveDashboardService : IExecutiveDashboardService
     private readonly IFinanceReportService _financeReports;
     private readonly IPropertyDashboardService _propertyDashboard;
     private readonly ICrmDashboardService _crmDashboard;
+    private readonly ITenantTimeService _tenantTimeService;
 
     public ExecutiveDashboardService(
         AppDbContext db,
         IFinanceReportService financeReports,
         IPropertyDashboardService propertyDashboard,
-        ICrmDashboardService crmDashboard)
+        ICrmDashboardService crmDashboard,
+        ITenantTimeService tenantTimeService)
     {
         _db = db;
         _financeReports = financeReports;
         _propertyDashboard = propertyDashboard;
         _crmDashboard = crmDashboard;
+        _tenantTimeService = tenantTimeService;
     }
 
     public async Task<ExecutiveDashboardDto> GetAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
     {
-        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to);
+        var (resolvedFrom, resolvedTo) = ReportDateRange.Resolve(from, to, await _tenantTimeService.TodayAsync(ct));
 
         var sales = await _db.Bookings
             .Where(b => b.Status == BookingStatus.Confirmed && b.BookingDate >= resolvedFrom && b.BookingDate <= resolvedTo)

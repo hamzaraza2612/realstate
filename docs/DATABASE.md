@@ -446,7 +446,158 @@ Applied and schema-verified against the dev database (`psql \d portal_users`,
 `\d portal_refresh_tokens`, `\d portal_password_reset_tokens`, `\d property_owners`, `\d properties`
 all confirm the expected columns/indexes/FK).
 
-Later milestones extend this file per-module (
-Subscription) as they land — each new module's tables and
-relationships are appended here in the same milestone's PR/commit that adds
-the migration.
+## Milestone 14 schema — SaaS Control Plane & Billing
+
+One migration, `AddSaasControlPlane`. Full architectural rationale is in `docs/SAAS_BILLING.md`.
+
+**`subscription_plans`** (existing table, extended) — dropped `UserLimit`/`ProjectLimit`/
+`StorageLimitMb` (replaced by `plan_entitlements` rows) and the `plan_features` relationship;
+added `Code` (unique), `Description`, `DisplayOrder`, `TrialDays`, `Currency`, `SetupPrice`,
+`MetadataJson`. `plan_features`/`tenant_feature_entitlements` tables **dropped** — confirmed
+zero rows in any seeded/dev data before dropping (nothing in the codebase ever wrote to them).
+Indexes: `IX_subscription_plans_Code` (unique), `IX_subscription_plans_IsActive_DisplayOrder`.
+
+**`plan_entitlements`** — a plan's default grant per entitlement code.
+
+| Column | Notes |
+|---|---|
+| `SubscriptionPlanId` | FK → `subscription_plans`, `ON DELETE CASCADE` |
+| `Code` | e.g. `"external_portals"`, `"max_users"` — a compile-time catalog (`EntitlementCodes`), not a DB table |
+| `BoolValue`, `NumericValue` | exactly one meaningful per the code's type (Feature/Limit) |
+
+Index: `IX_plan_entitlements_SubscriptionPlanId_Code` (unique).
+
+**`tenant_entitlement_overrides`** — per-tenant override, same shape as `plan_entitlements` plus
+`TenantId`. Index: `IX_tenant_entitlement_overrides_TenantId_Code` (unique).
+
+**`subscriptions`** — one row per tenant subscription period.
+
+| Column | Notes |
+|---|---|
+| `PlanId` | not a DB foreign key (plans can be deactivated, never deleted, so no FK needed) |
+| `Status` | `SubscriptionStatus` enum (Trialing/Active/PastDue/Paused/Cancelled/Expired) |
+| `TrialStartsAt`/`TrialEndsAt`, `CurrentPeriodStart`/`CurrentPeriodEnd`, `CancelAtPeriodEnd`, `CancelledAt` | lifecycle timestamps |
+| `Currency`, `PriceSnapshot`, `BillingCycle` | snapshotted at subscribe/renew time, independent of the plan's current values |
+| `ExternalProvider`, `ExternalCustomerId`, `ExternalSubscriptionId` | nullable, unpopulated extension fields for a future payment provider |
+| `xmin` (Postgres system column) | optimistic-concurrency token via `IsRowVersion()` — same mechanism `ApprovalRequest` uses |
+
+Indexes: `IX_subscriptions_PlanId`, `IX_subscriptions_Status`, and
+`IX_subscriptions_TenantId_NonTerminal_Unique` — a **filtered partial-unique index** on `TenantId`
+`WHERE "Status" IN (0,1,2,3)` (Trialing/Active/PastDue/Paused), so a tenant can have at most one
+non-terminal subscription while `Cancelled`/`Expired` rows stay as unlimited history — the same
+filtered-partial-unique-index technique already used elsewhere in this schema to prevent
+overlapping leases/bookings.
+
+**`invoices`** / **`invoice_line_items`** — one invoice per billing period.
+
+| Column | Notes |
+|---|---|
+| `InvoiceNumber` | tenant-scoped format `INV-000001`, **not** globally unique — same convention as `BookingNumber`/`LeaseNumber` |
+| `SubscriptionId` | not a DB foreign key (same rationale as `subscriptions.PlanId`) |
+| `Subtotal`/`TaxAmount`/`Total`, `Currency`, `Status`, `IssuedDate`/`DueDate`/`PaidDate` | |
+| `ExternalProviderReference` | nullable, unpopulated extension field |
+
+Indexes: `IX_invoices_TenantId_InvoiceNumber` (unique, tenant-scoped — **not** a global unique
+index, per this milestone's explicit instruction to avoid that for tenant-owned identifiers),
+`IX_invoices_SubscriptionId`, `IX_invoices_TenantId_Status`, `IX_invoices_DueDate`.
+`invoice_line_items.InvoiceId` → `invoices.Id`, `ON DELETE CASCADE`.
+
+**`billing_payments`** — a recorded payment against an invoice.
+
+| Column | Notes |
+|---|---|
+| `InvoiceId` | not a DB foreign key |
+| `Amount`, `Currency`, `Status`, `PaymentDate` | |
+| `Provider` | `"manual"` for this milestone's only path (a platform admin recording a received payment) |
+| `ProviderTransactionId` | nullable extension field |
+| `IdempotencyKey` | unique per `(TenantId, IdempotencyKey)` — same pattern as `payments`/`rent_payments`/`facility_payments` |
+| `FailureReason` | nullable |
+
+Index: `IX_billing_payments_TenantId_IdempotencyKey` (unique), `IX_billing_payments_InvoiceId`.
+
+Applied and schema-verified against both the dev and integration-test databases (`psql \d
+subscriptions`, `\d invoices`, `\d billing_payments`, `\d plan_entitlements`,
+`\d tenant_entitlement_overrides` all confirm the expected columns/indexes).
+
+## Milestone 15 schema — Localization & Tax Engine Foundation
+
+One migration, `AddSaasLocalizationTaxFoundation`. Full architectural rationale is in
+`docs/LOCALIZATION.md`, `docs/TAX_ENGINE.md`, and `docs/COUNTRY_PACKS.md`.
+
+**`tenants`** (existing table, extended) — 8 new columns for the tenant's localization profile:
+`CountryCode` (varchar(2)), `Currency` (varchar(3)), `Locale` (varchar(20)), `DateFormat`
+(varchar(20)), `FirstDayOfWeek` (int), `DefaultLanguage` (varchar(10)), `SecondaryLanguages`
+(nullable varchar(100)), `MeasurementSystem` (int). All non-nullable columns were given explicit
+`DEFAULT` values matching `Tenant`'s own C# property initializers (`'US'`/`'USD'`/`'en-US'`/
+`'MM/dd/yyyy'`/`'en'`/`1` for Imperial) in the migration's `Up()` — not EF's usual empty-string/zero
+scaffold default — specifically so every pre-Milestone-15 tenant row gets a sensible, non-blank
+localization profile rather than empty strings after this migration runs. `Timezone` (Milestone 10)
+was **not** duplicated — it's reused as-is as part of the same profile.
+
+**`leases`** (existing table, extended) — 4 new nullable columns for the rental-registry
+integration seam (see `docs/COUNTRY_PACKS.md`): `ExternalRegistryProvider` (varchar(40)),
+`ExternalContractReference` (varchar(100)), `ExternalRegistrationStatus` (varchar(40)),
+`ExternalLastSyncedAt` (timestamptz). Unpopulated by any code this milestone.
+
+**`invoices`** (existing table, extended) — 5 new nullable columns for the tax snapshot (see
+`docs/TAX_ENGINE.md`): `TaxRateId` (uuid, not a DB foreign key — kept for traceability only, never
+re-read to recompute), `TaxCode` (varchar(40)), `TaxName` (varchar(200)), `TaxPercentage`
+(numeric(6,3)), `TaxInclusive` (bool, non-nullable, defaults `false`).
+
+**`tax_profiles`** — the global, platform-managed tax-scheme catalog.
+
+| Column | Notes |
+|---|---|
+| `CountryCode` | varchar(2) — not a DB foreign key (`CountryCatalog` is compile-time) |
+| `Code` | unique, e.g. `"AE_VAT"` — globally unique by design (platform-wide reference data, not tenant-owned) |
+| `Name`, `Description`, `IsActive` | |
+
+Indexes: `IX_tax_profiles_Code` (unique), `IX_tax_profiles_CountryCode`.
+
+**`tax_rates`** — versioned rates under a profile.
+
+| Column | Notes |
+|---|---|
+| `TaxProfileId` | FK → `tax_profiles`, `ON DELETE CASCADE` |
+| `RateCode`, `Name`, `Percentage` (numeric(6,3)), `IsInclusive` | |
+| `EffectiveFrom`, `EffectiveTo` (nullable), `IsActive` | historical versioning — never mutate a rate's meaning in place for a past period, add a new row and close the old one out instead |
+
+Indexes: `IX_tax_rates_TaxProfileId_RateCode`, `IX_tax_rates_TaxProfileId_EffectiveFrom`.
+
+**`exchange_rates`** — the manual FX-rate seam, platform-wide (not tenant-owned — a rate is a fact
+about the world). `BaseCurrency`/`QuoteCurrency` (varchar(3)), `Rate` (numeric(18,8) — high
+precision, since FX rates need more than 2 decimal places), `EffectiveAt` (timestamptz), `Source`
+(varchar(50), always `"manual"` this milestone), `IsActive`. Index:
+`IX_exchange_rates_BaseCurrency_QuoteCurrency_EffectiveAt` (not unique — multiple historical rates
+for the same pair are expected; the service picks the most recent as-of a given date).
+
+**`tenant_tax_profiles`** — one row per tenant, its tax registration/legal-entity details.
+
+| Column | Notes |
+|---|---|
+| `TaxProfileId` | FK → `tax_profiles`, `ON DELETE SET NULL` (nullable — a tenant may have no profile selected yet) |
+| `TaxRegistrationNumber` | generic (represents a UAE TRN, Saudi VAT number, etc. — meaning determined by the linked profile's country) |
+| `LegalEntityName`, `LegalAddressLine1/2`, `LegalCity`, `LegalStateOrProvince`, `LegalPostalCode`, `LegalCountryCode` | |
+
+Index: `IX_tenant_tax_profiles_TenantId` (unique — one row per tenant).
+
+**`einvoice_submissions`** — the eInvoice submission audit trail (see `docs/TAX_ENGINE.md`).
+
+| Column | Notes |
+|---|---|
+| `InvoiceId` | not a DB foreign key (same rationale as `invoices.SubscriptionId` in Milestone 14) |
+| `DocumentType` | Invoice/CreditNote/DebitNote enum |
+| `Status` | Pending/Submitted/Accepted/Rejected/Failed/Retrying enum |
+| `Provider` | always `"unconfigured"` this milestone — see `UnconfiguredEInvoiceProvider` |
+| `ExternalReference`, `ProviderResponseJson`, `ErrorDetails`, `RetryCount` | |
+| `SubmittedAt`, `LastAttemptAt` | |
+
+Indexes: `IX_einvoice_submissions_InvoiceId`, `IX_einvoice_submissions_TenantId_Status`.
+
+Applied and schema-verified against both the dev and integration-test databases (`psql \d tenants`,
+`\d tax_profiles`, `\d tax_rates`, `\d exchange_rates`, `\d tenant_tax_profiles`,
+`\d einvoice_submissions`, `\d leases`, `\d invoices` all confirm the expected columns/indexes/FKs
+and the corrected, non-blank default values on `tenants`' new columns).
+
+Later milestones extend this file per-module as they land — each new module's tables and
+relationships are appended here in the same milestone's PR/commit that adds the migration.

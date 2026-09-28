@@ -163,6 +163,36 @@ public abstract class TestBase
         return (ownerToken, orgId, ownerEmail, slug);
     }
 
+    /// <summary>Same as CreateOrganizationAsync but sets the tenant's CountryCode at creation, so the
+    /// tenant gets that country's Currency/Locale defaults from CountryCatalog (Milestone 15).</summary>
+    protected async Task<(string OwnerToken, Guid OrgId, string OwnerEmail)> CreateOrganizationWithCountryAsync(string namePrefix, string countryCode)
+    {
+        var superAdminToken = await LoginSuperAdminAsync();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var slug = $"{namePrefix}-{suffix}".ToLowerInvariant();
+        var ownerEmail = $"owner-{suffix}@{namePrefix}.test";
+
+        var (success, body, status) = await PostAsync("/api/v1/platform/organizations", new
+        {
+            name = $"{namePrefix} {suffix}",
+            slug,
+            contactEmail = (string?)null,
+            contactPhone = (string?)null,
+            timezone = "UTC",
+            subscriptionPlanId = (Guid?)null,
+            ownerEmail,
+            ownerFullName = $"{namePrefix} Owner",
+            ownerPassword = "Owner@12345",
+            countryCode
+        }, superAdminToken);
+
+        if (!success) throw new InvalidOperationException($"Failed to create org: {status} {body}");
+
+        var orgId = Guid.Parse(body.GetProperty("data").GetProperty("id").GetString()!);
+        var ownerToken = await LoginAsync(ownerEmail, "Owner@12345");
+        return (ownerToken, orgId, ownerEmail);
+    }
+
     /// <summary>Directly sets a PortalUser's password hash so tests can log in without needing to
     /// intercept the invite/reset email (LoggingEmailSender only logs; it exposes nothing to HTTP callers).</summary>
     protected async Task SetPortalPasswordAsync(Guid portalUserId, string password)

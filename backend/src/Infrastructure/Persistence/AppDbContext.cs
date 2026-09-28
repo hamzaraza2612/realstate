@@ -15,12 +15,14 @@ using MeetingRoom = RealEstateErp.Domain.Facility.Coworking.MeetingRoom;
 using Membership = RealEstateErp.Domain.Facility.Coworking.Membership;
 using MembershipPlan = RealEstateErp.Domain.Facility.Coworking.MembershipPlan;
 using RealEstateErp.Domain.Finance;
+using RealEstateErp.Domain.Localization;
 using RealEstateErp.Domain.Materials;
 using RealEstateErp.Domain.Procurement;
 using RealEstateErp.Domain.Projects;
 using RealEstateErp.Domain.Property;
 using RealEstateErp.Domain.Sales;
 using RealEstateErp.Domain.Subscription;
+using RealEstateErp.Domain.Billing;
 using RealEstateErp.Domain.Tenancy;
 using RealEstateErp.Infrastructure.Identity;
 using RealEstateErp.Shared.Common;
@@ -39,8 +41,12 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
-    public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
-    public DbSet<TenantFeatureEntitlement> TenantFeatureEntitlements => Set<TenantFeatureEntitlement>();
+    public DbSet<PlanEntitlement> PlanEntitlements => Set<PlanEntitlement>();
+    public DbSet<TenantEntitlementOverride> TenantEntitlementOverrides => Set<TenantEntitlementOverride>();
+    public DbSet<Domain.Subscription.Subscription> Subscriptions => Set<Domain.Subscription.Subscription>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
+    public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -108,6 +114,11 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Domain.Portal.PortalRefreshToken> PortalRefreshTokens => Set<Domain.Portal.PortalRefreshToken>();
     public DbSet<Domain.Portal.PortalPasswordResetToken> PortalPasswordResetTokens => Set<Domain.Portal.PortalPasswordResetToken>();
     public DbSet<PropertyOwner> PropertyOwners => Set<PropertyOwner>();
+    public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
+    public DbSet<TaxRate> TaxRates => Set<TaxRate>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+    public DbSet<TenantTaxProfile> TenantTaxProfiles => Set<TenantTaxProfile>();
+    public DbSet<EInvoiceSubmission> EInvoiceSubmissions => Set<EInvoiceSubmission>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

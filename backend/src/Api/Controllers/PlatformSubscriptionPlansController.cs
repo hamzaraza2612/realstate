@@ -19,6 +19,13 @@ public class PlatformSubscriptionPlansController : PlatformControllerBase
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct) => Ok(ApiResponse.Ok(await _subscriptionPlanService.ListAsync(ct)));
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> Get(Guid id, CancellationToken ct)
+    {
+        var result = await _subscriptionPlanService.GetAsync(id, ct);
+        return result.Succeeded ? Ok(ApiResponse.Ok(result.Value)) : NotFound(new { title = result.Error, status = 404 });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateSubscriptionPlanRequest request, CancellationToken ct)
     {

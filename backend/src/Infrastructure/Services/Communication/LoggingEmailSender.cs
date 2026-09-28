@@ -19,9 +19,9 @@ public class LoggingEmailSender : IEmailSender
         _logger = logger;
     }
 
-    public Task<Result> SendAsync(string toAddress, string subject, string body, CancellationToken ct = default)
+    public Task<Result> SendAsync(string toAddress, string subject, string body, CancellationToken ct = default, bool isHtml = false)
     {
-        _logger.LogInformation("[DEV EMAIL] To: {ToAddress} | Subject: {Subject} | Body: {Body}", toAddress, subject, body);
+        _logger.LogInformation("[DEV EMAIL] To: {ToAddress} | Subject: {Subject} | IsHtml: {IsHtml} | Body: {Body}", toAddress, subject, isHtml, body);
         return Task.FromResult(Result.Success());
     }
 }

@@ -152,6 +152,30 @@ public static class Permissions
         public const string ManageAccounts = "portal.manage_accounts";
     }
 
+    /// <summary>Tenant-facing read access to the tenant's own subscription/usage/entitlements/
+    /// invoices/payment history (Milestone 14) — one tenant-wide permission, same "one permission
+    /// spans a cross-cutting foundation" precedent as Documents.View/Reports.View/Portal.ManageAccounts.
+    /// Never grants access to another tenant's data, and never grants platform-admin actions (those
+    /// are gated by the separate SuperAdminOnly policy, not by any permission code) — see
+    /// docs/SAAS_BILLING.md.</summary>
+    public static class Subscription
+    {
+        public const string View = "subscription.view";
+    }
+
+    /// <summary>Governs the platform-wide reference catalogs Milestone 15 introduces — the TaxProfile/
+    /// TaxRate catalog and the manual ExchangeRate seam. Deliberately separate from
+    /// Platform.ManageTenants/ManagePlans (a Super Admin who can suspend tenants doesn't automatically
+    /// need to edit global tax law data, and vice versa), though in practice every system role that
+    /// gets Platform.* also gets this one — see DbSeeder. A normal tenant user (even an Organization
+    /// Owner) never has this permission: reading the current country's active rates is a separate,
+    /// narrower capability exposed via ITaxCalculationService.GetActiveRatesForCountryAsync, gated only
+    /// by ordinary tenant authentication, not this permission.</summary>
+    public static class Localization
+    {
+        public const string ManageCatalogs = "localization.manage_catalogs";
+    }
+
     /// <summary>All permission codes declared above, discovered via reflection for seeding.</summary>
     public static IReadOnlyList<string> All { get; } = DiscoverAll();
 

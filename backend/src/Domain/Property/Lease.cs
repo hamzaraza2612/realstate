@@ -42,6 +42,18 @@ public class Lease : TenantEntity
     public LeaseStatus Status { get; set; } = LeaseStatus.Draft;
     public string? Terms { get; set; }
     public string? Notes { get; set; }
+
+    // --- Rental government-registry integration seam (Milestone 15) --------------------------
+    // Nullable, never populated by any code in this milestone — no Ejar (or equivalent) API is ever
+    // called. These exist so a future RentalIntegrationProvider (Saudi Ejar first; the same shape
+    // covers any other country's rental-contract registry) has somewhere to record what it did,
+    // without a schema change. See docs/COUNTRY_PACKS.md.
+
+    /// <summary>e.g. "ejar" — which external registry this lease is tracked against, if any.</summary>
+    public string? ExternalRegistryProvider { get; set; }
+    public string? ExternalContractReference { get; set; }
+    public string? ExternalRegistrationStatus { get; set; }
+    public DateTimeOffset? ExternalLastSyncedAt { get; set; }
 }
 
 /// <summary>Valid lease status transitions: Draft -> PendingApproval -> Active -> Expired/Terminated;

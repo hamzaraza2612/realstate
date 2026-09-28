@@ -132,6 +132,16 @@ try
         app.UseHangfireDashboard("/hangfire");
     }
 
+    // Skipped under "Testing" for the same reason as UseIpRateLimiting above: an hourly recurring
+    // job registered against the test database has no business running mid-test-suite, and
+    // Hangfire's own scheduler polling could otherwise introduce test flakiness. See
+    // RealEstateErp.Infrastructure.Jobs.SubscriptionLifecycleJob and docs/SAAS_BILLING.md.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        RecurringJob.AddOrUpdate<RealEstateErp.Infrastructure.Jobs.SubscriptionLifecycleJob>(
+            "subscription-lifecycle", job => job.RunAsync(CancellationToken.None), Cron.Hourly);
+    }
+
     await DbSeeder.SeedAsync(app.Services);
 
     app.Run();
