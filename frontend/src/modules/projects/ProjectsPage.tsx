@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { Pagination } from '@/components/common/Pagination'
 import { ProjectStatus, ProjectStatusLabel, ProjectType, ProjectTypeLabel } from '@/types/api'
 import { useProjects } from './api'
 import { ProjectFormDialog } from './ProjectFormDialog'
@@ -109,7 +110,17 @@ export function ProjectsPage() {
       {isLoading && <LoadingState label="Loading projects…" />}
       {isError && <ErrorState message="Could not load projects." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No projects found" description="Try different filters or create your first project." />
+        <EmptyState
+          title="No projects found"
+          description="Try different filters or create your first project."
+          action={
+            <PermissionGate permission="projects.manage">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> New project
+              </Button>
+            </PermissionGate>
+          }
+        />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -144,19 +155,7 @@ export function ProjectsPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} projects
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="projects" onPageChange={setPage} />
         </>
       )}
 

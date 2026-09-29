@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { Pagination } from '@/components/common/Pagination'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { PropertyStatus, PropertyStatusLabel, PropertyType, PropertyTypeLabel, type PropertyDto } from '@/types/api'
@@ -122,7 +123,17 @@ export function PropertiesPage() {
       {isLoading && <LoadingState label="Loading properties…" />}
       {isError && <ErrorState message="Could not load properties." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No properties found" description="Try different filters or add your first property." />
+        <EmptyState
+          title="No properties found"
+          description="Try different filters or add your first property."
+          action={
+            <PermissionGate permission="property.manage">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> New property
+              </Button>
+            </PermissionGate>
+          }
+        />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -167,19 +178,7 @@ export function PropertiesPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} properties
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="properties" onPageChange={setPage} />
         </>
       )}
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react'
 
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
@@ -23,12 +24,16 @@ export function ErrorState({ message = 'Something went wrong.', onRetry }: { mes
   )
 }
 
-export function EmptyState({ title, description }: { title: string; description?: string }) {
+/** `action` (optional) renders below the description — pass the page's primary "create" button
+ * (wrapped in the same `PermissionGate` as the page header's) so an empty list offers a next
+ * step instead of a dead end. */
+export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
       <Inbox className="h-6 w-6 text-muted-foreground" />
       <p className="text-sm font-medium">{title}</p>
       {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   )
 }

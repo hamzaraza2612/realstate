@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/common/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
@@ -53,11 +54,14 @@ export function TaskDetailPage() {
   const statusAction = useTaskStatusAction()
   const deleteTask = useDeleteTask()
   const [editOpen, setEditOpen] = useState(false)
+  // Deleting, and the terminal "Cancel" transition, both go through a confirmation first.
+  const [pendingConfirm, setPendingConfirm] = useState<'delete' | 'cancel' | null>(null)
 
   async function handleStatus(status: ConstructionTaskStatus) {
     if (!id) return
     try {
       await statusAction.mutateAsync({ id, status })
+      setPendingConfirm(null)
       toast({ title: `Task moved to ${ConstructionTaskStatusLabel[status]}`, variant: 'success' })
     } catch (error) {
       toast({ title: 'Could not update status', description: extractErrorMessage(error), variant: 'destructive' })
@@ -92,12 +96,17 @@ export function TaskDetailPage() {
                 Edit
               </Button>
               {availableTransitions.map((t) => (
-                <Button key={t.status} variant={t.variant} onClick={() => handleStatus(t.status)} disabled={statusAction.isPending}>
+                <Button
+                  key={t.status}
+                  variant={t.variant}
+                  onClick={() => (t.status === ConstructionTaskStatus.Cancelled ? setPendingConfirm('cancel') : handleStatus(t.status))}
+                  disabled={statusAction.isPending}
+                >
                   {t.label}
                 </Button>
               ))}
               {(task.status === ConstructionTaskStatus.Planned || task.status === ConstructionTaskStatus.Cancelled) && (
-                <Button variant="destructive" onClick={handleDelete} disabled={deleteTask.isPending}>
+                <Button variant="destructive" onClick={() => setPendingConfirm('delete')} disabled={deleteTask.isPending}>
                   Delete
                 </Button>
               )}
@@ -134,6 +143,21 @@ export function TaskDetailPage() {
       </Card>
 
       <TaskFormDialog open={editOpen} onOpenChange={setEditOpen} task={task} />
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        onOpenChange={(open) => !open && setPendingConfirm(null)}
+        title={pendingConfirm === 'delete' ? 'Delete task' : 'Cancel task'}
+        description={
+          pendingConfirm === 'delete'
+            ? `Permanently delete task "${task.title}" from ${task.workPackageName}? This cannot be undone, and it is refused if other tasks depend on it.`
+            : `Cancel task "${task.title}"? A cancelled task cannot be restarted or completed — it can only be deleted afterwards.`
+        }
+        confirmLabel={pendingConfirm === 'delete' ? 'Delete task' : 'Cancel task'}
+        cancelLabel={pendingConfirm === 'delete' ? 'Cancel' : 'Keep task'}
+        destructive
+        loading={pendingConfirm === 'delete' ? deleteTask.isPending : statusAction.isPending}
+        onConfirm={() => (pendingConfirm === 'delete' ? handleDelete() : handleStatus(ConstructionTaskStatus.Cancelled))}
+      />
     </div>
   )
 }

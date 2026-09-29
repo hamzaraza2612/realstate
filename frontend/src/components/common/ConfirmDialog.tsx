@@ -7,6 +7,9 @@ interface ConfirmDialogProps {
   title: string
   description: string
   confirmLabel?: string
+  /** Label for the dismiss button — override it when "Cancel" would be ambiguous (e.g. when the
+   * action being confirmed is itself a cancellation). */
+  cancelLabel?: string
   destructive?: boolean
   onConfirm: () => void
   loading?: boolean
@@ -18,6 +21,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   destructive,
   onConfirm,
   loading,
@@ -31,7 +35,7 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {cancelLabel}
           </Button>
           <Button variant={destructive ? 'destructive' : 'default'} onClick={onConfirm} disabled={loading}>
             {loading ? 'Please wait…' : confirmLabel}

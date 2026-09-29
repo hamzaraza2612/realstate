@@ -66,3 +66,53 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Sheet (slide-over drawer, components/ui/sheet.tsx) enter animations. Plain keyframes rather than
+ * the tailwindcss-animate plugin, which this project doesn't use. Sides are logical (start/end),
+ * so the drawer slides in from the correct edge in RTL too. */
+@keyframes sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sheet-in-start {
+  animation: sheet-in-left 200ms ease-out;
+}
+.sheet-in-end {
+  animation: sheet-in-right 200ms ease-out;
+}
+[dir='rtl'] .sheet-in-start {
+  animation-name: sheet-in-right;
+}
+[dir='rtl'] .sheet-in-end {
+  animation-name: sheet-in-left;
+}
+.overlay-in {
+  animation: overlay-in 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-in-start,
+  .sheet-in-end,
+  .overlay-in {
+    animation: none;
+  }
+}

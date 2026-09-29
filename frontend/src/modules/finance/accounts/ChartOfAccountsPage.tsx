@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { Pagination } from '@/components/common/Pagination'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
-import { AccountType, AccountTypeLabel } from '@/types/api'
+import { type AccountDto, AccountType, AccountTypeLabel } from '@/types/api'
 import { useAccounts, useDeleteAccount } from './api'
 import { AccountFormDialog } from './AccountFormDialog'
 
@@ -22,6 +24,7 @@ export function ChartOfAccountsPage() {
   const [type, setType] = useState<string>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
   const deleteAccount = useDeleteAccount()
+  const [deleteTarget, setDeleteTarget] = useState<AccountDto | undefined>()
 
   const { data, isLoading, isError, refetch } = useAccounts(page, {
     search: search || undefined,
@@ -30,10 +33,12 @@ export function ChartOfAccountsPage() {
 
   const totalPages = data?.meta ? Math.max(1, Math.ceil(data.meta.total / data.meta.pageSize)) : 1
 
-  async function handleDelete(id: string) {
+  async function handleDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteAccount.mutateAsync(id)
+      await deleteAccount.mutateAsync(deleteTarget.id)
       toast({ title: 'Account deleted', variant: 'success' })
+      setDeleteTarget(undefined)
     } catch (error) {
       toast({ title: 'Could not delete account', description: extractErrorMessage(error), variant: 'destructive' })
     }
@@ -128,7 +133,7 @@ export function ChartOfAccountsPage() {
                   <TableCell>
                     {!account.isSystem && account.childAccountCount === 0 && (
                       <PermissionGate permission="finance.manage">
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(account.id)} disabled={deleteAccount.isPending}>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(account)} disabled={deleteAccount.isPending}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </PermissionGate>
@@ -139,23 +144,25 @@ export function ChartOfAccountsPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} accounts
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="accounts" onPageChange={setPage} />
         </>
       )}
 
       <AccountFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(undefined)}
+        title="Delete account"
+        description={
+          deleteTarget
+            ? `Delete account "${deleteTarget.code} - ${deleteTarget.name}" from the chart of accounts? This cannot be undone, and the server will refuse it if any journal lines already reference the account.`
+            : ''
+        }
+        confirmLabel="Delete account"
+        destructive
+        loading={deleteAccount.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

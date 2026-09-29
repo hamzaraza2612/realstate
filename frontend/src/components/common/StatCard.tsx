@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-/** Same icon + big value + label + description visual pattern as
- * `modules/finance/dashboard/FinanceDashboardPage.tsx`'s `StatCard`, reused across every
- * report page's KPI grid. `description` accepts a node so a card can carry a second or
- * third related figure instead of sprawling into its own tile. */
+/** The shared KPI tile: icon + big value + label + optional description. Promoted from
+ * `modules/reports/components/` in Milestone 17 so every module dashboard (CRM, Sales, Finance,
+ * Construction, Procurement, Property, Rental, Facility, Mall, Coworking), the report pages and
+ * the root dashboard all render KPIs identically instead of each keeping a hand-copied version.
+ * `description` accepts a node so a card can carry a second or third related figure instead of
+ * sprawling into its own tile; `alert` switches the icon to the destructive color. */
 export function StatCard({
   icon: Icon,
   label,

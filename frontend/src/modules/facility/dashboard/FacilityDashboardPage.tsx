@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatCard } from '@/components/common/StatCard'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
 import { money } from '@/modules/reports/format'
@@ -114,32 +115,5 @@ export function FacilityDashboardPage() {
         </Card>
       </div>
     </div>
-  )
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  description,
-  alert,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string | number
-  description: string
-  alert?: boolean
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <Icon className={alert ? 'h-5 w-5 text-destructive' : 'h-5 w-5 text-primary'} />
-        </div>
-        <CardTitle className="mt-2 text-2xl">{value}</CardTitle>
-        <CardDescription>{label}</CardDescription>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardHeader>
-    </Card>
   )
 }

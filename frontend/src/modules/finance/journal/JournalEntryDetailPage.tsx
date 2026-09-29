@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/common/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
@@ -33,6 +34,7 @@ export function JournalEntryDetailPage() {
   const reverseEntry = useReverseJournalEntry()
 
   const [reverseOpen, setReverseOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
   const [reversalDate, setReversalDate] = useState(today())
   const [reason, setReason] = useState('')
 
@@ -51,6 +53,7 @@ export function JournalEntryDetailPage() {
     try {
       await cancelEntry.mutateAsync(id)
       toast({ title: 'Journal entry cancelled', variant: 'success' })
+      setCancelOpen(false)
     } catch (error) {
       toast({ title: 'Could not cancel entry', description: extractErrorMessage(error), variant: 'destructive' })
     }
@@ -88,8 +91,8 @@ export function JournalEntryDetailPage() {
           isDraft ? (
             <PermissionGate permission="finance.manage">
               <div className="flex gap-2">
-                <Button variant="destructive" onClick={handleCancel} disabled={cancelEntry.isPending}>
-                  Cancel
+                <Button variant="destructive" onClick={() => setCancelOpen(true)} disabled={cancelEntry.isPending}>
+                  Cancel entry
                 </Button>
                 <Button onClick={handlePost} disabled={postEntry.isPending}>
                   Post entry
@@ -152,6 +155,18 @@ export function JournalEntryDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Cancel journal entry"
+        description={`Cancel draft entry ${entry.entryNumber}? It will never be posted to the ledger, and a cancelled entry cannot be edited or posted later.`}
+        confirmLabel="Cancel entry"
+        cancelLabel="Keep draft"
+        destructive
+        loading={cancelEntry.isPending}
+        onConfirm={handleCancel}
+      />
 
       <Dialog open={reverseOpen} onOpenChange={setReverseOpen}>
         <DialogContent>
