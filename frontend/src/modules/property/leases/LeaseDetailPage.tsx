@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -8,8 +7,10 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
+import { moneyExact } from '@/modules/reports/format'
 import { PaymentMethodLabel, RentScheduleStatus, RentScheduleStatusLabel, SecurityDepositStatus, SecurityDepositStatusLabel, LeasePaymentFrequencyLabel, LeaseStatus, LeaseStatusLabel, type RentScheduleDto } from '@/types/api'
 import {
   useApproveLease,
@@ -25,31 +26,6 @@ import {
 import { LeaseFormDialog } from './LeaseFormDialog'
 import { RentPaymentDialog } from './RentPaymentDialog'
 import { SecurityDepositActionDialog, type SecurityDepositAction } from './SecurityDepositActionDialog'
-
-const statusVariant: Record<LeaseStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeaseStatus.Draft]: 'secondary',
-  [LeaseStatus.PendingApproval]: 'outline',
-  [LeaseStatus.Active]: 'success',
-  [LeaseStatus.Expired]: 'secondary',
-  [LeaseStatus.Terminated]: 'destructive',
-  [LeaseStatus.Cancelled]: 'destructive',
-}
-
-const scheduleStatusVariant: Record<RentScheduleStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [RentScheduleStatus.Pending]: 'outline',
-  [RentScheduleStatus.PartiallyPaid]: 'default',
-  [RentScheduleStatus.Paid]: 'success',
-  [RentScheduleStatus.Overdue]: 'destructive',
-  [RentScheduleStatus.Cancelled]: 'secondary',
-}
-
-const depositStatusVariant: Record<SecurityDepositStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [SecurityDepositStatus.Pending]: 'outline',
-  [SecurityDepositStatus.Held]: 'default',
-  [SecurityDepositStatus.PartiallyRefunded]: 'secondary',
-  [SecurityDepositStatus.Refunded]: 'success',
-  [SecurityDepositStatus.Forfeited]: 'destructive',
-}
 
 export function LeaseDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -155,13 +131,13 @@ export function LeaseDetailPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 text-sm">
             <Field label="Status">
-              <Badge variant={statusVariant[lease.status]}>{LeaseStatusLabel[lease.status]}</Badge>
+              <StatusBadge status={lease.status} labels={LeaseStatusLabel} />
             </Field>
             <Field label="Payment frequency">{LeasePaymentFrequencyLabel[lease.paymentFrequency]}</Field>
             <Field label="Start date">{formatDate(lease.startDate)}</Field>
             <Field label="End date">{formatDate(lease.endDate)}</Field>
-            <Field label="Rent amount">${lease.rentAmount.toLocaleString()}</Field>
-            <Field label="Security deposit">{lease.securityDeposit != null ? `$${lease.securityDeposit.toLocaleString()}` : '—'}</Field>
+            <Field label="Rent amount">{moneyExact(lease.rentAmount)}</Field>
+            <Field label="Security deposit">{lease.securityDeposit != null ? moneyExact(lease.securityDeposit) : '—'}</Field>
             <Field label="Grace period">{lease.gracePeriodDays} days</Field>
             {lease.terms && (
               <div className="col-span-2">
@@ -185,11 +161,11 @@ export function LeaseDetailPage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
               <Field label="Status">
-                <Badge variant={depositStatusVariant[deposit.status]}>{SecurityDepositStatusLabel[deposit.status]}</Badge>
+                <StatusBadge status={deposit.status} labels={SecurityDepositStatusLabel} />
               </Field>
-              <Field label="Amount">${deposit.amount.toLocaleString()}</Field>
+              <Field label="Amount">{moneyExact(deposit.amount)}</Field>
               <Field label="Received date">{deposit.receivedDate ? formatDate(deposit.receivedDate) : '—'}</Field>
-              <Field label="Refunded amount">${deposit.refundedAmount.toLocaleString()}</Field>
+              <Field label="Refunded amount">{moneyExact(deposit.refundedAmount)}</Field>
               <PermissionGate permission="property.lease.manage">
                 <div className="flex flex-wrap gap-2 pt-1">
                   {deposit.status === SecurityDepositStatus.Pending && (
@@ -242,12 +218,12 @@ export function LeaseDetailPage() {
                       {formatDate(s.periodStart)} – {formatDate(s.periodEnd)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(s.dueDate)}</TableCell>
-                    <TableCell className="text-right">${s.amount.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">${s.paidAmount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{moneyExact(s.amount)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{moneyExact(s.paidAmount)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        <Badge variant={scheduleStatusVariant[s.status]}>{RentScheduleStatusLabel[s.status]}</Badge>
-                        {s.isOverdue && <Badge variant="destructive">Overdue</Badge>}
+                        <StatusBadge status={s.status} labels={RentScheduleStatusLabel} />
+                        {s.isOverdue && s.status !== RentScheduleStatus.Overdue && <StatusBadge status="Overdue" />}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -293,7 +269,7 @@ export function LeaseDetailPage() {
                     <TableCell className="text-muted-foreground">#{p.rentSchedulePeriodNumber}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                     <TableCell className="text-muted-foreground">{PaymentMethodLabel[p.method]}</TableCell>
-                    <TableCell className="text-right">${p.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{moneyExact(p.amount)}</TableCell>
                     <TableCell className="text-muted-foreground">{p.recordedByUserName ?? '—'}</TableCell>
                   </TableRow>
                 ))}

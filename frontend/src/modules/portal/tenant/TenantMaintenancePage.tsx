@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -12,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { extractErrorMessage } from '@/lib/portalApiClient'
 import { formatDate } from '@/lib/utils'
 import {
@@ -20,19 +21,9 @@ import {
   MaintenanceCategoryLabel,
   MaintenancePriority,
   MaintenancePriorityLabel,
-  MaintenanceStatus,
   MaintenanceStatusLabel,
 } from '@/types/api'
 import { useCreateTenantMaintenanceRequest, useTenantLeases, useTenantMaintenanceRequests } from './api'
-
-const statusVariant: Record<MaintenanceStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [MaintenanceStatus.Open]: 'outline',
-  [MaintenanceStatus.Assigned]: 'default',
-  [MaintenanceStatus.InProgress]: 'default',
-  [MaintenanceStatus.OnHold]: 'secondary',
-  [MaintenanceStatus.Resolved]: 'success',
-  [MaintenanceStatus.Cancelled]: 'destructive',
-}
 
 const schema = z.object({
   leaseId: z.string().min(1, 'Select a lease'),
@@ -56,11 +47,20 @@ export function TenantMaintenancePage() {
     handleSubmit,
     control,
     reset,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { leaseId: activeLeases[0]?.id ?? '', category: MaintenanceCategory.Other, priority: MaintenancePriority.Medium, description: '' },
   })
+
+  // `defaultValues` is only read on the first render — before the leases query has resolved — so
+  // preselect the tenant's first active lease once it arrives (most tenants have exactly one).
+  const firstActiveLeaseId = activeLeases[0]?.id
+  useEffect(() => {
+    if (firstActiveLeaseId && !getValues('leaseId')) setValue('leaseId', firstActiveLeaseId)
+  }, [firstActiveLeaseId, getValues, setValue])
 
   async function onSubmit(values: FormValues) {
     try {
@@ -194,26 +194,14 @@ export function TenantMaintenancePage() {
                       <TableCell className="text-muted-foreground">{MaintenanceCategoryLabel[r.category]}</TableCell>
                       <TableCell className="text-muted-foreground">{MaintenancePriorityLabel[r.priority]}</TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant[r.status]}>{MaintenanceStatusLabel[r.status]}</Badge>
+                        <StatusBadge status={r.status} labels={MaintenanceStatusLabel} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(r.reportedDate)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Page {page} of {totalPages} · {data.meta?.total} requests
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Next
-                  </Button>
-                </div>
-              </div>
+              <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="requests" onPageChange={setPage} />
             </>
           )}
         </CardContent>

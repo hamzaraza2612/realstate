@@ -1,7 +1,6 @@
 import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,22 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { formatDate } from '@/lib/utils'
 import { useAllProperties } from '@/modules/property/properties/api'
+import { moneyExact } from '@/modules/reports/format'
 import { LeaseStatus, LeaseStatusLabel } from '@/types/api'
 import { useLeases } from './api'
 import { LeaseFormDialog } from './LeaseFormDialog'
 
 const ALL = 'all'
-
-const statusVariant: Record<LeaseStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeaseStatus.Draft]: 'secondary',
-  [LeaseStatus.PendingApproval]: 'outline',
-  [LeaseStatus.Active]: 'success',
-  [LeaseStatus.Expired]: 'secondary',
-  [LeaseStatus.Terminated]: 'destructive',
-  [LeaseStatus.Cancelled]: 'destructive',
-}
 
 export function LeasesPage() {
   const [page, setPage] = useState(1)
@@ -113,7 +106,17 @@ export function LeasesPage() {
       {isLoading && <LoadingState label="Loading leases…" />}
       {isError && <ErrorState message="Could not load leases." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No leases found" description="Try different filters or create your first lease." />
+        <EmptyState
+          title="No leases found"
+          description="Try different filters or create your first lease."
+          action={
+            <PermissionGate permission="property.lease.manage">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> New lease
+              </Button>
+            </PermissionGate>
+          }
+        />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -140,28 +143,16 @@ export function LeasesPage() {
                   <TableCell className="text-muted-foreground">{lease.rentalTenantName}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(lease.startDate)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(lease.endDate)}</TableCell>
-                  <TableCell className="text-right">${lease.rentAmount.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{moneyExact(lease.rentAmount)}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[lease.status]}>{LeaseStatusLabel[lease.status]}</Badge>
+                    <StatusBadge status={lease.status} labels={LeaseStatusLabel} />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} leases
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="leases" onPageChange={setPage} />
         </>
       )}
 

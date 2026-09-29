@@ -1,34 +1,35 @@
-import { Bell, FileSignature, Wallet } from 'lucide-react'
+import { Bell, CalendarClock, FileSignature, Wallet, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils'
-import { LeaseStatus, LeaseStatusLabel, RentScheduleStatus } from '@/types/api'
-import { useTenantLeases, useTenantRentSchedule, useUnreadNotificationCount } from './api'
-
-const statusVariant: Record<LeaseStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeaseStatus.Draft]: 'secondary',
-  [LeaseStatus.PendingApproval]: 'outline',
-  [LeaseStatus.Active]: 'success',
-  [LeaseStatus.Expired]: 'secondary',
-  [LeaseStatus.Terminated]: 'destructive',
-  [LeaseStatus.Cancelled]: 'destructive',
-}
+import { useI18n } from '@/lib/i18n'
+import { money } from '@/modules/reports/format'
+import { LeaseStatus, LeaseStatusLabel, MaintenanceStatus, RentScheduleStatus } from '@/types/api'
+import { PortalStatCard } from '../shared/PortalStatCard'
+import { useTenantLeases, useTenantMaintenanceRequests, useTenantRentSchedule, useUnreadNotificationCount } from './api'
 
 export function TenantDashboardPage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const { data: leases, isLoading, isError, refetch } = useTenantLeases(1, 100)
   const activeLease = (leases?.items ?? []).find((l) => l.status === LeaseStatus.Active) ?? leases?.items[0]
   const { data: schedule } = useTenantRentSchedule(activeLease?.id)
+  const { data: maintenance } = useTenantMaintenanceRequests(1, 100)
   const { data: unreadCount } = useUnreadNotificationCount()
 
   if (isLoading) return <LoadingState label="Loading your dashboard…" />
   if (isError) return <ErrorState message="Could not load your dashboard." onRetry={() => refetch()} />
 
-  const outstandingRent = (schedule ?? [])
-    .filter((s) => s.status !== RentScheduleStatus.Paid && s.status !== RentScheduleStatus.Cancelled)
-    .reduce((sum, s) => sum + Math.max(0, s.amount - s.paidAmount), 0)
+  const unpaid = (schedule ?? []).filter((s) => s.status !== RentScheduleStatus.Paid && s.status !== RentScheduleStatus.Cancelled)
+  const outstandingRent = unpaid.reduce((sum, s) => sum + Math.max(0, s.amount - s.paidAmount), 0)
+  const hasOverdue = unpaid.some((s) => s.isOverdue || s.status === RentScheduleStatus.Overdue)
+  const nextDue = [...unpaid].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0]
+  const openRequests = (maintenance?.items ?? []).filter(
+    (r) => r.status !== MaintenanceStatus.Resolved && r.status !== MaintenanceStatus.Cancelled,
+  ).length
+  const activeLeaseCount = (leases?.items ?? []).filter((l) => l.status === LeaseStatus.Active).length
 
   return (
     <div>
@@ -37,29 +38,64 @@ export function TenantDashboardPage() {
         <p className="mt-1 text-sm text-muted-foreground">Here's a summary of your lease.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <PortalStatCard
           icon={FileSignature}
           label="Active leases"
-          value={String((leases?.items ?? []).filter((l) => l.status === LeaseStatus.Active).length)}
+          value={activeLeaseCount}
           onClick={() => navigate('/portal/tenant/leases')}
         />
-        <SummaryCard icon={Wallet} label="Outstanding rent" value={`$${outstandingRent.toLocaleString()}`} onClick={() => activeLease && navigate(`/portal/tenant/leases/${activeLease.id}`)} />
-        <SummaryCard icon={Bell} label="Unread notifications" value={String(unreadCount ?? 0)} onClick={() => navigate('/portal/tenant/notifications')} />
+        <PortalStatCard
+          icon={Wallet}
+          label="Outstanding rent"
+          value={money(outstandingRent)}
+          alert={hasOverdue}
+          description={hasOverdue ? t('portal.tenant.includesOverdue') : undefined}
+          onClick={activeLease ? () => navigate(`/portal/tenant/leases/${activeLease.id}`) : undefined}
+        />
+        <PortalStatCard
+          icon={CalendarClock}
+          label={t('portal.tenant.nextRentDue')}
+          value={nextDue ? money(Math.max(0, nextDue.amount - nextDue.paidAmount)) : '—'}
+          alert={!!nextDue && (nextDue.isOverdue || nextDue.status === RentScheduleStatus.Overdue)}
+          description={
+            nextDue
+              ? t(nextDue.isOverdue || nextDue.status === RentScheduleStatus.Overdue ? 'portal.tenant.overdueSince' : 'portal.tenant.dueOn').replace(
+                  '{date}',
+                  formatDate(nextDue.dueDate),
+                )
+              : t('portal.tenant.nothingDue')
+          }
+          onClick={activeLease ? () => navigate(`/portal/tenant/leases/${activeLease.id}`) : undefined}
+        />
+        <PortalStatCard
+          icon={Wrench}
+          label={t('portal.tenant.openMaintenance')}
+          value={openRequests}
+          onClick={() => navigate('/portal/tenant/maintenance')}
+        />
+        <PortalStatCard
+          icon={Bell}
+          label="Unread notifications"
+          value={unreadCount ?? 0}
+          onClick={() => navigate('/portal/tenant/notifications')}
+        />
       </div>
 
-      {activeLease && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Current lease</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Current lease</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!activeLease ? (
+            <EmptyState title={t('portal.tenant.noLeaseTitle')} description={t('portal.tenant.noLeaseDescription')} />
+          ) : (
             <button
               type="button"
               onClick={() => navigate(`/portal/tenant/leases/${activeLease.id}`)}
-              className="flex w-full items-center justify-between gap-2 text-left text-sm hover:text-primary"
+              className="flex w-full items-center justify-between gap-3 text-left text-sm hover:text-primary"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">{activeLease.leaseNumber}</p>
                 <p className="text-muted-foreground">
                   {activeLease.propertyName} · Unit {activeLease.unitNumber}
@@ -68,39 +104,11 @@ export function TenantDashboardPage() {
                   {formatDate(activeLease.startDate)} – {formatDate(activeLease.endDate)}
                 </p>
               </div>
-              <Badge variant={statusVariant[activeLease.status]}>{LeaseStatusLabel[activeLease.status]}</Badge>
+              <StatusBadge status={activeLease.status} labels={LeaseStatusLabel} />
             </button>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  onClick: () => void
-}) {
-  return (
-    <button type="button" onClick={onClick} className="text-left">
-      <Card className="transition-colors hover:border-primary/40">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-xl font-semibold leading-tight">{value}</p>
-            <p className="text-sm text-muted-foreground">{label}</p>
-          </div>
+          )}
         </CardContent>
       </Card>
-    </button>
+    </div>
   )
 }

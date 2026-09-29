@@ -1,7 +1,6 @@
 import { MoreHorizontal, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -11,27 +10,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
+import { Pagination } from '@/components/common/Pagination'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { extractErrorMessage } from '@/lib/apiClient'
+import { useI18n } from '@/lib/i18n'
 import { formatDate } from '@/lib/utils'
 import { TenantStatus, TenantStatusLabel } from '@/types/api'
 import { usePlatformOrganizations, useUpdateOrganizationStatus } from './api'
 import { CreateOrganizationDialog } from './CreateOrganizationDialog'
 
-const statusVariant: Record<TenantStatus, 'success' | 'secondary' | 'destructive' | 'outline'> = {
-  [TenantStatus.Trial]: 'secondary',
-  [TenantStatus.Active]: 'success',
-  [TenantStatus.Suspended]: 'destructive',
-  [TenantStatus.Cancelled]: 'outline',
-}
-
 export function PlatformOrganizationsPage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  // Suspending or cancelling cuts off every user in that organization, so both go through a
+  // confirmation step; re-activating does not.
+  const [pendingChange, setPendingChange] = useState<{ id: string; name: string; status: TenantStatus } | null>(null)
 
   const { data, isLoading, isError, refetch } = usePlatformOrganizations(page, search)
   const updateStatus = useUpdateOrganizationStatus()
@@ -40,10 +40,13 @@ export function PlatformOrganizationsPage() {
     try {
       await updateStatus.mutateAsync({ id, status })
       toast({ title: 'Organization status updated', variant: 'success' })
+      setPendingChange(null)
     } catch (error) {
       toast({ title: 'Could not update status', description: extractErrorMessage(error), variant: 'destructive' })
     }
   }
+
+  const pendingIsCancel = pendingChange?.status === TenantStatus.Cancelled
 
   const totalPages = data?.meta ? Math.max(1, Math.ceil(data.meta.total / data.meta.pageSize)) : 1
 
@@ -77,7 +80,19 @@ export function PlatformOrganizationsPage() {
       {isLoading && <LoadingState label="Loading organizations…" />}
       {isError && <ErrorState message="Could not load organizations." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No organizations yet" description="Create the first tenant to get started." />
+        search.trim() ? (
+          <EmptyState title={t('platform.organizations.noMatchTitle')} description={t('platform.organizations.noMatchDescription')} />
+        ) : (
+          <EmptyState
+            title="No organizations yet"
+            description="Create the first tenant to get started."
+            action={
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> Create organization
+              </Button>
+            }
+          />
+        )
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -102,7 +117,7 @@ export function PlatformOrganizationsPage() {
                   <TableCell className="font-medium">{org.name}</TableCell>
                   <TableCell className="text-muted-foreground">{org.slug}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[org.status]}>{TenantStatusLabel[org.status]}</Badge>
+                    <StatusBadge status={org.status} labels={TenantStatusLabel} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(org.createdAt)}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -122,14 +137,14 @@ export function PlatformOrganizationsPage() {
                           </DropdownMenuItem>
                         )}
                         {org.status !== TenantStatus.Suspended && (
-                          <DropdownMenuItem onClick={() => handleStatusChange(org.id, TenantStatus.Suspended)}>
+                          <DropdownMenuItem onClick={() => setPendingChange({ id: org.id, name: org.name, status: TenantStatus.Suspended })}>
                             Suspend
                           </DropdownMenuItem>
                         )}
                         {org.status !== TenantStatus.Cancelled && (
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => handleStatusChange(org.id, TenantStatus.Cancelled)}
+                            onClick={() => setPendingChange({ id: org.id, name: org.name, status: TenantStatus.Cancelled })}
                           >
                             Cancel
                           </DropdownMenuItem>
@@ -142,23 +157,25 @@ export function PlatformOrganizationsPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} organizations
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="organizations" onPageChange={setPage} />
         </>
       )}
 
       <CreateOrganizationDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ConfirmDialog
+        open={pendingChange !== null}
+        onOpenChange={(open) => !open && setPendingChange(null)}
+        title={(pendingIsCancel ? t('platform.organizations.confirmCancelTitle') : t('platform.organizations.confirmSuspendTitle')).replace(
+          '{name}',
+          pendingChange?.name ?? '',
+        )}
+        description={pendingIsCancel ? t('platform.organizations.confirmCancelDescription') : t('platform.organizations.confirmSuspendDescription')}
+        confirmLabel={pendingIsCancel ? t('platform.organizations.confirmCancelAction') : t('platform.organizations.confirmSuspendAction')}
+        cancelLabel={t('platform.organizations.keepAsIs')}
+        destructive
+        loading={updateStatus.isPending}
+        onConfirm={() => pendingChange && handleStatusChange(pendingChange.id, pendingChange.status)}
+      />
     </div>
   )
 }

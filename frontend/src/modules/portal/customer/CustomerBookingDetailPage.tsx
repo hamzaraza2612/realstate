@@ -1,33 +1,17 @@
 import { useParams } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils'
+import { moneyExact } from '@/modules/reports/format'
 import {
-  BookingStatus,
   BookingStatusLabel,
-  InstallmentStatus,
   InstallmentStatusLabel,
   PaymentMethodLabel,
 } from '@/types/api'
 import { useCustomerBooking, useCustomerBookingPayments, useCustomerPaymentPlan } from './api'
-
-const statusVariant: Record<BookingStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [BookingStatus.Draft]: 'secondary',
-  [BookingStatus.PendingApproval]: 'outline',
-  [BookingStatus.Confirmed]: 'success',
-  [BookingStatus.Cancelled]: 'destructive',
-}
-
-const installmentStatusVariant: Record<InstallmentStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [InstallmentStatus.Pending]: 'outline',
-  [InstallmentStatus.PartiallyPaid]: 'default',
-  [InstallmentStatus.Paid]: 'success',
-  [InstallmentStatus.Overdue]: 'destructive',
-  [InstallmentStatus.Cancelled]: 'secondary',
-}
 
 export function CustomerBookingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -48,12 +32,12 @@ export function CustomerBookingDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <Field label="Status">
-            <Badge variant={statusVariant[booking.status]}>{BookingStatusLabel[booking.status]}</Badge>
+            <StatusBadge status={booking.status} labels={BookingStatusLabel} />
           </Field>
           <Field label="Booking date">{formatDate(booking.bookingDate)}</Field>
-          <Field label="Total price">${booking.totalPrice.toLocaleString()}</Field>
-          <Field label="Discount">${booking.discount.toLocaleString()}</Field>
-          <Field label="Net price">${booking.netPrice.toLocaleString()}</Field>
+          <Field label="Total price">{moneyExact(booking.totalPrice)}</Field>
+          <Field label="Discount">{moneyExact(booking.discount)}</Field>
+          <Field label="Net price">{moneyExact(booking.netPrice)}</Field>
           {booking.notes && (
             <div className="col-span-full">
               <p className="text-muted-foreground">Notes</p>
@@ -86,10 +70,10 @@ export function CustomerBookingDetailPage() {
                     <TableCell>{i.installmentNumber}</TableCell>
                     <TableCell className="text-muted-foreground">{i.label}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(i.dueDate)}</TableCell>
-                    <TableCell className="text-right">${i.amount.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">${i.paidAmount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{moneyExact(i.amount)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{moneyExact(i.paidAmount)}</TableCell>
                     <TableCell>
-                      <Badge variant={installmentStatusVariant[i.status]}>{InstallmentStatusLabel[i.status]}</Badge>
+                      <StatusBadge status={i.status} labels={InstallmentStatusLabel} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -124,7 +108,7 @@ export function CustomerBookingDetailPage() {
                     <TableCell className="text-muted-foreground">{p.installmentLabel}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                     <TableCell className="text-muted-foreground">{PaymentMethodLabel[p.method]}</TableCell>
-                    <TableCell className="text-right">${p.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{moneyExact(p.amount)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

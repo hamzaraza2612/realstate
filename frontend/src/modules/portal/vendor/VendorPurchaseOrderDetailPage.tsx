@@ -1,22 +1,13 @@
 import { useParams } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils'
-import { PurchaseOrderStatus, PurchaseOrderStatusLabel } from '@/types/api'
+import { moneyExact } from '@/modules/reports/format'
+import { PurchaseOrderStatusLabel } from '@/types/api'
 import { useVendorPurchaseOrder } from './api'
-
-const statusVariant: Record<PurchaseOrderStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [PurchaseOrderStatus.Draft]: 'secondary',
-  [PurchaseOrderStatus.PendingApproval]: 'outline',
-  [PurchaseOrderStatus.Approved]: 'default',
-  [PurchaseOrderStatus.Sent]: 'default',
-  [PurchaseOrderStatus.PartiallyReceived]: 'default',
-  [PurchaseOrderStatus.Received]: 'success',
-  [PurchaseOrderStatus.Cancelled]: 'destructive',
-}
 
 export function VendorPurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -35,14 +26,14 @@ export function VendorPurchaseOrderDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <Field label="Status">
-            <Badge variant={statusVariant[po.status]}>{PurchaseOrderStatusLabel[po.status]}</Badge>
+            <StatusBadge status={po.status} labels={PurchaseOrderStatusLabel} />
           </Field>
           <Field label="Order date">{formatDate(po.orderDate)}</Field>
           <Field label="Expected delivery">{po.expectedDeliveryDate ? formatDate(po.expectedDeliveryDate) : '—'}</Field>
-          <Field label="Subtotal">${po.subtotal.toLocaleString()}</Field>
-          <Field label="Discount">${po.discount.toLocaleString()}</Field>
-          <Field label="Tax">${po.taxAmount.toLocaleString()}</Field>
-          <Field label="Total">${po.total.toLocaleString()}</Field>
+          <Field label="Subtotal">{moneyExact(po.subtotal)}</Field>
+          <Field label="Discount">{moneyExact(po.discount)}</Field>
+          <Field label="Tax">{moneyExact(po.taxAmount)}</Field>
+          <Field label="Total">{moneyExact(po.total)}</Field>
           {po.notes && (
             <div className="col-span-full">
               <p className="text-muted-foreground">Notes</p>
@@ -74,8 +65,8 @@ export function VendorPurchaseOrderDetailPage() {
                   <TableCell className="font-medium">{line.itemDescription}</TableCell>
                   <TableCell className="text-muted-foreground">{line.unitOfMeasure}</TableCell>
                   <TableCell className="text-right">{line.quantity}</TableCell>
-                  <TableCell className="text-right">${line.unitPrice.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">${line.total.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{moneyExact(line.unitPrice)}</TableCell>
+                  <TableCell className="text-right">{moneyExact(line.total)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{line.receivedQuantity}</TableCell>
                 </TableRow>
               ))}

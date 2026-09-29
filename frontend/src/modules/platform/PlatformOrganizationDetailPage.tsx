@@ -1,6 +1,6 @@
+import { Building2, FileSignature, FolderKanban, HardDrive, UserRound, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
+import { StatCard } from '@/components/common/StatCard'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatNumber } from '@/lib/utils'
 import { useCountries } from '@/modules/settings/api'
 import {
   BillingCycleLabel,
@@ -23,13 +25,10 @@ import {
   MeasurementSystem,
   MeasurementSystemLabel,
   SubscriptionStatusLabel,
-  TenantStatus,
   TenantStatusLabel,
-  UsageState,
   UsageStateLabel,
-  type SubscriptionStatus,
 } from '@/types/api'
-import { FEATURE_ENTITLEMENT_CODES, LIMIT_ENTITLEMENT_CODES, entitlementLabel } from '@/lib/entitlementCatalog'
+import { FEATURE_ENTITLEMENT_CODES, LIMIT_ENTITLEMENT_CODES, USAGE_STATE_TONE, entitlementLabel } from '@/lib/entitlementCatalog'
 import {
   useAssignSubscription,
   useOrganizationEntitlements,
@@ -42,28 +41,6 @@ import {
   useUpdateOrganizationLocalization,
 } from './api'
 import { TransitionSubscriptionDialog } from './TransitionSubscriptionDialog'
-
-const statusVariant: Record<TenantStatus, 'success' | 'secondary' | 'destructive' | 'outline'> = {
-  [TenantStatus.Trial]: 'secondary',
-  [TenantStatus.Active]: 'success',
-  [TenantStatus.Suspended]: 'destructive',
-  [TenantStatus.Cancelled]: 'outline',
-}
-
-const subscriptionStatusVariant: Record<SubscriptionStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  0: 'secondary',
-  1: 'success',
-  2: 'warning',
-  3: 'outline',
-  4: 'destructive',
-  5: 'destructive',
-}
-
-const usageStateVariant: Record<UsageState, 'success' | 'warning' | 'destructive'> = {
-  [UsageState.Normal]: 'success',
-  [UsageState.Approaching]: 'warning',
-  [UsageState.AtLimit]: 'destructive',
-}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -198,7 +175,7 @@ export function PlatformOrganizationDetailPage() {
       <PageHeader
         title={org.name}
         description={`${org.slug} · Created ${formatDate(org.createdAt)}`}
-        actions={<Badge variant={statusVariant[org.status]}>{TenantStatusLabel[org.status]}</Badge>}
+        actions={<StatusBadge status={org.status} labels={TenantStatusLabel} />}
       />
 
       <Tabs defaultValue="overview">
@@ -254,7 +231,7 @@ export function PlatformOrganizationDetailPage() {
                   <CardTitle>{subscription.planName}</CardTitle>
                   <CardDescription>{subscription.planCode}</CardDescription>
                 </div>
-                <Badge variant={subscriptionStatusVariant[subscription.status]}>{SubscriptionStatusLabel[subscription.status]}</Badge>
+                <StatusBadge status={subscription.status} labels={SubscriptionStatusLabel} />
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
@@ -336,21 +313,12 @@ export function PlatformOrganizationDetailPage() {
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                {[
-                  { label: 'Users', value: usage.users },
-                  { label: 'Properties', value: usage.properties },
-                  { label: 'Projects', value: usage.projects },
-                  { label: 'Portal users', value: usage.portalUsers },
-                  { label: 'Active leases', value: usage.activeLeases },
-                  { label: 'Storage', value: formatBytes(usage.storageBytes) },
-                ].map((item) => (
-                  <Card key={item.label}>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl">{item.value}</CardTitle>
-                      <CardDescription>{item.label}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                ))}
+                <StatCard icon={Users} label="Users" value={formatNumber(usage.users)} />
+                <StatCard icon={Building2} label="Properties" value={formatNumber(usage.properties)} />
+                <StatCard icon={FolderKanban} label="Projects" value={formatNumber(usage.projects)} />
+                <StatCard icon={UserRound} label="Portal users" value={formatNumber(usage.portalUsers)} />
+                <StatCard icon={FileSignature} label="Active leases" value={formatNumber(usage.activeLeases)} />
+                <StatCard icon={HardDrive} label="Storage" value={formatBytes(usage.storageBytes)} />
               </div>
 
               <Card>
@@ -374,7 +342,7 @@ export function PlatformOrganizationDetailPage() {
                           <TableCell>{m.current}</TableCell>
                           <TableCell className="text-muted-foreground">{m.limit == null ? 'Unlimited' : m.limit}</TableCell>
                           <TableCell>
-                            <Badge variant={usageStateVariant[m.state]}>{UsageStateLabel[m.state]}</Badge>
+                            <StatusBadge status={m.state} labels={UsageStateLabel} tone={USAGE_STATE_TONE[m.state]} />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -412,7 +380,7 @@ export function PlatformOrganizationDetailPage() {
                           <TableCell className="text-muted-foreground">{e.type === EntitlementType.Feature ? 'Feature' : 'Limit'}</TableCell>
                           <TableCell>
                             {e.type === EntitlementType.Feature ? (
-                              <Badge variant={e.enabled ? 'success' : 'outline'}>{e.enabled ? 'Enabled' : 'Disabled'}</Badge>
+                              <StatusBadge status={e.enabled ? 'Enabled' : 'Disabled'} tone={e.enabled ? 'success' : 'neutral'} />
                             ) : (
                               (e.limit == null ? 'Unlimited' : e.limit)
                             )}

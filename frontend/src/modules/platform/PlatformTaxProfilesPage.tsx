@@ -1,12 +1,12 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils'
 import { useCountries } from '@/modules/settings/api'
 import type { TaxProfileDto, TaxRateDto } from '@/types/api'
@@ -55,7 +55,15 @@ export function PlatformTaxProfilesPage() {
       {isLoading && <LoadingState label="Loading tax profiles…" />}
       {isError && <ErrorState message="Could not load tax profiles." onRetry={() => refetch()} />}
       {!isLoading && !isError && (profiles ?? []).length === 0 && (
-        <EmptyState title="No tax profiles yet" description="Create a tax profile for a country to start adding rates." />
+        <EmptyState
+          title="No tax profiles yet"
+          description="Create a tax profile for a country to start adding rates."
+          action={
+            <Button onClick={() => setEditingProfile('new')}>
+              <Plus className="h-4 w-4" /> New tax profile
+            </Button>
+          }
+        />
       )}
 
       {!isLoading && !isError && (profiles ?? []).length > 0 && (
@@ -75,7 +83,7 @@ export function PlatformTaxProfilesPage() {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={profile.isActive ? 'success' : 'outline'}>{profile.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <StatusBadge status={profile.isActive ? 'Active' : 'Inactive'} />
                     <Button variant="outline" size="sm" onClick={() => setEditingProfile(profile)}>
                       Edit
                     </Button>
@@ -109,7 +117,7 @@ export function PlatformTaxProfilesPage() {
                               {r.effectiveTo ? ` – ${formatDate(r.effectiveTo)}` : ''}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={r.isActive ? 'success' : 'outline'}>{r.isActive ? 'Active' : 'Inactive'}</Badge>
+                              <StatusBadge status={r.isActive ? 'Active' : 'Inactive'} />
                             </TableCell>
                             <TableCell>
                               <Button variant="ghost" size="sm" onClick={() => setRateContext({ taxProfileId: profile.id, rate: r })}>

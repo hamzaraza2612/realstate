@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
+import { moneyExact } from '@/modules/reports/format'
 import { PaymentMethodLabel } from '@/types/api'
 import { useCustomerPayments } from './api'
 
@@ -41,7 +42,7 @@ export function CustomerPaymentsPage() {
                 <TableCell className="text-muted-foreground">{entry.payment.installmentLabel}</TableCell>
                 <TableCell className="text-muted-foreground">{formatDate(entry.payment.paymentDate)}</TableCell>
                 <TableCell className="text-muted-foreground">{PaymentMethodLabel[entry.payment.method]}</TableCell>
-                <TableCell className="text-right">${entry.payment.amount.toLocaleString()}</TableCell>
+                <TableCell className="text-right">{moneyExact(entry.payment.amount)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

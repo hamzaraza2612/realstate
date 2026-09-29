@@ -17,6 +17,22 @@ export function money(value: number | null | undefined) {
   }
 }
 
+/** Same tenant currency/locale as `money()`, but keeps the currency's minor units (e.g. cents) —
+ * for itemized amounts (installments, receipts, rent-schedule rows, PO lines) where rounding to
+ * whole units would misstate what is actually owed or paid. `money()` stays the choice for KPI
+ * totals and summary figures. */
+export function moneyExact(value: number | null | undefined) {
+  if (value == null) return 'N/A'
+  const localization = useLocalizationStore.getState().data
+  const currency = localization?.currency ?? 'USD'
+  const locale = localization?.locale
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value)
+  } catch {
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)} ${currency}`
+  }
+}
+
 export function percent(value: number | null | undefined) {
   if (value == null) return 'N/A'
   return `${value.toFixed(1)}%`

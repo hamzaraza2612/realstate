@@ -77,7 +77,9 @@ export function PortalLayout({
               </span>
             )}
           </NavLink>
-          <Avatar>
+          {/* Purely decorative (no menu behind it) — hidden below `sm` so the portal title isn't
+              truncated on phone widths. */}
+          <Avatar className="hidden sm:flex">
             <AvatarFallback>{initialsFromName(profile?.displayName ?? '?')}</AvatarFallback>
           </Avatar>
           <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">

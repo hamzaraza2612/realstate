@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatCurrency } from '@/lib/utils'
 import { BillingCycleLabel, EntitlementType, type SubscriptionPlanDto } from '@/types/api'
 import { entitlementLabel } from '@/lib/entitlementCatalog'
@@ -32,7 +33,15 @@ export function PlatformSubscriptionPlansPage() {
       {isLoading && <LoadingState label="Loading plans…" />}
       {isError && <ErrorState message="Could not load plans." onRetry={() => refetch()} />}
       {!isLoading && !isError && sortedPlans.length === 0 && (
-        <EmptyState title="No plans yet" description="Create your first subscription plan." />
+        <EmptyState
+          title="No plans yet"
+          description="Create your first subscription plan."
+          action={
+            <Button onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> New plan
+            </Button>
+          }
+        />
       )}
 
       {!isLoading && !isError && sortedPlans.length > 0 && (
@@ -45,7 +54,7 @@ export function PlatformSubscriptionPlansPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle>{plan.name}</CardTitle>
-                    <Badge variant={plan.isActive ? 'success' : 'outline'}>{plan.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <StatusBadge status={plan.isActive ? 'Active' : 'Inactive'} />
                   </div>
                   <CardDescription>
                     {formatCurrency(plan.price, plan.currency)} / {BillingCycleLabel[plan.billingCycle].toLowerCase()}

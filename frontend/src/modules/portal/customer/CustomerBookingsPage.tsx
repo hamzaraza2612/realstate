@@ -1,20 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { formatDate } from '@/lib/utils'
-import { BookingStatus, BookingStatusLabel } from '@/types/api'
+import { moneyExact } from '@/modules/reports/format'
+import { BookingStatusLabel } from '@/types/api'
 import { useCustomerBookings } from './api'
-
-const statusVariant: Record<BookingStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [BookingStatus.Draft]: 'secondary',
-  [BookingStatus.PendingApproval]: 'outline',
-  [BookingStatus.Confirmed]: 'success',
-  [BookingStatus.Cancelled]: 'destructive',
-}
 
 export function CustomerBookingsPage() {
   const navigate = useNavigate()
@@ -49,27 +43,15 @@ export function CustomerBookingsPage() {
                     {booking.projectName} · {booking.inventoryUnitCode}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[booking.status]}>{BookingStatusLabel[booking.status]}</Badge>
+                    <StatusBadge status={booking.status} labels={BookingStatusLabel} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">${booking.netPrice.toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground">{moneyExact(booking.netPrice)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(booking.bookingDate)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} bookings
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="bookings" onPageChange={setPage} />
         </>
       )}
     </div>
