@@ -4,6 +4,7 @@
 export const ar: Record<string, string> = {
   // --- Sidebar: tenant nav ---
   'nav.dashboard': 'لوحة التحكم',
+  'nav.commandCenter': 'مركز القيادة',
   'nav.crmDashboard': 'لوحة إدارة العملاء',
   'nav.crmLeads': 'العملاء المحتملون',
   'nav.crmCustomers': 'العملاء',

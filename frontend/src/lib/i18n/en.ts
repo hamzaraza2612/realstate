@@ -6,6 +6,7 @@
 export const en: Record<string, string> = {
   // --- Sidebar: tenant nav ---
   'nav.dashboard': 'Dashboard',
+  'nav.commandCenter': 'Command Center',
   'nav.crmDashboard': 'CRM Dashboard',
   'nav.crmLeads': 'Leads',
   'nav.crmCustomers': 'Customers',

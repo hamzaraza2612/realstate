@@ -599,5 +599,71 @@ Applied and schema-verified against both the dev and integration-test databases 
 `\d einvoice_submissions`, `\d leases`, `\d invoices` all confirm the expected columns/indexes/FKs
 and the corrected, non-blank default values on `tenants`' new columns).
 
+## Milestone 16 schema — AI Business Intelligence / Command Center
+
+One migration, `AddAiCommandCenterFoundation`. Full architectural rationale is in
+`docs/AI_ARCHITECTURE.md`. **Four** new tables, not five — a proposed fifth (`AiAuditEvent`) was
+deliberately not created since the existing generic `audit_logs` table (Milestone 1) already
+represents every AI audit need cleanly (see `IAuditLogger` usage throughout
+`AiConversationService`/`AiActionProposalService`).
+
+**`ai_conversations`** — one row per "Ask Your Business" conversation.
+
+| Column | Notes |
+|---|---|
+| `UserId` | not a DB foreign key (same convention as other `*UserId` columns) — the conversation's owner; `AiConversationService` checks this on every read, not just the ambient tenant filter |
+| `Title`, `Status` (Active/Archived enum) | |
+
+Index: `IX_ai_conversations_TenantId_UserId_CreatedAt`.
+
+**`ai_messages`** — one row per turn (user question or assistant answer) in a conversation.
+
+| Column | Notes |
+|---|---|
+| `ConversationId` | FK → `ai_conversations`, `ON DELETE CASCADE` |
+| `Role` (User/Assistant/System enum), `Content` (varchar(8000)) | |
+| `FactsJson` (nullable text) | populated directly from tool execution results by application code — never parsed out of the model's own text; this is what lets the frontend show an authoritative figure independent of what the assistant's prose claims |
+| `ToolCallsJson` (nullable text) | which tools were invoked this turn, for transparency/debugging — never sensitive |
+| `Provider`, `Model` (nullable), `InputTokens`/`OutputTokens` (nullable int) | provider/model metadata and token usage for this turn; nullable since a user-role message has none |
+| `Status` (Completed/Failed enum), `ErrorMessage` (nullable) | |
+
+Indexes: `IX_ai_messages_ConversationId_CreatedAt`, `IX_ai_messages_TenantId`.
+
+**`ai_action_proposals`** — one row per AI-proposed write action.
+
+| Column | Notes |
+|---|---|
+| `ConversationId` (nullable) | the conversation that produced this proposal, if any |
+| `RequestedByUserId` | not a DB foreign key |
+| `ActionType` (varchar(100)) | the `IAiTool.Name` that would run if approved, e.g. `"crm.create_follow_up"` |
+| `TargetEntityType`/`TargetEntityId` (both nullable) | optional single-entity context for UI deep-linking |
+| `ParametersJson` (text) | frozen at proposal time — an approver decides on exactly these parameters, never whatever the conversation has drifted to since |
+| `Explanation`, `ExpectedEffect` (varchar), `RiskLevel` (varchar(20), "low"/"medium"/"high") | |
+| `Status` (7-value enum: PendingApproval/Approved/Rejected/Executed/Failed/Expired/Cancelled) | |
+| `ApprovalRequestId` (nullable uuid) | not a DB foreign key — links to the **existing** Milestone 11 `approval_requests` row created for this proposal (`EntityType = "AiActionProposal"`) |
+| `ResultJson`/`ErrorMessage` (nullable) | the tool's actual return value once executed, or why it failed |
+| `ExpiresAt`, `ExecutedAt` (nullable) | a proposal past `ExpiresAt` can never be executed, even if later approved |
+| `xmin` | Postgres row-version (`IsRowVersion()`, the non-obsolete Milestone-14/15 form) — an approval decision that races a duplicate execution request is caught here, making `ExecuteInternalAsync` safely idempotent |
+
+Indexes: `IX_ai_action_proposals_ApprovalRequestId`, `IX_ai_action_proposals_ConversationId`,
+`IX_ai_action_proposals_TenantId_RequestedByUserId_Status`.
+
+**`ai_usage_records`** — one row per completed or failed "Ask Your Business" model call; the tenant's
+AI rate-limiting and cost/usage audit trail (see `IAiRateLimiter`, which COUNTs this table over the
+trailing minute rather than tracking usage in memory, so the limit is correct across multiple API
+instances).
+
+| Column | Notes |
+|---|---|
+| `UserId`, `ConversationId` (nullable) | |
+| `OccurredAt` | |
+| `Provider`, `Model` (nullable), `InputTokens`/`OutputTokens` | |
+| `Succeeded`, `ErrorCode` (nullable) | |
+
+Index: `IX_ai_usage_records_TenantId_OccurredAt`.
+
+Applied and schema-verified against both the dev and integration-test databases (`psql \dt ai_*`
+confirms all four tables exist with the expected columns/indexes/FKs).
+
 Later milestones extend this file per-module as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds the migration.

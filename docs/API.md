@@ -484,4 +484,28 @@ Changed from Milestone 14:
   omitted, `taxAmount` is used exactly as before. `InvoiceDto` now includes `taxRateId`, `taxCode`,
   `taxName`, `taxPercentage`, `taxInclusive`.
 
+## AI Business Intelligence / Command Center (Milestone 16)
+
+Full architecture is in `docs/AI_ARCHITECTURE.md`, not repeated here. Every route below is gated by
+`[RequireEntitlement("ai")]` at the controller level (`403 feature_not_entitled` if the tenant's plan
+doesn't include it) and `[RequirePermission("ai.view")]` per action.
+
+- `GET /api/v1/ai/command-center/summary` — the landing-page payload: `health` (`BusinessHealthDto`),
+  `attentionItems[]`, `recentConversations[]`, and `aiProviderConfigured` (a tenant should still see
+  real `health`/`attentionItems` even when this is `false` — they never depend on the AI provider).
+- `GET /api/v1/ai/conversations` (paged) / `POST /api/v1/ai/conversations` body `{ title? }` /
+  `GET /api/v1/ai/conversations/{id}` — scoped to the caller's own conversations; `404` (not
+  `403`) for another user's or another tenant's conversation, deliberately indistinguishable.
+- `POST /api/v1/ai/conversations/{id}/messages` body `{ question }` — the "Ask Your Business" turn.
+  Returns the new `AiMessageDto` (`content`, `facts`, `toolCalls`, `provider`, `model`, `status`,
+  `errorMessage`). Failure codes: `404 not_found` (wrong conversation), `503
+  ai_provider_not_configured` (no AI provider configured for this deployment), `429 ai_rate_limited`
+  (tenant's per-minute AI request budget exceeded).
+- `GET /api/v1/ai/action-proposals` (paged, filter by `status`) / `GET /api/v1/ai/action-proposals/{id}`
+  — read-only visibility into AI-proposed write actions (`AiActionProposalDto`: `actionType`,
+  `parameters`, `explanation`, `expectedEffect`, `riskLevel`, `status`, `approvalRequestId`, `result`).
+  **There is no approve/reject endpoint here** — a proposal is decided through the existing
+  `POST /api/v1/approvals/{approvalRequestId}/decide` (see Milestone 11 above), using the proposal's
+  own `approvalRequestId`. Deciding it there is what drives execution — see `docs/AI_ARCHITECTURE.md`.
+
 Further modules append their endpoint list here as they ship.

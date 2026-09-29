@@ -51,6 +51,7 @@ import {
   Repeat,
   Globe,
   Percent,
+  Sparkles,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -67,6 +68,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/command-center', labelKey: 'nav.commandCenter', icon: Sparkles, permission: 'ai.view' },
   { to: '/crm', labelKey: 'nav.crmDashboard', icon: LayoutDashboard, permission: 'crm.lead.view' },
   { to: '/crm/leads', labelKey: 'nav.crmLeads', icon: Contact, permission: 'crm.lead.view' },
   { to: '/crm/customers', labelKey: 'nav.crmCustomers', icon: UserSquare2, permission: 'crm.customer.view' },

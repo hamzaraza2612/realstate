@@ -44,6 +44,14 @@ public static class EntitlementCodes
     public const string AdvancedReporting = "advanced_reporting";
     public const string ApiAccess = "api_access";
 
+    /// <summary>Gates the entire AI Command Center (Milestone 16) — Business Health/Attention Engine
+    /// are pure ERP computation with no AI call involved, but the whole Command Center experience,
+    /// including those deterministic panels, is still gated behind this one code so a tenant whose
+    /// plan doesn't include AI sees a clear "not included in your plan" state rather than a partial
+    /// experience. See [RequireEntitlement(EntitlementCodes.Ai)] on CommandCenterController/
+    /// AiConversationsController.</summary>
+    public const string Ai = "ai";
+
     // --- Limit entitlements (numeric) ---
     public const string MaxUsers = "max_users";
     public const string MaxProperties = "max_properties";
@@ -68,6 +76,7 @@ public static class EntitlementCodes
         [Reporting] = EntitlementType.Feature,
         [AdvancedReporting] = EntitlementType.Feature,
         [ApiAccess] = EntitlementType.Feature,
+        [Ai] = EntitlementType.Feature,
         [MaxUsers] = EntitlementType.Limit,
         [MaxProperties] = EntitlementType.Limit,
         [MaxProjects] = EntitlementType.Limit,
