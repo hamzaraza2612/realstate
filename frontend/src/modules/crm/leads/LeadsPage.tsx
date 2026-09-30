@@ -1,7 +1,6 @@
 import { Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,20 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/PageHeader'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { formatDate } from '@/lib/utils'
 import { LeadPriority, LeadPriorityLabel, LeadSourceLabel, LeadStatus, LeadStatusLabel } from '@/types/api'
 import { useLeads } from './api'
 import { LeadFormDialog } from './LeadFormDialog'
-
-const statusVariant: Record<LeadStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeadStatus.New]: 'secondary',
-  [LeadStatus.Contacted]: 'outline',
-  [LeadStatus.Qualified]: 'default',
-  [LeadStatus.ProposalSent]: 'default',
-  [LeadStatus.Negotiation]: 'default',
-  [LeadStatus.Won]: 'success',
-  [LeadStatus.Lost]: 'destructive',
-}
 
 const ALL = 'all'
 
@@ -112,7 +103,17 @@ export function LeadsPage() {
       {isLoading && <LoadingState label="Loading leads…" />}
       {isError && <ErrorState message="Could not load leads." onRetry={() => refetch()} />}
       {!isLoading && !isError && data?.items.length === 0 && (
-        <EmptyState title="No leads found" description="Try different filters or add your first lead." />
+        <EmptyState
+          title="No leads found"
+          description="Try different filters or add your first lead."
+          action={
+            <PermissionGate permission="crm.lead.create">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> Add lead
+              </Button>
+            </PermissionGate>
+          }
+        />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
@@ -137,7 +138,7 @@ export function LeadsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{LeadSourceLabel[lead.source]}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[lead.status]}>{LeadStatusLabel[lead.status]}</Badge>
+                    <StatusBadge status={lead.status} labels={LeadStatusLabel} />
                   </TableCell>
                   <TableCell>{LeadPriorityLabel[lead.priority]}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.assignedToUserName ?? 'Unassigned'}</TableCell>
@@ -147,19 +148,7 @@ export function LeadsPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} leads
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="leads" onPageChange={setPage} />
         </>
       )}
 

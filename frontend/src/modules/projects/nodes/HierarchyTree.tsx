@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
@@ -17,11 +19,13 @@ function buildTree(nodes: ProjectNodeDto[], parentId: string | null): ProjectNod
 function NodeRow({ node, nodes, depth }: { node: ProjectNodeDto; nodes: ProjectNodeDto[]; depth: number }) {
   const deleteNode = useDeleteProjectNode()
   const children = buildTree(nodes, node.id)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   async function handleDelete() {
     try {
       await deleteNode.mutateAsync(node.id)
       toast({ title: 'Node deleted', variant: 'success' })
+      setConfirmOpen(false)
     } catch (error) {
       toast({ title: 'Could not delete node', description: extractErrorMessage(error), variant: 'destructive' })
     }
@@ -42,12 +46,22 @@ function NodeRow({ node, nodes, depth }: { node: ProjectNodeDto; nodes: ProjectN
             size="sm"
             disabled={deleteNode.isPending || node.childNodeCount > 0 || node.inventoryCount > 0}
             title={node.childNodeCount > 0 || node.inventoryCount > 0 ? 'Remove child nodes and inventory first' : 'Delete node'}
-            onClick={handleDelete}
+            onClick={() => setConfirmOpen(true)}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </PermissionGate>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete hierarchy node"
+        description={`Delete ${ProjectNodeTypeLabel[node.nodeType].toLowerCase()} "${node.name}" (${node.code}) from this project's hierarchy? This cannot be undone.`}
+        confirmLabel="Delete node"
+        destructive
+        loading={deleteNode.isPending}
+        onConfirm={handleDelete}
+      />
       {children.map((child) => (
         <NodeRow key={child.id} node={child} nodes={nodes} depth={depth + 1} />
       ))}

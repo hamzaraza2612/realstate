@@ -1,5 +1,6 @@
-import { Bell, LogOut, Moon, Sun, User as UserIcon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Bell, LogOut, Menu, Moon, Search, Sun, User as UserIcon } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -10,11 +11,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { cn, initialsFromName } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n'
+import { BrandMark, SidebarNav } from './Sidebar'
 import {
   resolveNotificationLink,
   useMarkAllNotificationsRead,
@@ -23,10 +27,11 @@ import {
   useUnreadNotificationCount,
 } from '@/modules/notifications/api'
 
-export function Topbar() {
+export function Topbar({ onOpenCommandBar }: { onOpenCommandBar: () => void }) {
   const navigate = useNavigate()
   const { user, clear } = useAuthStore()
   const { theme, toggle } = useThemeStore()
+  const { t } = useI18n()
 
   function handleLogout() {
     clear()
@@ -34,13 +39,29 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-5">
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-medium">{user?.tenantName ?? 'Platform Administration'}</span>
-        {user?.tenantName && <span className="text-xs text-muted-foreground">Organization workspace</span>}
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 sm:px-5">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileNav />
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-sm font-medium">{user?.tenantName ?? 'Platform Administration'}</span>
+          {user?.tenantName && <span className="hidden text-xs text-muted-foreground sm:block">Organization workspace</span>}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <button
+          type="button"
+          onClick={onOpenCommandBar}
+          className="hidden h-9 w-64 items-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 truncate text-start">{t('shell.search')}</span>
+          <kbd className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">{shortcutLabel()}</kbd>
+        </button>
+        <Button variant="ghost" size="icon" className="lg:hidden" onClick={onOpenCommandBar} aria-label={t('shell.search')}>
+          <Search className="h-4 w-4" />
+        </Button>
+
         <NotificationBell />
 
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
@@ -74,6 +95,37 @@ export function Topbar() {
         </DropdownMenu>
       </div>
     </header>
+  )
+}
+
+function shortcutLabel() {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+  return isMac ? '⌘K' : 'Ctrl K'
+}
+
+/** Below the `md` breakpoint the desktop Sidebar is hidden, so this hamburger opens the very same
+ * nav tree (`SidebarNav`) in a slide-over drawer. It closes on any navigation: when a link is
+ * tapped, and — because "open" is remembered as "open on this path" — whenever the route changes
+ * by any other means too. */
+function MobileNav() {
+  const { pathname } = useLocation()
+  const [openOnPath, setOpenOnPath] = useState<string | null>(null)
+  const open = openOnPath === pathname
+  const setOpen = (next: boolean) => setOpenOnPath(next ? pathname : null)
+  const { t } = useI18n()
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <Button variant="ghost" size="icon" className="shrink-0 md:hidden" onClick={() => setOpen(true)} aria-label={t('shell.openMenu')}>
+        <Menu className="h-5 w-5" />
+      </Button>
+      <SheetContent side="start" className="p-0">
+        <SheetTitle className="sr-only">{t('shell.navigation')}</SheetTitle>
+        <SheetDescription className="sr-only">{t('shell.navigationDescription')}</SheetDescription>
+        <BrandMark />
+        <SidebarNav onNavigate={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   )
 }
 

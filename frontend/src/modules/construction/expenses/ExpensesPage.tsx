@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { Pagination } from '@/components/common/Pagination'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
+import { money } from '@/modules/reports/format'
 import { ExpenseCategory, ExpenseCategoryLabel, ExpenseStatus, ExpenseStatusLabel, type ExpenseDto } from '@/types/api'
 import { useApproveExpense, useExpenses, useRejectExpense } from './api'
 import { ExpenseFormDialog } from './ExpenseFormDialog'
@@ -29,6 +32,7 @@ export function ExpensesPage() {
   const [category, setCategory] = useState<string>(ALL)
   const [createOpen, setCreateOpen] = useState(false)
   const [payTarget, setPayTarget] = useState<ExpenseDto | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<ExpenseDto | null>(null)
 
   const { data, isLoading, isError, refetch } = useExpenses(page, {
     status: status === ALL ? undefined : (Number(status) as ExpenseStatus),
@@ -48,10 +52,12 @@ export function ExpensesPage() {
     }
   }
 
-  async function handleReject(id: string) {
+  async function handleReject() {
+    if (!rejectTarget) return
     try {
-      await rejectExpense.mutateAsync(id)
+      await rejectExpense.mutateAsync(rejectTarget.id)
       toast({ title: 'Expense rejected', variant: 'success' })
+      setRejectTarget(null)
     } catch (error) {
       toast({ title: 'Could not reject expense', description: extractErrorMessage(error), variant: 'destructive' })
     }
@@ -159,7 +165,7 @@ export function ExpensesPage() {
                           <Button size="sm" onClick={() => handleApprove(e.id)} disabled={approveExpense.isPending}>
                             Approve
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleReject(e.id)} disabled={rejectExpense.isPending}>
+                          <Button size="sm" variant="destructive" onClick={() => setRejectTarget(e)} disabled={rejectExpense.isPending}>
                             Reject
                           </Button>
                         </div>
@@ -178,24 +184,26 @@ export function ExpensesPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} expenses
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="expenses" onPageChange={setPage} />
         </>
       )}
 
       <ExpenseFormDialog open={createOpen} onOpenChange={setCreateOpen} />
       <PayExpenseDialog open={!!payTarget} onOpenChange={(open) => !open && setPayTarget(null)} expense={payTarget} />
+      <ConfirmDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject expense"
+        description={
+          rejectTarget
+            ? `Reject the ${money(rejectTarget.amount)} ${ExpenseCategoryLabel[rejectTarget.category].toLowerCase()} expense for ${rejectTarget.projectName}${rejectTarget.vendorName ? ` (${rejectTarget.vendorName})` : ''}? A rejected expense can't be approved or paid later.`
+            : ''
+        }
+        confirmLabel="Reject expense"
+        destructive
+        loading={rejectExpense.isPending}
+        onConfirm={handleReject}
+      />
     </div>
   )
 }

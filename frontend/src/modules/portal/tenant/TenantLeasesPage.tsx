@@ -1,22 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { formatDate } from '@/lib/utils'
-import { LeaseStatus, LeaseStatusLabel } from '@/types/api'
+import { moneyExact } from '@/modules/reports/format'
+import { LeaseStatusLabel } from '@/types/api'
 import { useTenantLeases } from './api'
-
-const statusVariant: Record<LeaseStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeaseStatus.Draft]: 'secondary',
-  [LeaseStatus.PendingApproval]: 'outline',
-  [LeaseStatus.Active]: 'success',
-  [LeaseStatus.Expired]: 'secondary',
-  [LeaseStatus.Terminated]: 'destructive',
-  [LeaseStatus.Cancelled]: 'destructive',
-}
 
 export function TenantLeasesPage() {
   const navigate = useNavigate()
@@ -51,9 +43,9 @@ export function TenantLeasesPage() {
                     {lease.propertyName} · {lease.unitNumber}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[lease.status]}>{LeaseStatusLabel[lease.status]}</Badge>
+                    <StatusBadge status={lease.status} labels={LeaseStatusLabel} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">${lease.rentAmount.toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground">{moneyExact(lease.rentAmount)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
                   </TableCell>
@@ -61,19 +53,7 @@ export function TenantLeasesPage() {
               ))}
             </TableBody>
           </Table>
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} leases
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="leases" onPageChange={setPage} />
         </>
       )}
     </div>

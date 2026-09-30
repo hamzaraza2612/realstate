@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDateTime } from '@/lib/utils'
@@ -21,12 +22,16 @@ const riskVariant: Record<string, 'secondary' | 'warning' | 'destructive'> = {
   high: 'destructive',
 }
 
-const decidedStatusVariant: Record<number, 'success' | 'destructive' | 'secondary' | 'outline'> = {
-  [AiActionProposalStatus.Executed]: 'success',
-  [AiActionProposalStatus.Rejected]: 'destructive',
-  [AiActionProposalStatus.Failed]: 'destructive',
-  [AiActionProposalStatus.Expired]: 'outline',
-  [AiActionProposalStatus.Cancelled]: 'secondary',
+/** "crm.lead.assign" / "assign_lead" / "AssignLead" -> "Assign lead" — display-only; the raw
+ * action type is still shown underneath in monospace. */
+function humanizeActionType(actionType: string) {
+  const last = actionType.split('.').filter(Boolean).pop() ?? actionType
+  const words = last
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .toLowerCase()
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : actionType
 }
 
 const PENDING_STATUSES: readonly number[] = [AiActionProposalStatus.PendingApproval, AiActionProposalStatus.Approved]
@@ -111,21 +116,26 @@ function ProposalCard({
   const canDecide = proposal.status === AiActionProposalStatus.PendingApproval && !!proposal.approvalRequestId
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3">
+    <div className="flex flex-col gap-2 rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <span className="text-xs font-mono text-muted-foreground">{proposal.actionType}</span>
-          {link && (
-            <Link to={link} className="block text-xs text-primary hover:underline">
-              View related record
-            </Link>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{humanizeActionType(proposal.actionType)}</p>
+          <p className="truncate font-mono text-xs text-muted-foreground">{proposal.actionType}</p>
+          {(proposal.targetEntityType || link) && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {proposal.targetEntityType && <>Target: {proposal.targetEntityType}</>}
+              {proposal.targetEntityType && link && ' · '}
+              {link && (
+                <Link to={link} className="text-primary hover:underline">
+                  View related record
+                </Link>
+              )}
+            </p>
           )}
         </div>
         <div className="flex flex-col items-end gap-1">
           <Badge variant={riskVariant[proposal.riskLevel] ?? 'secondary'}>{proposal.riskLevel} risk</Badge>
-          {proposal.status !== AiActionProposalStatus.PendingApproval && (
-            <Badge variant={decidedStatusVariant[proposal.status] ?? 'outline'}>{AiActionProposalStatusLabel[proposal.status]}</Badge>
-          )}
+          <StatusBadge status={proposal.status} labels={AiActionProposalStatusLabel} />
         </div>
       </div>
 

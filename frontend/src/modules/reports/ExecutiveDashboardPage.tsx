@@ -15,7 +15,7 @@ import {
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { DateRangeFilter } from '@/modules/reports/components/DateRangeFilter'
-import { StatCard } from '@/modules/reports/components/StatCard'
+import { StatCard } from '@/components/common/StatCard'
 import { money, percent } from '@/modules/reports/format'
 import { useExecutiveDashboard } from './api'
 

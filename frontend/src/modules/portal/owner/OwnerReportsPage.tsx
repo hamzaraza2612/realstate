@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { formatDate } from '@/lib/utils'
+import { moneyExact } from '@/modules/reports/format'
 import { useOwnerOverdueRent, useOwnerRentCollected, useOwnerRevenue, type OwnerReportFilters } from './api'
 
 export function OwnerReportsPage() {
@@ -77,12 +78,12 @@ function RentCollectedTab({ filters }: { filters: OwnerReportFilters }) {
               {data.map((row) => (
                 <TableRow key={row.propertyId}>
                   <TableCell className="font-medium">{row.propertyName}</TableCell>
-                  <TableCell className="text-right">${row.amountCollected.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{moneyExact(row.amountCollected)}</TableCell>
                 </TableRow>
               ))}
               <TableRow>
                 <TableCell className="font-semibold">Total</TableCell>
-                <TableCell className="text-right font-semibold">${total.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-semibold">{moneyExact(total)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -123,7 +124,7 @@ function OverdueRentTab() {
                   <TableCell className="font-medium">{row.leaseNumber}</TableCell>
                   <TableCell className="text-muted-foreground">{row.propertyName}</TableCell>
                   <TableCell className="text-muted-foreground">{row.tenantName}</TableCell>
-                  <TableCell className="text-right">${row.outstandingAmount.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{moneyExact(row.outstandingAmount)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(row.dueDate)}</TableCell>
                   <TableCell className="text-right text-destructive">{row.daysPastDue}</TableCell>
                 </TableRow>
@@ -161,12 +162,12 @@ function RevenueTab({ filters }: { filters: OwnerReportFilters }) {
               {data.map((row) => (
                 <TableRow key={row.propertyId}>
                   <TableCell className="font-medium">{row.propertyName}</TableCell>
-                  <TableCell className="text-right">${row.revenue.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{moneyExact(row.revenue)}</TableCell>
                 </TableRow>
               ))}
               <TableRow>
                 <TableCell className="font-semibold">Total</TableCell>
-                <TableCell className="text-right font-semibold">${total.toLocaleString()}</TableCell>
+                <TableCell className="text-right font-semibold">{moneyExact(total)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

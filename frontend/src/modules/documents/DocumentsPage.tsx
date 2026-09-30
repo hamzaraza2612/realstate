@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { Pagination } from '@/components/common/Pagination'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
@@ -116,19 +117,7 @@ export function DocumentsPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} documents
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="documents" onPageChange={setPage} />
         </>
       )}
     </div>

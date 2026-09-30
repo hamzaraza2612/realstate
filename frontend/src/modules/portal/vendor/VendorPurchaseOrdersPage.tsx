@@ -1,23 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { formatDate } from '@/lib/utils'
-import { PurchaseOrderStatus, PurchaseOrderStatusLabel } from '@/types/api'
+import { moneyExact } from '@/modules/reports/format'
+import { PurchaseOrderStatusLabel } from '@/types/api'
 import { useVendorPurchaseOrders } from './api'
-
-const statusVariant: Record<PurchaseOrderStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [PurchaseOrderStatus.Draft]: 'secondary',
-  [PurchaseOrderStatus.PendingApproval]: 'outline',
-  [PurchaseOrderStatus.Approved]: 'default',
-  [PurchaseOrderStatus.Sent]: 'default',
-  [PurchaseOrderStatus.PartiallyReceived]: 'default',
-  [PurchaseOrderStatus.Received]: 'success',
-  [PurchaseOrderStatus.Cancelled]: 'destructive',
-}
 
 export function VendorPurchaseOrdersPage() {
   const navigate = useNavigate()
@@ -50,27 +41,15 @@ export function VendorPurchaseOrdersPage() {
                   <TableCell className="font-medium">{po.poNumber}</TableCell>
                   <TableCell className="text-muted-foreground">{po.projectName}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[po.status]}>{PurchaseOrderStatusLabel[po.status]}</Badge>
+                    <StatusBadge status={po.status} labels={PurchaseOrderStatusLabel} />
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">${po.total.toLocaleString()}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{moneyExact(po.total)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(po.orderDate)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} orders
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="orders" onPageChange={setPage} />
         </>
       )}
     </div>

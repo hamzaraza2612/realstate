@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
+import { moneyExact } from '@/modules/reports/format'
 import type { SecurityDepositDto } from '@/types/api'
 import { useForfeitSecurityDeposit, useReceiveSecurityDeposit, useRefundSecurityDeposit } from './api'
 
@@ -83,7 +84,7 @@ export function SecurityDepositActionDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Deposit amount: ${deposit.amount.toLocaleString()}</DialogDescription>
+          <DialogDescription>Deposit amount: {moneyExact(deposit.amount)}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           {(action === 'receive' || action === 'refund') && (
@@ -94,7 +95,7 @@ export function SecurityDepositActionDialog({
           )}
           {action === 'refund' && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="amount">Refund amount (outstanding: ${outstanding.toLocaleString()})</Label>
+              <Label htmlFor="amount">Refund amount (outstanding: {moneyExact(outstanding)})</Label>
               <Input id="amount" type="number" step="0.01" {...register('amount')} />
             </div>
           )}

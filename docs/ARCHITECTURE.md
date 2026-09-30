@@ -136,6 +136,20 @@ permission-gated tool wrapping an existing reporting/application service, and ev
 proposes becomes an `AiActionProposal` routed through the existing generic Approval Inbox — there is
 no second approval engine and no raw database access from the AI layer.
 
+## Premium UI/UX design system (Milestone 17)
+
+Full rationale and findings are in `docs/UX_AUDIT.md`. No second UI framework was introduced — the
+existing Tailwind + shadcn/ui + Radix stack was extended with a small set of genuinely-shared
+primitives (`StatusBadge`, `StatCard`, `Pagination`, a `Sheet`-based mobile nav drawer, and a Ctrl+K
+command bar covering both page navigation and live entity search) and adopted across the shell,
+dashboards, the highest-traffic ERP list pages, all 6 external portals, and the SaaS admin/billing
+area. The navigation model (`components/layout/navigation.ts`) is now a single source of truth
+consumed by the desktop sidebar, the mobile drawer, and the command bar alike, grouped into
+Home/Command Center/ERP/Reports/Administration sections — the underlying permission-filtering logic
+is unchanged from before this milestone. One small, additive backend endpoint
+(`GET /api/v1/portal/localization`) was added to fix a real gap the currency-formatting pass exposed:
+portal sessions had no route to the tenant's real currency, since the existing endpoint is staff-only.
+
 ## Background jobs
 Hangfire with PostgreSQL storage, provisioned since Milestone 1. First real recurring job as of
 Milestone 14: an hourly `SubscriptionLifecycleJob` (`Infrastructure/Jobs/`) expiring overdue trial

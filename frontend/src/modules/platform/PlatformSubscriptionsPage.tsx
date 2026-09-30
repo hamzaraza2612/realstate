@@ -1,26 +1,17 @@
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { BillingCycleLabel, SubscriptionStatus, SubscriptionStatusLabel, type SubscriptionDto } from '@/types/api'
+import { BillingCycleLabel, SubscriptionStatusLabel, type SubscriptionDto } from '@/types/api'
 import { usePlatformSubscriptions } from './api'
 import { TransitionSubscriptionDialog } from './TransitionSubscriptionDialog'
-
-const statusVariant: Record<SubscriptionStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  [SubscriptionStatus.Trialing]: 'secondary',
-  [SubscriptionStatus.Active]: 'success',
-  [SubscriptionStatus.PastDue]: 'warning',
-  [SubscriptionStatus.Paused]: 'outline',
-  [SubscriptionStatus.Cancelled]: 'destructive',
-  [SubscriptionStatus.Expired]: 'destructive',
-}
 
 const STATUS_FILTER_ALL = 'all'
 
@@ -88,7 +79,7 @@ export function PlatformSubscriptionsPage() {
                   {s.planName} <span className="font-mono text-xs">({s.planCode})</span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant[s.status]}>{SubscriptionStatusLabel[s.status]}</Badge>
+                  <StatusBadge status={s.status} labels={SubscriptionStatusLabel} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">{formatDate(s.trialEndsAt)}</TableCell>
                 <TableCell className="text-muted-foreground">

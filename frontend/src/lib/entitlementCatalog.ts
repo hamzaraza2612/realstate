@@ -1,3 +1,6 @@
+import type { StatusTone } from '@/components/common/StatusBadge'
+import { UsageState } from '@/types/api'
+
 /** Compile-time entitlement catalog mirrored from the backend's `Domain/Subscription/Entitlement.cs`
  * `EntitlementCodes` (see docs/SAAS_BILLING.md). Not a database table on either side — the set of
  * codes a plan can grant is part of the application's own module list, hardcoded the same way any
@@ -57,4 +60,13 @@ export const LIMIT_ENTITLEMENT_LABELS: Record<string, string> = {
 
 export function entitlementLabel(code: string): string {
   return FEATURE_ENTITLEMENT_LABELS[code] ?? LIMIT_ENTITLEMENT_LABELS[code] ?? code
+}
+
+/** `StatusBadge` tone for a plan-limit usage state. "Normal" / "Approaching" / "At Limit" aren't
+ * part of the shared status vocabulary, so the tenant Billing page and the platform organization
+ * detail page both pass this as the badge's `tone` override instead of each keeping a color map. */
+export const USAGE_STATE_TONE: Record<UsageState, StatusTone> = {
+  [UsageState.Normal]: 'success',
+  [UsageState.Approaching]: 'warning',
+  [UsageState.AtLimit]: 'danger',
 }

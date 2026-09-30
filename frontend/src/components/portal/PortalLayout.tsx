@@ -1,11 +1,14 @@
 import { Bell, LogOut, Menu, Moon, Sun, X } from 'lucide-react'
-import { type ComponentType, useState } from 'react'
+import { type ComponentType, useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { portalApiClient } from '@/lib/portalApiClient'
 import { cn, initialsFromName } from '@/lib/utils'
 import { usePortalAuthStore } from '@/stores/portalAuthStore'
+import { useLocalizationStore } from '@/stores/localizationStore'
 import { useThemeStore } from '@/stores/themeStore'
+import type { ApiEnvelope, TenantLocalizationDto } from '@/types/api'
 
 export interface PortalNavItem {
   to: string
@@ -39,6 +42,20 @@ export function PortalLayout({
   const { theme, toggle } = useThemeStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const { data: unreadCount } = useUnreadCount()
+
+  useEffect(() => {
+    // The internal AppShell bootstraps this same store from the staff-only
+    // GET /localization/current; a portal session holds no RBAC permission and would just get a
+    // 403 from that endpoint, so every money() call across the portals silently fell back to USD.
+    // GET /portal/localization returns the identical TenantLocalizationDto through a portal-auth-only
+    // endpoint, populated into the same shared store every formatter already reads from.
+    if (useLocalizationStore.getState().status !== 'idle') return
+    useLocalizationStore.setState({ status: 'loading' })
+    portalApiClient
+      .get<ApiEnvelope<TenantLocalizationDto>>('/portal/localization')
+      .then((response) => useLocalizationStore.getState().setData(response.data.data))
+      .catch(() => useLocalizationStore.setState({ status: 'error' }))
+  }, [])
 
   function handleLogout() {
     clear()
@@ -77,7 +94,9 @@ export function PortalLayout({
               </span>
             )}
           </NavLink>
-          <Avatar>
+          {/* Purely decorative (no menu behind it) — hidden below `sm` so the portal title isn't
+              truncated on phone widths. */}
+          <Avatar className="hidden sm:flex">
             <AvatarFallback>{initialsFromName(profile?.displayName ?? '?')}</AvatarFallback>
           </Avatar>
           <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sign out">

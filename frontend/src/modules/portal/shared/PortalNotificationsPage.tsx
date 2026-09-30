@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
+import { Pagination } from '@/components/common/Pagination'
 import { extractErrorMessage } from '@/lib/portalApiClient'
 import { cn, formatDate } from '@/lib/utils'
 import { NotificationCategoryLabel } from '@/types/api'
@@ -78,19 +79,7 @@ export function PortalNotificationsPage({
               </button>
             ))}
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} notifications
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="notifications" onPageChange={setPage} />
         </>
       )}
     </div>

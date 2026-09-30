@@ -1021,6 +1021,81 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       `FakeAiProvider`-backed integration tests exercising the identical `AiConversationService` code
       path (see the "Security/hallucination/write-action tests" bullet above).
 
+## Milestone 17 — Premium UI/UX + Complete Application Polish ✅
+- [x] UX audit: inventoried 26 module folders / ~206 `.tsx` files / ~100 routes; found and verified
+      (by direct grep, not impression) 12 concrete, high-impact issues — see `docs/UX_AUDIT.md`. The
+      two P0 findings with the biggest real-world impact: the entire authenticated app had **zero
+      navigation below the `md` breakpoint** (Sidebar was `hidden … md:flex` with no mobile
+      replacement at all), and the root `/` landing page was still the literal Milestone-1 placeholder
+      dashboard while a real M12 Executive Dashboard existed but was buried under `/reports`.
+- [x] Design system: added `Skeleton`/`Switch`/`Tooltip`/`Sheet`/`Command` (shadcn/Radix, no second UI
+      framework) plus `StatusBadge`/`StatCard`/`Pagination`/`CommandBar` (`components/common/`).
+      `StatCard` was previously hand-copied 11 separate times across module dashboards — now one
+      shared component. `StatusBadge` gives every status (Draft/Pending/Approved/.../Suspended) one
+      source-of-truth color+text mapping (never color alone) — adopted in 33 files (all customer/
+      portal/SaaS-admin-facing surfaces); 43 internal-ERP files still have their own ad-hoc map,
+      honestly tracked as follow-up in `docs/UX_AUDIT.md`, not silently dropped. Same partial-but-honest
+      pattern for the shared `Pagination` component (23 of ~48 hand-rolled footers migrated).
+- [x] Global shell: mobile nav drawer (hamburger → `Sheet` with the identical nav tree) fixes the P0
+      mobile-navigation gap; Sidebar regrouped into Home/Command Center/ERP/Reports/Administration
+      sections via one shared `navigation.ts` consumed by the desktop sidebar, the mobile drawer, and
+      the new command bar alike — permission-filtering logic itself is byte-for-byte unchanged.
+- [x] Global command bar: Ctrl+K/Cmd+K palette covering both page navigation (every nav route,
+      fuzzy-filterable) and live entity search (leads/customers), with zero dependency on the AI
+      provider — pure client-side route matching plus ordinary REST calls. Live-verified: typing
+      "balance" navigates to the Balance Sheet; typing "john" surfaces matching leads/customers.
+- [x] Root dashboard fix: `/` now shows real KPI cards (sales/collections/profit/cash/receivables/
+      occupancy/construction/maintenance) via the existing `useExecutiveDashboard` hook instead of a
+      Milestone-1 placeholder — live-verified against a fresh UAE tenant showing real `AED` figures.
+- [x] Destructive-action safety: 7 files that mutated data with zero confirmation (including
+      `ChartOfAccountsPage`'s account delete) now confirm with entity-specific copy, not a generic
+      "Are you sure?"; 2 more (cancelling a construction task/work package) were fixed proactively.
+- [x] AI Command Center: light visual polish only (StatusBadge on proposal status, colored health-tile
+      stripes) — no structural or data-flow changes to the M16 implementation.
+- [x] External portals (Customer/Tenant/Owner/Vendor/Member/Agent) + SaaS admin/billing: StatusBadge/
+      StatCard/Pagination adopted throughout; a real currency-formatting bug found and fixed (~44
+      hardcoded `$` occurrences across all 6 portals replaced with the tenant-currency-aware `money()`
+      helper); vendor/member dashboards gained missing loading/error states; a tenant-portal maintenance
+      form's lease dropdown bug (defaulted before leases loaded) was fixed; suspending/cancelling an
+      organization now requires confirmation; the tenant Billing page now explains subscription status
+      in plain language (trial days left, past due, paused, cancelled, "ends on {date}") with no
+      self-service plan-change/payment buttons added (the API doesn't support them — no fake features).
+- [x] Portal currency follow-up fix (found during M17, not in the original audit pass): the
+      currency-formatting fix above correctly replaced every hardcoded `$`, but portal sessions had no
+      route to the tenant's real currency at all — `money()` reads a store only ever populated from the
+      staff-only `GET /localization/current`, so every portal amount was silently still USD regardless
+      of the tenant's actual currency. Fixed with one small, additive, read-only backend endpoint
+      (`GET /api/v1/portal/localization`, portal-auth-only, reusing the existing `ILocalizationService`)
+      plus a one-line store bootstrap in `PortalLayout`. Live-verified end to end against a UAE tenant:
+      a portal customer's dashboard now correctly shows "AED 0"; the internal staff-only endpoint still
+      rejects the portal token (403); the new endpoint rejects unauthenticated (401) and internal-staff
+      (403) requests. Full backend suite re-run afterward: 287/287 passing, zero regressions.
+- [x] Responsive/RTL/accessibility verification: live Playwright screenshots (not source-only claims)
+      at 1440px and 375px, in both English and Arabic, across the dashboard, CRM leads, Finance
+      dashboard, Sales bookings, Property dashboard, Facility dashboard, the Executive Report, Command
+      Center, Approvals, Chart of Accounts, the mobile nav drawer, the command bar, and the Customer
+      portal — zero console/page errors on every page. Arabic RTL confirmed correct: sidebar/drawer on
+      the right edge, mirrored table/pagination controls, translated status labels and navigation.
+- [x] Security regression review: verified live that authorization is unaffected by the visual
+      regrouping — the Sidebar/mobile-drawer/command-bar's shared `navigation.ts` filters on the exact
+      same `permission` strings as before; the new portal localization endpoint correctly rejects an
+      unauthenticated request (401), an internal staff token (403 via the portal-only policy), and the
+      internal staff-only endpoint correctly still rejects a portal token (403) — no cross-boundary leak
+      introduced in either direction.
+- [x] Backend tests: 287/287 passing (62 unit + 225 integration), zero regressions — the only backend
+      change this milestone (`PortalLocalizationController`) is additive and covered by the same live
+      verification above rather than a new automated test, since it's a 6-line read-only pass-through
+      to an already-tested service.
+- [x] Frontend build: `npm run build` exits 0 with zero TypeScript errors (independently re-verified
+      after each of the two delegated implementation passes, not just taken on the implementer's word);
+      `npm run lint` (oxlint) shows 0 errors, only pre-existing warnings in files this milestone never
+      touched.
+- [x] Delegated to two sequential background implementation passes (a design-system/shell/dashboard
+      pass, then a portals/SaaS-admin/remaining-polish pass depending on the first's primitives), each
+      independently verified after handback: the fast-forward-merge artifact seen in M15/M16 (a stale
+      working tree briefly showing the just-pushed files as deletions) recurred twice and was resolved
+      the same way both times (`git checkout HEAD -- frontend/`) before building on top.
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

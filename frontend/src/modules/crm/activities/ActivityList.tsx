@@ -1,11 +1,13 @@
+import { useState } from 'react'
 import { Check, Phone, StickyNote, Users as UsersIcon, CalendarClock, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
-import { ActivityType, ActivityTypeLabel, ActivityStatus } from '@/types/api'
+import { ActivityType, ActivityTypeLabel, ActivityStatus, type ActivityDto } from '@/types/api'
 import { useActivities, useCompleteActivity, useDeleteActivity } from './api'
 import { PermissionGate } from '@/components/common/PermissionGate'
 
@@ -20,6 +22,7 @@ export function ActivityList({ leadId, customerId }: { leadId?: string; customer
   const { data, isLoading, isError, refetch } = useActivities({ leadId, customerId })
   const complete = useCompleteActivity()
   const remove = useDeleteActivity()
+  const [deleteTarget, setDeleteTarget] = useState<ActivityDto | undefined>()
 
   async function handleComplete(id: string) {
     try {
@@ -30,10 +33,12 @@ export function ActivityList({ leadId, customerId }: { leadId?: string; customer
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete() {
+    if (!deleteTarget) return
     try {
-      await remove.mutateAsync(id)
+      await remove.mutateAsync(deleteTarget.id)
       toast({ title: 'Activity deleted', variant: 'success' })
+      setDeleteTarget(undefined)
     } catch (error) {
       toast({ title: 'Could not delete activity', description: extractErrorMessage(error), variant: 'destructive' })
     }
@@ -83,7 +88,7 @@ export function ActivityList({ leadId, customerId }: { leadId?: string; customer
                     <Check className="h-4 w-4" />
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" title="Delete" onClick={() => handleDelete(activity.id)}>
+                <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(activity)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -91,6 +96,21 @@ export function ActivityList({ leadId, customerId }: { leadId?: string; customer
           </div>
         )
       })}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(undefined)}
+        title="Delete activity"
+        description={
+          deleteTarget
+            ? `Delete the ${ActivityTypeLabel[deleteTarget.type].toLowerCase()} "${deleteTarget.subject}"? It will be removed from this record's activity history and cannot be restored.`
+            : ''
+        }
+        confirmLabel="Delete activity"
+        destructive
+        loading={remove.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

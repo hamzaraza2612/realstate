@@ -33,7 +33,7 @@ export function Breadcrumbs() {
   if (segments.length === 0) return null
 
   return (
-    <nav className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground">
+    <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
       <Link to="/" className="flex items-center hover:text-foreground">
         <Home className="h-3.5 w-3.5" />
       </Link>

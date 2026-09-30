@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -7,18 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
 import { formatDate } from '@/lib/utils'
 import { ApprovalStatus, ApprovalStatusLabel, type ApprovalRequestDto } from '@/types/api'
 import { useApprovalInbox, useDecideApproval } from './api'
-
-const statusVariant: Record<ApprovalStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [ApprovalStatus.Pending]: 'outline',
-  [ApprovalStatus.Approved]: 'success',
-  [ApprovalStatus.Rejected]: 'destructive',
-  [ApprovalStatus.Cancelled]: 'secondary',
-}
 
 const PENDING = 'pending'
 
@@ -84,7 +78,7 @@ export function ApprovalInboxPage() {
                   <TableCell className="max-w-xs truncate text-muted-foreground">{request.requestComments ?? '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(request.createdAt)}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[request.status]}>{ApprovalStatusLabel[request.status]}</Badge>
+                    <StatusBadge status={request.status} labels={ApprovalStatusLabel} />
                   </TableCell>
                   <TableCell>
                     {request.status === ApprovalStatus.Pending && (
@@ -103,19 +97,7 @@ export function ApprovalInboxPage() {
             </TableBody>
           </Table>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {data.meta?.total} requests
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="requests" onPageChange={setPage} />
         </>
       )}
 

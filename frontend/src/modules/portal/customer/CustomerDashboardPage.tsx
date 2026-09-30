@@ -1,14 +1,20 @@
-import { Bell, Receipt, Wallet } from 'lucide-react'
+import { Bell, FileText, HandCoins, Receipt, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ErrorState, LoadingState } from '@/components/common/StateViews'
-import { BookingStatus } from '@/types/api'
-import { useCustomerBookings, useCustomerPayments, useUnreadNotificationCount } from './api'
+import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { useI18n } from '@/lib/i18n'
+import { money } from '@/modules/reports/format'
+import { BookingStatus, BookingStatusLabel } from '@/types/api'
+import { PortalStatCard } from '../shared/PortalStatCard'
+import { useCustomerBookings, useCustomerPayments, useDocuments, useUnreadNotificationCount } from './api'
 
 export function CustomerDashboardPage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const { data: bookings, isLoading, isError, refetch } = useCustomerBookings(1, 100)
   const { data: payments } = useCustomerPayments()
+  const { data: documents } = useDocuments()
   const { data: unreadCount } = useUnreadNotificationCount()
 
   if (isLoading) return <LoadingState label="Loading your dashboard…" />
@@ -20,6 +26,7 @@ export function CustomerDashboardPage() {
     paidByBooking.set(entry.bookingId, (paidByBooking.get(entry.bookingId) ?? 0) + entry.payment.amount)
   }
   const outstandingBalance = activeBookings.reduce((sum, b) => sum + Math.max(0, b.netPrice - (paidByBooking.get(b.id) ?? 0)), 0)
+  const totalPaid = (payments ?? []).reduce((sum, entry) => sum + entry.payment.amount, 0)
 
   return (
     <div>
@@ -28,18 +35,37 @@ export function CustomerDashboardPage() {
         <p className="mt-1 text-sm text-muted-foreground">Here's a summary of your account.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard icon={Receipt} label="Active bookings" value={String(activeBookings.length)} onClick={() => navigate('/portal/customer/bookings')} />
-        <SummaryCard
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <PortalStatCard
+          icon={Receipt}
+          label="Active bookings"
+          value={activeBookings.length}
+          onClick={() => navigate('/portal/customer/bookings')}
+        />
+        <PortalStatCard
           icon={Wallet}
           label="Outstanding balance"
-          value={`$${outstandingBalance.toLocaleString()}`}
+          value={money(outstandingBalance)}
+          alert={outstandingBalance > 0}
           onClick={() => navigate('/portal/customer/payments')}
         />
-        <SummaryCard
+        <PortalStatCard
+          icon={HandCoins}
+          label={t('portal.totalPaid')}
+          value={money(totalPaid)}
+          description={t('portal.customer.paymentsCount').replace('{count}', String((payments ?? []).length))}
+          onClick={() => navigate('/portal/customer/payments')}
+        />
+        <PortalStatCard
+          icon={FileText}
+          label={t('portal.documents')}
+          value={(documents ?? []).length}
+          onClick={() => navigate('/portal/customer/documents')}
+        />
+        <PortalStatCard
           icon={Bell}
           label="Unread notifications"
-          value={String(unreadCount ?? 0)}
+          value={unreadCount ?? 0}
           onClick={() => navigate('/portal/customer/notifications')}
         />
       </div>
@@ -50,7 +76,7 @@ export function CustomerDashboardPage() {
         </CardHeader>
         <CardContent>
           {(bookings?.items.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">You have no bookings yet.</p>
+            <EmptyState title="You have no bookings yet" description={t('portal.customer.noBookingsDescription')} />
           ) : (
             <div className="flex flex-col divide-y">
               {bookings!.items.slice(0, 5).map((b) => (
@@ -58,15 +84,18 @@ export function CustomerDashboardPage() {
                   key={b.id}
                   type="button"
                   onClick={() => navigate(`/portal/customer/bookings/${b.id}`)}
-                  className="flex items-center justify-between gap-2 py-3 text-left text-sm hover:text-primary"
+                  className="flex items-center justify-between gap-3 py-3 text-left text-sm hover:text-primary"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">{b.bookingNumber}</p>
-                    <p className="text-muted-foreground">
+                    <p className="truncate text-muted-foreground">
                       {b.projectName} · {b.inventoryUnitCode}
                     </p>
                   </div>
-                  <span className="font-medium">${b.netPrice.toLocaleString()}</span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="font-medium">{money(b.netPrice)}</span>
+                    <StatusBadge status={b.status} labels={BookingStatusLabel} />
+                  </div>
                 </button>
               ))}
             </div>
@@ -74,33 +103,5 @@ export function CustomerDashboardPage() {
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  onClick: () => void
-}) {
-  return (
-    <button type="button" onClick={onClick} className="text-left">
-      <Card className="transition-colors hover:border-primary/40">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-xl font-semibold leading-tight">{value}</p>
-            <p className="text-sm text-muted-foreground">{label}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
   )
 }

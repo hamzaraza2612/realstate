@@ -1,56 +1,29 @@
+import { AlertTriangle, Building2, FileSignature, FolderKanban, HardDrive, Info, UserRound, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/PageHeader'
+import { Pagination } from '@/components/common/Pagination'
+import { StatCard } from '@/components/common/StatCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { useI18n } from '@/lib/i18n'
+import { USAGE_STATE_TONE, entitlementLabel } from '@/lib/entitlementCatalog'
+import { cn, formatCurrency, formatDate, formatNumber } from '@/lib/utils'
 import {
   BillingCycleLabel,
-  BillingPaymentStatus,
   BillingPaymentStatusLabel,
   EntitlementType,
-  InvoiceStatus,
   InvoiceStatusLabel,
   SubscriptionStatus,
   SubscriptionStatusLabel,
   UsageState,
   UsageStateLabel,
+  type SubscriptionDto,
 } from '@/types/api'
-import { entitlementLabel } from '@/lib/entitlementCatalog'
 import { useMyEntitlements, useMyInvoices, useMyPayments, useMySubscription, useMyUsage } from './api'
 import { MyInvoiceDetailDialog } from './MyInvoiceDetailDialog'
-
-const subscriptionStatusVariant: Record<SubscriptionStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  [SubscriptionStatus.Trialing]: 'secondary',
-  [SubscriptionStatus.Active]: 'success',
-  [SubscriptionStatus.PastDue]: 'warning',
-  [SubscriptionStatus.Paused]: 'outline',
-  [SubscriptionStatus.Cancelled]: 'destructive',
-  [SubscriptionStatus.Expired]: 'destructive',
-}
-
-const invoiceStatusVariant: Record<InvoiceStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  [InvoiceStatus.Draft]: 'secondary',
-  [InvoiceStatus.Issued]: 'outline',
-  [InvoiceStatus.Paid]: 'success',
-  [InvoiceStatus.Void]: 'outline',
-  [InvoiceStatus.Overdue]: 'destructive',
-}
-
-const paymentStatusVariant: Record<BillingPaymentStatus, 'success' | 'secondary' | 'destructive' | 'warning'> = {
-  [BillingPaymentStatus.Pending]: 'secondary',
-  [BillingPaymentStatus.Succeeded]: 'success',
-  [BillingPaymentStatus.Failed]: 'destructive',
-  [BillingPaymentStatus.Refunded]: 'warning',
-}
-
-const usageStateVariant: Record<UsageState, 'success' | 'warning' | 'destructive'> = {
-  [UsageState.Normal]: 'success',
-  [UsageState.Approaching]: 'warning',
-  [UsageState.AtLimit]: 'destructive',
-}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -58,7 +31,105 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
+/** Whole days from now until `iso` (negative once it has passed). */
+function daysUntil(iso: string) {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+}
+
+/** A plain-language sentence explaining what the subscription status means for the business,
+ * so a non-technical owner doesn't have to interpret "Past Due" or "Trialing" on their own.
+ * Every "what to do" points at the platform administrator — there is no self-service plan
+ * change or online payment in this product. */
+function useSubscriptionSummary(subscription: SubscriptionDto): { message: string; warn: boolean } {
+  const { t } = useI18n()
+  const periodEnd = subscription.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : null
+
+  if (subscription.cancelAtPeriodEnd && periodEnd && subscription.status !== SubscriptionStatus.Cancelled) {
+    return { message: t('billing.summary.cancelAtPeriodEnd').replace('{date}', periodEnd), warn: true }
+  }
+  switch (subscription.status) {
+    case SubscriptionStatus.Trialing: {
+      if (!subscription.trialEndsAt) return { message: t('billing.summary.trialingNoDate'), warn: false }
+      const days = daysUntil(subscription.trialEndsAt)
+      return {
+        message: t('billing.summary.trialing')
+          .replace('{date}', formatDate(subscription.trialEndsAt))
+          .replace('{days}', String(Math.max(0, days))),
+        warn: days <= 7,
+      }
+    }
+    case SubscriptionStatus.Active:
+      return {
+        message: periodEnd ? t('billing.summary.active').replace('{date}', periodEnd) : t('billing.summary.activeNoDate'),
+        warn: false,
+      }
+    case SubscriptionStatus.PastDue:
+      return { message: t('billing.summary.pastDue'), warn: true }
+    case SubscriptionStatus.Paused:
+      return { message: t('billing.summary.paused'), warn: true }
+    case SubscriptionStatus.Cancelled:
+      return { message: t('billing.summary.cancelled'), warn: true }
+    case SubscriptionStatus.Expired:
+      return { message: t('billing.summary.expired'), warn: true }
+    default:
+      return { message: '', warn: false }
+  }
+}
+
+function SubscriptionCard({ subscription }: { subscription: SubscriptionDto }) {
+  const { t } = useI18n()
+  const summary = useSubscriptionSummary(subscription)
+  const SummaryIcon = summary.warn ? AlertTriangle : Info
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
+        <div>
+          <CardDescription>{t('billing.currentPlan')}</CardDescription>
+          <CardTitle className="mt-1 text-xl">{subscription.planName}</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {formatCurrency(subscription.priceSnapshot, subscription.currency)} / {BillingCycleLabel[subscription.billingCycle].toLowerCase()}
+          </p>
+        </div>
+        <StatusBadge status={subscription.status} labels={SubscriptionStatusLabel} />
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 text-sm">
+        {summary.message && (
+          <div
+            className={cn(
+              'flex items-start gap-2 rounded-md border p-3',
+              summary.warn
+                ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                : 'bg-muted/40',
+            )}
+          >
+            <SummaryIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{summary.message}</p>
+          </div>
+        )}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-muted-foreground">{t('billing.trialPeriod')}</p>
+            <p className="font-medium">
+              {subscription.trialStartsAt ? `${formatDate(subscription.trialStartsAt)} – ${formatDate(subscription.trialEndsAt)}` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{t('billing.currentPeriod')}</p>
+            <p className="font-medium">
+              {subscription.currentPeriodStart
+                ? `${formatDate(subscription.currentPeriodStart)} – ${formatDate(subscription.currentPeriodEnd)}`
+                : '—'}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function BillingPage() {
+  const { t } = useI18n()
   const { data: subscription, isLoading: subLoading, isError: subError, refetch: refetchSub } = useMySubscription()
   const { data: usage } = useMyUsage()
   const { data: entitlements } = useMyEntitlements()
@@ -79,33 +150,7 @@ export function BillingPage() {
       ) : subError ? (
         <ErrorState message="Could not load your subscription." onRetry={() => refetchSub()} />
       ) : subscription ? (
-        <Card className="mb-4">
-          <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>{subscription.planName}</CardTitle>
-              <CardDescription>
-                {formatCurrency(subscription.priceSnapshot, subscription.currency)} / {BillingCycleLabel[subscription.billingCycle].toLowerCase()}
-              </CardDescription>
-            </div>
-            <Badge variant={subscriptionStatusVariant[subscription.status]}>{SubscriptionStatusLabel[subscription.status]}</Badge>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <p className="text-muted-foreground">Trial period</p>
-              <p className="font-medium">
-                {subscription.trialStartsAt ? `${formatDate(subscription.trialStartsAt)} – ${formatDate(subscription.trialEndsAt)}` : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Current period</p>
-              <p className="font-medium">
-                {subscription.currentPeriodStart
-                  ? `${formatDate(subscription.currentPeriodStart)} – ${formatDate(subscription.currentPeriodEnd)}`
-                  : '—'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <SubscriptionCard subscription={subscription} />
       ) : (
         <Card className="mb-4">
           <CardContent className="py-8">
@@ -116,21 +161,12 @@ export function BillingPage() {
 
       {usage && (
         <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {[
-            { label: 'Users', value: usage.users },
-            { label: 'Properties', value: usage.properties },
-            { label: 'Projects', value: usage.projects },
-            { label: 'Portal users', value: usage.portalUsers },
-            { label: 'Active leases', value: usage.activeLeases },
-            { label: 'Storage', value: formatBytes(usage.storageBytes) },
-          ].map((item) => (
-            <Card key={item.label}>
-              <CardHeader className="p-4">
-                <CardTitle className="text-xl">{item.value}</CardTitle>
-                <CardDescription>{item.label}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
+          <StatCard icon={Users} label="Users" value={formatNumber(usage.users)} />
+          <StatCard icon={Building2} label="Properties" value={formatNumber(usage.properties)} />
+          <StatCard icon={FolderKanban} label="Projects" value={formatNumber(usage.projects)} />
+          <StatCard icon={UserRound} label="Portal users" value={formatNumber(usage.portalUsers)} />
+          <StatCard icon={FileSignature} label="Active leases" value={formatNumber(usage.activeLeases)} />
+          <StatCard icon={HardDrive} label="Storage" value={formatBytes(usage.storageBytes)} />
         </div>
       )}
 
@@ -138,28 +174,50 @@ export function BillingPage() {
         <Card className="mb-4">
           <CardHeader>
             <CardTitle>Plan limits</CardTitle>
+            <CardDescription>{t('billing.planLimitsDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Metric</TableHead>
-                  <TableHead>Current</TableHead>
-                  <TableHead>Limit</TableHead>
+                  <TableHead className="min-w-40">Usage</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usage.metrics.map((m) => (
-                  <TableRow key={m.code}>
-                    <TableCell className="font-medium">{m.label}</TableCell>
-                    <TableCell>{m.current}</TableCell>
-                    <TableCell className="text-muted-foreground">{m.limit == null ? 'Unlimited' : m.limit}</TableCell>
-                    <TableCell>
-                      <Badge variant={usageStateVariant[m.state]}>{UsageStateLabel[m.state]}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {usage.metrics.map((m) => {
+                  const pct = m.limit ? Math.min(100, (m.current / m.limit) * 100) : 0
+                  return (
+                    <TableRow key={m.code}>
+                      <TableCell className="font-medium">{m.label}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1.5">
+                          <span>
+                            {formatNumber(m.current)}{' '}
+                            <span className="text-muted-foreground">
+                              / {m.limit == null ? t('billing.unlimited') : formatNumber(m.limit)}
+                            </span>
+                          </span>
+                          {m.limit != null && (
+                            <div className="h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                              <div
+                                className={cn(
+                                  'h-full rounded-full',
+                                  m.state === UsageState.AtLimit ? 'bg-red-500' : m.state === UsageState.Approaching ? 'bg-amber-500' : 'bg-emerald-500',
+                                )}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={m.state} labels={UsageStateLabel} tone={USAGE_STATE_TONE[m.state]} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -212,26 +270,14 @@ export function BillingPage() {
                       </TableCell>
                       <TableCell>{formatCurrency(inv.total, inv.currency)}</TableCell>
                       <TableCell>
-                        <Badge variant={invoiceStatusVariant[inv.status]}>{InvoiceStatusLabel[inv.status]}</Badge>
+                        <StatusBadge status={inv.status} labels={InvoiceStatusLabel} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(inv.dueDate)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Page {page} of {totalPages} · {invoices.meta?.total} invoices
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                    Next
-                  </Button>
-                </div>
-              </div>
+              <Pagination page={page} totalPages={totalPages} total={invoices.meta?.total} itemLabel="invoices" onPageChange={setPage} />
             </>
           )}
         </CardContent>
@@ -243,7 +289,7 @@ export function BillingPage() {
         </CardHeader>
         <CardContent>
           {!payments || payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+            <EmptyState title="No payments recorded yet" description={t('billing.noPaymentsDescription')} />
           ) : (
             <Table>
               <TableHeader>
@@ -260,7 +306,7 @@ export function BillingPage() {
                     <TableCell className="text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                     <TableCell>{formatCurrency(p.amount, p.currency)}</TableCell>
                     <TableCell>
-                      <Badge variant={paymentStatusVariant[p.status]}>{BillingPaymentStatusLabel[p.status]}</Badge>
+                      <StatusBadge status={p.status} labels={BillingPaymentStatusLabel} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{p.providerTransactionId ?? '—'}</TableCell>
                   </TableRow>

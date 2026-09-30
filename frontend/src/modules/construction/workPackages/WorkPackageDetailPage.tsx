@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/common/PageHeader'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PermissionGate } from '@/components/common/PermissionGate'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
 import { toast } from '@/components/ui/use-toast'
@@ -57,11 +58,14 @@ export function WorkPackageDetailPage() {
   const statusAction = useWorkPackageStatusAction()
   const deleteWorkPackage = useDeleteWorkPackage()
   const [editOpen, setEditOpen] = useState(false)
+  // Deleting, and the terminal "Cancel" transition, both go through a confirmation first.
+  const [pendingConfirm, setPendingConfirm] = useState<'delete' | 'cancel' | null>(null)
 
   async function handleStatus(status: WorkPackageStatus) {
     if (!id) return
     try {
       await statusAction.mutateAsync({ id, status })
+      setPendingConfirm(null)
       toast({ title: `Work package moved to ${WorkPackageStatusLabel[status]}`, variant: 'success' })
     } catch (error) {
       toast({ title: 'Could not update status', description: extractErrorMessage(error), variant: 'destructive' })
@@ -96,12 +100,17 @@ export function WorkPackageDetailPage() {
                 Edit
               </Button>
               {availableTransitions.map((t) => (
-                <Button key={t.status} variant={t.variant} onClick={() => handleStatus(t.status)} disabled={statusAction.isPending}>
+                <Button
+                  key={t.status}
+                  variant={t.variant}
+                  onClick={() => (t.status === WorkPackageStatus.Cancelled ? setPendingConfirm('cancel') : handleStatus(t.status))}
+                  disabled={statusAction.isPending}
+                >
                   {t.label}
                 </Button>
               ))}
               {(workPackage.status === WorkPackageStatus.Planned || workPackage.status === WorkPackageStatus.Cancelled) && (
-                <Button variant="destructive" onClick={handleDelete} disabled={deleteWorkPackage.isPending}>
+                <Button variant="destructive" onClick={() => setPendingConfirm('delete')} disabled={deleteWorkPackage.isPending}>
                   Delete
                 </Button>
               )}
@@ -158,6 +167,21 @@ export function WorkPackageDetailPage() {
       </div>
 
       <WorkPackageFormDialog open={editOpen} onOpenChange={setEditOpen} workPackage={workPackage} />
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        onOpenChange={(open) => !open && setPendingConfirm(null)}
+        title={pendingConfirm === 'delete' ? 'Delete work package' : 'Cancel work package'}
+        description={
+          pendingConfirm === 'delete'
+            ? `Permanently delete work package ${workPackage.code} · ${workPackage.name}? This cannot be undone, and it is refused while the package still has tasks, expenses or purchase orders.`
+            : `Cancel work package ${workPackage.code} · ${workPackage.name}? A cancelled work package cannot be resumed — it can only be deleted afterwards.`
+        }
+        confirmLabel={pendingConfirm === 'delete' ? 'Delete work package' : 'Cancel work package'}
+        cancelLabel={pendingConfirm === 'delete' ? 'Cancel' : 'Keep work package'}
+        destructive
+        loading={pendingConfirm === 'delete' ? deleteWorkPackage.isPending : statusAction.isPending}
+        onConfirm={() => (pendingConfirm === 'delete' ? handleDelete() : handleStatus(WorkPackageStatus.Cancelled))}
+      />
     </div>
   )
 }

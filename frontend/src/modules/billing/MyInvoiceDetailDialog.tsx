@@ -1,18 +1,10 @@
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { InvoiceStatus, InvoiceStatusLabel } from '@/types/api'
+import { InvoiceStatusLabel } from '@/types/api'
 import { useMyInvoice } from './api'
-
-const invoiceStatusVariant: Record<InvoiceStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  [InvoiceStatus.Draft]: 'secondary',
-  [InvoiceStatus.Issued]: 'outline',
-  [InvoiceStatus.Paid]: 'success',
-  [InvoiceStatus.Void]: 'outline',
-  [InvoiceStatus.Overdue]: 'destructive',
-}
 
 export function MyInvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: string | null; onOpenChange: (open: boolean) => void }) {
   const { data: invoice, isLoading } = useMyInvoice(invoiceId ?? undefined)
@@ -32,7 +24,7 @@ export function MyInvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: 
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Badge variant={invoiceStatusVariant[invoice.status]}>{InvoiceStatusLabel[invoice.status]}</Badge>
+              <StatusBadge status={invoice.status} labels={InvoiceStatusLabel} />
               <span className="text-sm text-muted-foreground">Due {formatDate(invoice.dueDate)}</span>
             </div>
 

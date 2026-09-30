@@ -1,13 +1,14 @@
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatDateTime } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { HealthStatus, HealthStatusLabel, type BusinessHealthDto } from '@/types/api'
 
-export const healthBadgeVariant: Record<HealthStatus, 'success' | 'warning' | 'destructive'> = {
-  [HealthStatus.Healthy]: 'success',
-  [HealthStatus.Attention]: 'warning',
-  [HealthStatus.Critical]: 'destructive',
+// Accent stripe on each dimension tile, matching the StatusBadge tone for the same status.
+const healthAccent: Record<HealthStatus, string> = {
+  [HealthStatus.Healthy]: 'border-s-emerald-500',
+  [HealthStatus.Attention]: 'border-s-amber-500',
+  [HealthStatus.Critical]: 'border-s-red-500',
 }
 
 const healthIcon: Record<HealthStatus, typeof CheckCircle2> = {
@@ -16,8 +17,10 @@ const healthIcon: Record<HealthStatus, typeof CheckCircle2> = {
   [HealthStatus.Critical]: XCircle,
 }
 
+/** Health status pill — the shared `StatusBadge` (Healthy/Attention/Critical are part of its
+ * single status→tone map), so health colors match every other status in the app. */
 export function HealthBadge({ status }: { status: HealthStatus }) {
-  return <Badge variant={healthBadgeVariant[status]}>{HealthStatusLabel[status]}</Badge>
+  return <StatusBadge status={status} labels={HealthStatusLabel} />
 }
 
 /** Renders `health.overall` and every `health.dimensions[]` entry as cards/badges — never as a
@@ -53,7 +56,10 @@ export function BusinessHealthSection({ health }: { health: BusinessHealthDto })
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {health.dimensions.map((dimension) => (
-                <div key={dimension.dimension} className="flex flex-col gap-2 rounded-md border p-3">
+                <div
+                  key={dimension.dimension}
+                  className={cn('flex flex-col gap-2 rounded-lg border border-s-4 bg-card p-4', healthAccent[dimension.status])}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold">{dimension.dimension}</span>
                     <HealthBadge status={dimension.status} />

@@ -1,7 +1,6 @@
+import { CalendarCheck, HandCoins } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,18 +8,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateViews'
+import { useI18n } from '@/lib/i18n'
 import { formatDate } from '@/lib/utils'
 import {
   ActivityStatus,
   ActivityTypeLabel,
-  BookingStatus,
   BookingStatusLabel,
-  InventoryStatus,
   InventoryStatusLabel,
   LeadPriorityLabel,
-  LeadStatus,
   LeadStatusLabel,
 } from '@/types/api'
+import { StatCard } from '@/components/common/StatCard'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Pagination } from '@/components/common/Pagination'
+import { money, moneyExact, monthLabel } from '@/modules/reports/format'
 import {
   useAgentAvailableInventory,
   useAgentBookings,
@@ -30,41 +31,9 @@ import {
   useAgentPerformance,
 } from './api'
 
-const leadStatusVariant: Record<LeadStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [LeadStatus.New]: 'outline',
-  [LeadStatus.Contacted]: 'default',
-  [LeadStatus.Qualified]: 'default',
-  [LeadStatus.ProposalSent]: 'default',
-  [LeadStatus.Negotiation]: 'default',
-  [LeadStatus.Won]: 'success',
-  [LeadStatus.Lost]: 'destructive',
-}
-
-const bookingStatusVariant: Record<BookingStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [BookingStatus.Draft]: 'secondary',
-  [BookingStatus.PendingApproval]: 'outline',
-  [BookingStatus.Confirmed]: 'success',
-  [BookingStatus.Cancelled]: 'destructive',
-}
-
-const inventoryStatusVariant: Record<InventoryStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [InventoryStatus.Available]: 'success',
-  [InventoryStatus.Reserved]: 'outline',
-  [InventoryStatus.Booked]: 'default',
-  [InventoryStatus.Sold]: 'secondary',
-  [InventoryStatus.Blocked]: 'destructive',
-  [InventoryStatus.UnderConstruction]: 'outline',
-  [InventoryStatus.HandedOver]: 'secondary',
-}
-
 const activityStatusLabel: Record<ActivityStatus, string> = {
   [ActivityStatus.Pending]: 'Pending',
   [ActivityStatus.Completed]: 'Completed',
-}
-
-const activityStatusVariant: Record<ActivityStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [ActivityStatus.Pending]: 'outline',
-  [ActivityStatus.Completed]: 'success',
 }
 
 /**
@@ -108,24 +77,6 @@ export function AgentPortalPage() {
   )
 }
 
-function PagedFooter({ page, setPage, totalPages, total, label }: { page: number; setPage: (fn: (p: number) => number) => void; totalPages: number; total: number; label: string }) {
-  return (
-    <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-      <span>
-        Page {page} of {totalPages} · {total} {label}
-      </span>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-          Previous
-        </Button>
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-          Next
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 function LeadsTab() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
@@ -157,7 +108,7 @@ function LeadsTab() {
                   <TableRow key={lead.id} className="cursor-pointer" onClick={() => navigate(`/crm/leads/${lead.id}`)}>
                     <TableCell className="font-medium">{lead.fullName}</TableCell>
                     <TableCell>
-                      <Badge variant={leadStatusVariant[lead.status]}>{LeadStatusLabel[lead.status]}</Badge>
+                      <StatusBadge status={lead.status} labels={LeadStatusLabel} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{LeadPriorityLabel[lead.priority]}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(lead.createdAt)}</TableCell>
@@ -165,7 +116,7 @@ function LeadsTab() {
                 ))}
               </TableBody>
             </Table>
-            <PagedFooter page={page} setPage={setPage} totalPages={totalPages} total={data.meta?.total ?? 0} label="leads" />
+            <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="leads" onPageChange={setPage} />
           </>
         )}
       </CardContent>
@@ -243,14 +194,14 @@ function InventoryTab() {
                     <TableCell className="font-medium">{unit.code}</TableCell>
                     <TableCell className="text-muted-foreground">{unit.projectName}</TableCell>
                     <TableCell>
-                      <Badge variant={inventoryStatusVariant[unit.status]}>{InventoryStatusLabel[unit.status]}</Badge>
+                      <StatusBadge status={unit.status} labels={InventoryStatusLabel} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">{unit.areaSize != null ? unit.areaSize : '—'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <PagedFooter page={page} setPage={setPage} totalPages={totalPages} total={data.meta?.total ?? 0} label="units" />
+            <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="units" onPageChange={setPage} />
           </>
         )}
       </CardContent>
@@ -290,14 +241,14 @@ function BookingsTab() {
                     <TableCell className="font-medium">{b.bookingNumber}</TableCell>
                     <TableCell className="text-muted-foreground">{b.customerName}</TableCell>
                     <TableCell>
-                      <Badge variant={bookingStatusVariant[b.status]}>{BookingStatusLabel[b.status]}</Badge>
+                      <StatusBadge status={b.status} labels={BookingStatusLabel} />
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">${b.netPrice.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{moneyExact(b.netPrice)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <PagedFooter page={page} setPage={setPage} totalPages={totalPages} total={data.meta?.total ?? 0} label="bookings" />
+            <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="bookings" onPageChange={setPage} />
           </>
         )}
       </CardContent>
@@ -337,13 +288,13 @@ function FollowUpsTab() {
                     <TableCell className="text-muted-foreground">{ActivityTypeLabel[a.type]}</TableCell>
                     <TableCell className="text-muted-foreground">{a.dueDate ? formatDate(a.dueDate) : '—'}</TableCell>
                     <TableCell>
-                      <Badge variant={activityStatusVariant[a.status]}>{activityStatusLabel[a.status]}</Badge>
+                      <StatusBadge status={a.status} labels={activityStatusLabel} />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <PagedFooter page={page} setPage={setPage} totalPages={totalPages} total={data.meta?.total ?? 0} label="follow-ups" />
+            <Pagination page={page} totalPages={totalPages} total={data.meta?.total} itemLabel="follow-ups" onPageChange={setPage} />
           </>
         )}
       </CardContent>
@@ -352,6 +303,7 @@ function FollowUpsTab() {
 }
 
 function PerformanceTab() {
+  const { t } = useI18n()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const { data, isLoading, isError, refetch } = useAgentPerformance({ from: from || undefined, to: to || undefined })
@@ -376,26 +328,30 @@ function PerformanceTab() {
         {isError && <ErrorState message="Could not load performance." onRetry={() => refetch()} />}
         {!isLoading && !isError && (data?.length ?? 0) === 0 && <EmptyState title="No bookings in range" />}
         {!isLoading && !isError && data && data.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Month</TableHead>
-                <TableHead>Bookings</TableHead>
-                <TableHead className="text-right">Total net price</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow key={`${row.year}-${row.month}`}>
-                  <TableCell className="font-medium">
-                    {row.year}-{String(row.month).padStart(2, '0')}
-                  </TableCell>
-                  <TableCell>{row.bookingCount}</TableCell>
-                  <TableCell className="text-right">${row.totalNetPrice.toLocaleString()}</TableCell>
+          <>
+            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <StatCard icon={CalendarCheck} label={t('agentPortal.bookingsInRange')} value={data.reduce((sum, r) => sum + r.bookingCount, 0)} />
+              <StatCard icon={HandCoins} label={t('agentPortal.netSalesInRange')} value={money(data.reduce((sum, r) => sum + r.totalNetPrice, 0))} />
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead>Bookings</TableHead>
+                  <TableHead className="text-right">Total net price</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {data.map((row) => (
+                  <TableRow key={`${row.year}-${row.month}`}>
+                    <TableCell className="font-medium">{monthLabel(row.year, row.month)}</TableCell>
+                    <TableCell>{row.bookingCount}</TableCell>
+                    <TableCell className="text-right">{money(row.totalNetPrice)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
         )}
       </CardContent>
     </Card>

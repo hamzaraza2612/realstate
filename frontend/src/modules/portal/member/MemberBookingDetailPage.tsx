@@ -1,18 +1,12 @@
 import { useParams } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils'
-import { CoworkingBookingStatus, CoworkingBookingStatusLabel } from '@/types/api'
+import { moneyExact } from '@/modules/reports/format'
+import { CoworkingBookingStatusLabel } from '@/types/api'
 import { useMemberBooking } from './api'
-
-const statusVariant: Record<CoworkingBookingStatus, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
-  [CoworkingBookingStatus.Pending]: 'outline',
-  [CoworkingBookingStatus.Confirmed]: 'success',
-  [CoworkingBookingStatus.Completed]: 'secondary',
-  [CoworkingBookingStatus.Cancelled]: 'destructive',
-}
 
 export function MemberBookingDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,12 +24,12 @@ export function MemberBookingDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <Field label="Status">
-            <Badge variant={statusVariant[booking.status]}>{CoworkingBookingStatusLabel[booking.status]}</Badge>
+            <StatusBadge status={booking.status} labels={CoworkingBookingStatusLabel} />
           </Field>
           <Field label="Start">{formatDate(booking.startAt)}</Field>
           <Field label="End">{formatDate(booking.endAt)}</Field>
-          <Field label="Price">${booking.price.toLocaleString()}</Field>
-          <Field label="Paid">${booking.paidAmount.toLocaleString()}</Field>
+          <Field label="Price">{moneyExact(booking.price)}</Field>
+          <Field label="Paid">{moneyExact(booking.paidAmount)}</Field>
           {booking.notes && (
             <div className="col-span-full">
               <p className="text-muted-foreground">Notes</p>

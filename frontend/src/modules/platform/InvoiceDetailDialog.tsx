@@ -1,28 +1,13 @@
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingState } from '@/components/common/StateViews'
+import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { BillingPaymentStatus, BillingPaymentStatusLabel, InvoiceStatus, InvoiceStatusLabel } from '@/types/api'
+import { BillingPaymentStatusLabel, InvoiceStatusLabel } from '@/types/api'
 import { useInvoicePayments, usePlatformInvoice } from './api'
 import { RecordPaymentDialog } from './RecordPaymentDialog'
-
-const invoiceStatusVariant: Record<InvoiceStatus, 'success' | 'secondary' | 'destructive' | 'outline' | 'warning'> = {
-  [InvoiceStatus.Draft]: 'secondary',
-  [InvoiceStatus.Issued]: 'outline',
-  [InvoiceStatus.Paid]: 'success',
-  [InvoiceStatus.Void]: 'outline',
-  [InvoiceStatus.Overdue]: 'destructive',
-}
-
-const paymentStatusVariant: Record<BillingPaymentStatus, 'success' | 'secondary' | 'destructive' | 'warning'> = {
-  [BillingPaymentStatus.Pending]: 'secondary',
-  [BillingPaymentStatus.Succeeded]: 'success',
-  [BillingPaymentStatus.Failed]: 'destructive',
-  [BillingPaymentStatus.Refunded]: 'warning',
-}
 
 export function InvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: string | null; onOpenChange: (open: boolean) => void }) {
   const { data: invoice, isLoading } = usePlatformInvoice(invoiceId ?? undefined)
@@ -43,7 +28,7 @@ export function InvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: st
           ) : (
             <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Badge variant={invoiceStatusVariant[invoice.status]}>{InvoiceStatusLabel[invoice.status]}</Badge>
+                <StatusBadge status={invoice.status} labels={InvoiceStatusLabel} />
                 <div className="text-sm text-muted-foreground">
                   {formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
                 </div>
@@ -124,7 +109,7 @@ export function InvoiceDetailDialog({ invoiceId, onOpenChange }: { invoiceId: st
                           <TableCell className="text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                           <TableCell>{formatCurrency(p.amount, p.currency)}</TableCell>
                           <TableCell>
-                            <Badge variant={paymentStatusVariant[p.status]}>{BillingPaymentStatusLabel[p.status]}</Badge>
+                            <StatusBadge status={p.status} labels={BillingPaymentStatusLabel} />
                           </TableCell>
                           <TableCell className="text-muted-foreground">{p.providerTransactionId ?? '—'}</TableCell>
                         </TableRow>

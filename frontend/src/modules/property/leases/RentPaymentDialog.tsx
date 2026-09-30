@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/components/ui/use-toast'
 import { extractErrorMessage } from '@/lib/apiClient'
+import { moneyExact } from '@/modules/reports/format'
 import { PaymentMethod, PaymentMethodLabel, type RentScheduleDto } from '@/types/api'
 import { useRecordRentPayment } from './api'
 
@@ -89,7 +90,7 @@ export function RentPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record rent payment</DialogTitle>
           <DialogDescription>
-            Period #{schedule.periodNumber} · Outstanding: ${(schedule.amount - schedule.paidAmount).toLocaleString()}
+            Period #{schedule.periodNumber} · Outstanding: {moneyExact(schedule.amount - schedule.paidAmount)}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
