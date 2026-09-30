@@ -573,3 +573,67 @@ at all.
   additive throughout; no existing public API shape was changed. Frontend work (`/command-center`)
   was delegated and independently verified — see the Milestone 16 entry in `docs/ROADMAP.md` for what
   was built and confirmed working.
+
+## Milestone 17 addendum — Premium UI/UX + Complete Application Polish
+
+Milestone 17 was explicitly a polish milestone, not a feature milestone: no domain entity, API
+contract, approval engine, entitlement system, AI tool registry, or tenant-isolation mechanism was
+touched, and no second UI framework was introduced. Full findings and outcomes are in
+`docs/UX_AUDIT.md`.
+
+**What was found and fixed:** the entire authenticated app had zero navigation below the `md`
+breakpoint (Sidebar hid with no mobile replacement at all); the root landing page was still the
+literal Milestone-1 placeholder dashboard while a real Executive Dashboard existed but was buried
+under `/reports`; 7 files mutated real data (including a Chart-of-Accounts delete) with zero
+confirmation dialog; 11 module dashboards each hand-copied their own `StatCard` component; 72 files
+kept their own ad-hoc status-color map with no shared source of truth; no global search/command bar
+existed anywhere; and — found only once the currency-formatting fix was underway, not in the original
+audit pass — every external portal silently rendered amounts in USD regardless of the tenant's real
+currency, because portal sessions had no route to the tenant's localization profile at all (the
+existing endpoint is staff-permission-gated). All of these were fixed; the portal-currency gap
+required one small, additive, read-only backend endpoint (`GET /api/v1/portal/localization`) — the
+only backend change this milestone made.
+
+**What was deliberately left as scoped, honestly-tracked follow-up, not silently dropped:** of the 72
+ad-hoc status-color maps, 33 files were migrated to the new shared `StatusBadge` (every customer/
+portal/SaaS-admin-facing surface); 43 remain, all in internal-ERP-only modules outside either
+implementation pass's scope. Of ~48 duplicated pagination footers, 23 were migrated to the new shared
+`Pagination` component; 25 remain, same category. A custom `DatePicker`/`DateRangePicker` calendar
+widget was not built (native date inputs are functional, accessible, and already localized — judged
+not worth the added surface area/risk this milestone). Full-application i18n translation remains
+deferred (unchanged scope decision carried from Milestone 15) — i18n keys grew from 124 to 285 in each
+of `en.ts`/`ar.ts`, covering navigation, the new shell/command-bar/status vocabulary, and the Command
+Center, not historical page body copy.
+
+**A discipline point worth recording:** this addendum's counts (33/72, 23/~48) were independently
+re-verified by grep after both implementation passes reported their own numbers — one pass's self-report
+of a fully-completed migration and another's report of a much smaller one both turned out accurate for
+their own stated scope once checked, but the *combined*, cross-phase totals were only established by
+this independent recount, not by trusting either summary in isolation.
+
+### Verification performed in Milestone 17
+
+- **Backend tests:** 287/287 passing (62 unit + 225 integration), zero regressions. The single backend
+  change (`PortalLocalizationController`) is additive and was live-verified directly rather than given
+  a new automated test, since it is a 6-line read-only pass-through to an already-tested service.
+- **Frontend build:** `npm run build` exits 0 with zero TypeScript errors, independently re-verified
+  after each of two delegated implementation passes (not taken on the implementer's word). `npm run
+  lint` shows 0 errors, only pre-existing warnings in untouched files.
+- **Live verification against the real running API and frontend dev server**, with Playwright
+  screenshots (not source-code-only claims): a fresh UAE tenant's root dashboard showing real `AED`
+  KPI figures instead of the old placeholder; the Ctrl+K command bar navigating to the Balance Sheet
+  report by fuzzy text match and to a lead/customer by name; the mobile nav drawer opening correctly
+  at 375px in both English and Arabic (from the RTL-correct edge in Arabic); Chart of Accounts
+  rendering correctly in Arabic RTL with mirrored table/pagination controls; and — the clearest
+  end-to-end proof of the portal-currency fix — a live portal customer login against a UAE tenant
+  showing "AED 0" on their dashboard, not "$0". Zero console/page errors across all 21 captured
+  screenshots (dashboard, CRM, Finance, Sales, Property, Facility, Reports, Command Center, Approvals,
+  Chart of Accounts, the command bar, the mobile drawer, and the Customer portal — desktop, mobile,
+  and Arabic variants).
+- **Security regression check:** confirmed live that the new portal localization endpoint rejects an
+  unauthenticated request (401) and an internal staff token (403), and that the existing internal
+  staff-only localization endpoint still correctly rejects a portal token (403) — no boundary crossed
+  in either direction by the new endpoint.
+- **Fix scope:** ~85 frontend files changed across two delegated implementation passes plus one
+  orchestrator-authored follow-up fix; 1 new backend controller file (6 lines of logic, reusing an
+  existing service); no migration needed (no schema change); no existing public API shape changed.
