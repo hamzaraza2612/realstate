@@ -109,6 +109,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
     public DbSet<Domain.Documents.DocumentVersion> DocumentVersions => Set<Domain.Documents.DocumentVersion>();
     public DbSet<Domain.Notifications.Notification> Notifications => Set<Domain.Notifications.Notification>();
     public DbSet<Domain.Notifications.NotificationPreference> NotificationPreferences => Set<Domain.Notifications.NotificationPreference>();
+    public DbSet<Domain.Notifications.DeviceRegistration> DeviceRegistrations => Set<Domain.Notifications.DeviceRegistration>();
     public DbSet<Domain.Communication.CommunicationLog> CommunicationLogs => Set<Domain.Communication.CommunicationLog>();
     public DbSet<Domain.Approvals.ApprovalRequest> ApprovalRequests => Set<Domain.Approvals.ApprovalRequest>();
     public DbSet<Domain.Portal.PortalUser> PortalUsers => Set<Domain.Portal.PortalUser>();

@@ -213,6 +213,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
+        services.AddScoped<IDeviceRegistrationService, DeviceRegistrationService>();
         // LoggingEmailSender stays the default (and the only option any test process ever sees) unless
         // Smtp:Enabled=true is explicitly configured — see docs/SAAS_BILLING.md.
         if (configuration.GetValue<bool>($"{SmtpSettings.SectionName}:Enabled"))

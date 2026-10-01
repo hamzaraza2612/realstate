@@ -30,3 +30,16 @@ public class NotificationPreferenceConfiguration : IEntityTypeConfiguration<Noti
         b.HasIndex(x => new { x.TenantId, x.UserId, x.Category }).IsUnique();
     }
 }
+
+public class DeviceRegistrationConfiguration : IEntityTypeConfiguration<DeviceRegistration>
+{
+    public void Configure(EntityTypeBuilder<DeviceRegistration> b)
+    {
+        b.ToTable("device_registrations");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.PushToken).HasMaxLength(500).IsRequired();
+
+        // One row per (tenant, owner, platform) — a re-registration upserts in place.
+        b.HasIndex(x => new { x.TenantId, x.OwnerId, x.IsPortalOwner, x.Platform }).IsUnique();
+    }
+}
