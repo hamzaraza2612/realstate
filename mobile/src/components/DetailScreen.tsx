@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { extractStatus } from '@/api/apiClient'
+import { extractStatus } from '@/api/createApiClient'
 import { useI18n } from '@/i18n'
 import { LastUpdated } from './LastUpdated'
 import { Screen } from './Screen'

@@ -1234,3 +1234,123 @@ export interface DocumentVersionDto {
   uploadedByUserName: string | null
   createdAt: string
 }
+
+// --- Inventory (backend/src/Application/Inventory/InventoryDtos.cs) — the Agent view's "available inventory" ---
+
+export const InventoryUnitType = {
+  Plot: 0,
+  Apartment: 1,
+  Office: 2,
+  Shop: 3,
+  House: 4,
+  CommercialUnit: 5,
+  Other: 6,
+} as const
+export type InventoryUnitType = (typeof InventoryUnitType)[keyof typeof InventoryUnitType]
+
+export const InventoryUnitTypeLabel: Record<InventoryUnitType, string> = {
+  [InventoryUnitType.Plot]: 'Plot',
+  [InventoryUnitType.Apartment]: 'Apartment',
+  [InventoryUnitType.Office]: 'Office',
+  [InventoryUnitType.Shop]: 'Shop',
+  [InventoryUnitType.House]: 'House',
+  [InventoryUnitType.CommercialUnit]: 'Commercial Unit',
+  [InventoryUnitType.Other]: 'Other',
+}
+
+export const InventoryAreaUnit = {
+  SqFt: 0,
+  SqYd: 1,
+  SqM: 2,
+  Marla: 3,
+  Kanal: 4,
+  Acre: 5,
+} as const
+export type InventoryAreaUnit = (typeof InventoryAreaUnit)[keyof typeof InventoryAreaUnit]
+
+export const InventoryAreaUnitLabel: Record<InventoryAreaUnit, string> = {
+  [InventoryAreaUnit.SqFt]: 'Sq. Ft.',
+  [InventoryAreaUnit.SqYd]: 'Sq. Yd.',
+  [InventoryAreaUnit.SqM]: 'Sq. M.',
+  [InventoryAreaUnit.Marla]: 'Marla',
+  [InventoryAreaUnit.Kanal]: 'Kanal',
+  [InventoryAreaUnit.Acre]: 'Acre',
+}
+
+export const InventoryStatus = {
+  Available: 0,
+  Reserved: 1,
+  Booked: 2,
+  Sold: 3,
+  Blocked: 4,
+  UnderConstruction: 5,
+  HandedOver: 6,
+} as const
+export type InventoryStatus = (typeof InventoryStatus)[keyof typeof InventoryStatus]
+
+export const InventoryStatusLabel: Record<InventoryStatus, string> = {
+  [InventoryStatus.Available]: 'Available',
+  [InventoryStatus.Reserved]: 'Reserved',
+  [InventoryStatus.Booked]: 'Booked',
+  [InventoryStatus.Sold]: 'Sold',
+  [InventoryStatus.Blocked]: 'Blocked',
+  [InventoryStatus.UnderConstruction]: 'Under Construction',
+  [InventoryStatus.HandedOver]: 'Handed Over',
+}
+
+export interface InventoryUnitDto {
+  id: string
+  projectId: string
+  projectName: string
+  nodeId: string | null
+  nodePath: string | null
+  code: string
+  type: InventoryUnitType
+  status: InventoryStatus
+  areaSize: number | null
+  areaUnit: InventoryAreaUnit | null
+  latitude: number | null
+  longitude: number | null
+  geoJson: string | null
+  metadataJson: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+// --- Reporting (Milestone 12) — `SalesByPeriodRowDto`, the Agent view's "my performance" ---
+
+export interface SalesByPeriodRow {
+  year: number
+  month: number
+  bookingCount: number
+  totalNetPrice: number
+}
+
+// --- Coworking memberships (backend/src/Application/Facility/Coworking) ---
+
+export const MembershipStatus = {
+  Active: 0,
+  Expired: 1,
+  Cancelled: 2,
+} as const
+export type MembershipStatus = (typeof MembershipStatus)[keyof typeof MembershipStatus]
+
+export const MembershipStatusLabel: Record<MembershipStatus, string> = {
+  [MembershipStatus.Active]: 'Active',
+  [MembershipStatus.Expired]: 'Expired',
+  [MembershipStatus.Cancelled]: 'Cancelled',
+}
+
+export interface MembershipDto {
+  id: string
+  memberId: string
+  memberName: string
+  planId: string
+  planName: string
+  startDate: string
+  endDate: string
+  status: MembershipStatus
+  amount: number
+  paidAmount: number
+  createdAt: string
+}

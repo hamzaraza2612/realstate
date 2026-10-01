@@ -49,6 +49,13 @@ const MODULE_SCREENS: [string, string][] = [
   ['facility/mall-shops/[id]', 'facility.mallShops.detailTitle'],
   ['facility/coworking-bookings/index', 'facility.coworkingBookings.title'],
   ['facility/coworking-bookings/[id]', 'facility.coworkingBookings.detailTitle'],
+  // Phase 3: the Agent view (internal staff auth — `AgentPortalController` is [Authorize], not a portal area).
+  ['agent/index', 'module.agent'],
+  ['agent/leads', 'agent.leads'],
+  ['agent/follow-ups', 'agent.followUps'],
+  ['agent/bookings', 'agent.bookings'],
+  ['agent/customers', 'agent.customers'],
+  ['agent/inventory', 'agent.inventory'],
 ]
 
 /** The internal (staff) app: bottom tabs plus stack screens pushed over them (Command Center,

@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react'
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native'
-import { flattenPages, pagedTotal, type PagedListQuery } from '@/api/paging'
+import { flattenPages, pagedTotal, type PagedListQuery } from '@/api/pagedQuery'
 import { useI18n } from '@/i18n'
 import { spacing, useTheme } from '@/theme'
 import { formatNumber } from '@/utils/format'

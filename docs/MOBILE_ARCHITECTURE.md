@@ -56,8 +56,9 @@ mobile/
     (internal)/             # Internal ERP user's whole app, behind AppUser auth
       (tabs)/                # Home, Work, Approvals, Notifications, Profile
       crm/ sales/ property/ construction/ procurement/ facility/ command-center/ ...
+      agent/                 # The Agent view — INTERNAL (AgentPortalController is [Authorize], staff auth)
     (portal)/                # External portal user's whole app, behind PortalUser auth
-      customer/ tenant/ owner/ vendor/ agent/ member/
+      portal/customer/ tenant/ owner/ vendor/ member/   # one area per PortalProfile.actorType
   src/
     api/                    # apiClient.ts (internal), portalApiClient.ts (portal) — axios + interceptors
     auth/                   # AuthProvider, PortalAuthProvider, SecureStore-backed token stores
@@ -107,6 +108,24 @@ hook, an API client instance, or a screen component. A portal user's app build n
 internal-only screen module. Backend authorization remains authoritative in all cases — the mobile
 UI's role/permission-based hiding of navigation items is the same **UX convenience, not a security
 boundary** disclaimer that applies to the web app's `PermissionGate`.
+
+How Phase 3 keeps that boundary concrete:
+
+- The five portal areas (`app/(portal)/portal/{customer,tenant,owner,vendor,member}`) each get their own
+  four-tab bar (Home, the area's primary records, Documents, Notifications; Account from the Home
+  header) — deliberately not the internal Home/Work/Approvals module navigation. `/portal` redirects
+  to the signed-in user's own area; each area's layout sends any other actor type back there.
+- Portal data hooks are the shared `api/pagedQuery.ts` helpers bound once to `portalApiClient`
+  (`features/portal/api/portalQueries.ts`); internal screens use the same helpers bound to
+  `apiClient` (`api/paging.ts`). No portal screen module imports `apiClient` (the one transitive
+  reference is `features/notifications/pushRegistration.ts`, which holds both the internal and the
+  portal device-registration functions; the portal Account screen only calls the portal one).
+- Portal documents are the per-actor read-only `GET {area}/documents` + `/documents/{id}/download`
+  pair; the internal Documents feature (generic `/documents` + upload) is never used by the portal.
+- The "Agent" actor is **not** a portal area: `AgentPortalController` is plain `[Authorize]`, self-scoped
+  to the caller's staff `UserId`. Its mobile screens live in the internal app (`app/(internal)/agent`,
+  Work tab → "My sales desk"), use `apiClient`, and are gated by `sales.booking.view` exactly like the
+  web nav's "Agent Portal" entry.
 
 ## Role-aware internal navigation
 
