@@ -1,3 +1,4 @@
 .env
 *.local.json
 .claude/
+backend/src/Api/data/
