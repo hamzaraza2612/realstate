@@ -150,6 +150,21 @@ is unchanged from before this milestone. One small, additive backend endpoint
 (`GET /api/v1/portal/localization`) was added to fix a real gap the currency-formatting pass exposed:
 portal sessions had no route to the tenant's real currency, since the existing endpoint is staff-only.
 
+## Mobile application (Milestone 18)
+
+Full architecture is in `docs/MOBILE_ARCHITECTURE.md`; the per-screen endpoint mapping is in
+`docs/MOBILE_API_USAGE.md`. One principle worth stating here: the mobile app (React Native + Expo +
+TypeScript, one codebase for Android/iOS) is a new *client* of the existing backend, exactly the
+posture the AI layer and the External Portals took before it — no new business logic, no duplicate
+validation rule, no second approval mechanism, no Anthropic SDK anywhere in the mobile codebase.
+It carries the backend's `ITenantContext`/`IPortalContext` separation into two structurally distinct
+Expo Router route groups with separate SecureStore-backed axios clients, never mixed — including for
+the "Agent" self-service view, which (because `AgentPortalController` is plain internal staff auth,
+not a portal actor type) lives in the internal app rather than the portal one. The only backend
+change this milestone needed was a small, additive device-token registration endpoint pair
+(`POST /notifications/device-tokens`, `POST /portal/device-tokens`) to back a real "register this
+device" action — storing a token only; no push provider integration or delivery exists.
+
 ## Background jobs
 Hangfire with PostgreSQL storage, provisioned since Milestone 1. First real recurring job as of
 Milestone 14: an hourly `SubscriptionLifecycleJob` (`Infrastructure/Jobs/`) expiring overdue trial

@@ -1096,6 +1096,94 @@ Milestones 10–15 were resequenced by `PRODUCT_GAP_AUDIT.md` (originally 9–13
       working tree briefly showing the just-pushed files as deletions) recurred twice and was resolved
       the same way both times (`git checkout HEAD -- frontend/`) before building on top.
 
+## Milestone 18 — Mobile Application ✅
+- [x] Architecture written before implementation: `docs/MOBILE_ARCHITECTURE.md` inventories every
+      existing backend endpoint the mobile app consumes and the app's own structure, per the
+      milestone's own requirement. React Native + Expo + TypeScript + Expo Router, one codebase for
+      Android and iOS — no WebView, no second native app. `docs/MOBILE_API_USAGE.md` is the
+      per-screen companion: which screen calls which endpoint with which client.
+- [x] Dual, non-interchangeable auth: `apiClient` (internal, `AppUser`/RBAC) and `portalApiClient`
+      (external portal, `PortalUser`/actor-type) are structurally separate Expo Router route groups,
+      separate SecureStore key prefixes, separate axios instances — never mixed, mirroring the
+      backend's own `ITenantContext`/`IPortalContext` split. Tokens live in `expo-secure-store` only,
+      never `AsyncStorage`. A single-flight refresh interceptor (ported from the web `apiClient.ts`)
+      handles 401/expired/concurrent-refresh/failed-refresh without an infinite loop; live-verified: 4
+      concurrent 401s trigger exactly 1 refresh call, all 4 retried.
+- [x] Role-aware internal navigation: 5 bottom tabs (Home/Work/Approvals/Notifications/Profile), Work
+      tab role-filtered by the same permission strings the web nav uses. Management Home is a
+      phone-specific summary (Business Health strip → top-3 Attention → 2-3 KPI tiles → Approvals
+      count → Command Center entry) — not the desktop Executive Dashboard rendered vertically.
+- [x] AI Command Center on mobile: the same M16 backend endpoints, zero Anthropic SDK or API key
+      anywhere in the mobile codebase. A clear "AI Business Intelligence is currently unavailable"
+      state when unconfigured; the rest of the app stays fully functional.
+- [x] Internal ERP mobile screens (CRM, Sales, Projects, Property/Rental, Construction, Procurement,
+      Facility/Mall/Coworking) — real list + detail screens for every module, server-paginated
+      throughout, backed entirely by existing endpoints. Real device actions where the data calls for
+      them: `tel:`/`mailto:` on CRM contact fields, a camera/gallery/file picker feeding a real
+      multipart upload to the existing Documents API (embedded as a reusable `DocumentsPanel`).
+- [x] Approvals reuse the single existing `POST /approvals/{id}/decide` endpoint unchanged — no
+      second approval mechanism, including for AI action proposals.
+- [x] Full External Portal mobile experience for all 5 true portal actor types (Customer, Tenant,
+      Owner, Vendor, CoworkingMember) plus a 6th "Agent" self-service view — discovered and documented
+      as deliberately **not** a portal area, since `AgentPortalController` uses plain internal staff
+      auth (`[Authorize]`, self-scoped to the caller), so its screens live in the internal app, gated
+      by `sales.booking.view` exactly like the web nav's "Agent Portal" entry. Each true portal area
+      gets its own simple 4-tab navigation (Home / primary records / Documents / Notifications) —
+      never the internal app's module-shaped navigation. A real write action: the Tenant area's
+      "Report a maintenance issue" form really `POST`s to `/portal/tenant/maintenance-requests` and
+      shows the server-created record or real validation errors — disabled while offline, never
+      queued.
+- [x] Documents: the portal's own per-actor read-only document endpoints (never the internal generic
+      `/documents` API) — download/share via `expo-file-system` + `expo-sharing` (web: browser
+      download). A document is only ever reachable through the actor's own list response, never by a
+      client-guessed ID.
+- [x] Push notifications — all four layers kept explicitly separate per the milestone's own
+      discipline: (1) the pre-existing notification data model, (2) **device registration**, genuinely
+      built and tested this milestone (`POST /notifications/device-tokens` staff,
+      `POST /portal/device-tokens` portal — the only new backend endpoints this milestone needed,
+      found and filled after the mobile architecture draft surfaced the gap, covered by
+      `DeviceRegistrationTests.cs`), (3) push provider integration (not attempted — no APNs/FCM
+      credentials in this environment), (4) actual delivery (not attempted, not claimed). The UI says
+      "Register this device," never "Notifications enabled."
+- [x] Offline handling: connectivity detection with a dismissible banner, TanStack Query cache serving
+      labeled stale data when offline, every mutation (approve/reject, maintenance request, document
+      upload) disabled while offline — no optimistic offline writes, no queued sync, per the
+      milestone's own "never pretend a mutation succeeded while offline" rule.
+- [x] Localization & RTL: English/Arabic, `I18nManager.forceRTL()` for true RTL (not a CSS hack),
+      `money()`/`formatDate()`/`formatNumber()` ported from the web app's `reports/format.ts` reading
+      the same bootstrapped `TenantLocalizationDto`. No duplicated Arabic screens — 800 i18n keys in
+      both `en.ts`/`ar.ts`, verified in sync by a dedicated `check-i18n.mjs` script with zero
+      mismatches.
+- [x] Mobile design-system: RN equivalents of the M17 web primitives (status tones, typography,
+      spacing) — not pixel-identical, since mobile has its own interaction patterns (bottom sheets,
+      swipe actions, pull-to-refresh).
+- [x] Backend tests: 294/294 passing (62 unit + 232 integration — the 7 new ones cover device
+      registration), zero regressions. Only 3 small, additive backend files this whole milestone
+      needed: the `DeviceRegistration` domain/application/infrastructure/API layers and the migration.
+- [x] Mobile build verified independently after each of 3 delegated implementation phases (not taken
+      on the implementer's word): `npx tsc --noEmit` 0 errors, `check-i18n.mjs` clean, `npx expo
+      export --platform web` succeeds. Frontend web app (`npm run build`) still builds with zero
+      TypeScript errors — untouched by this milestone.
+- [x] Live verification against the real running backend via Playwright (React-Native-Web preview —
+      this sandbox has no Android emulator/iOS simulator/physical device, confirmed by
+      `which adb emulator xcrun` returning nothing; every verification claim here is build/bundler
+      success or web-preview behavior, never conflated with native-device testing): real seeded data
+      rendering correctly across CRM/Property/Facility internal screens and the Tenant portal area
+      (login → home showing real next-rent-due/overdue figures → leases list → lease detail showing
+      the real rent amount → documents → notifications → a full real maintenance-request submission
+      showing the server-created record), zero console errors throughout.
+- [x] Delegated to 3 sequential background implementation phases (scaffold/auth/nav, then internal ERP
+      modules, then portal areas + Agent view), each independently re-verified after handback rather
+      than trusting the implementer's self-report — one phase was interrupted mid-run by the user and
+      resumed from its own uncommitted worktree state rather than restarted from scratch, after
+      independently confirming the partial work was sound.
+
+## Planned future milestones (fixed scope, not yet started)
+- **Milestone 19 — Production/Performance/Security Hardening**
+- **Milestone 20 — Marketing Website + Final Brand + Pricing + Demo/Trial**
+- **Milestone 21 — Beta/UAT + Commercial Launch**
+- **Milestone 22 — Global Go-To-Market**
+
 ## Notes on scope realism
 This is a genuinely large, multi-quarter product (50 functional areas). Each
 milestone above ships real, persisted, tested functionality rather than

@@ -637,3 +637,80 @@ this independent recount, not by trusting either summary in isolation.
 - **Fix scope:** ~85 frontend files changed across two delegated implementation passes plus one
   orchestrator-authored follow-up fix; 1 new backend controller file (6 lines of logic, reusing an
   existing service); no migration needed (no schema change); no existing public API shape changed.
+
+## Milestone 18 addendum — Mobile Application
+
+Full architecture, decisions, and screen-by-screen endpoint mapping are in
+`docs/MOBILE_ARCHITECTURE.md` and `docs/MOBILE_API_USAGE.md`. This milestone built a React Native +
+Expo + TypeScript mobile client (one codebase, Android + iOS) consuming the existing backend
+directly — no duplicate business logic, no second approval mechanism, no Anthropic SDK in the mobile
+codebase, dual non-interchangeable auth (internal `apiClient` vs. portal `portalApiClient`) carried
+into structurally separate navigator trees.
+
+**What was found and fixed:** the mobile architecture draft itself surfaced a genuine gap and a
+genuine ambiguity before any screen code was written. The gap: the milestone's push-notification
+seam needed somewhere to store a device's push token, and no such concept existed anywhere in the
+backend — filled with a small, additive `DeviceRegistration` domain entity/service/migration and two
+endpoints (`POST /notifications/device-tokens` staff, `POST /portal/device-tokens` portal), the only
+backend change this milestone made, covered by 7 new integration tests. The ambiguity: the spec's "6
+actor types" (Customer/Tenant/Owner/Vendor/Agent/CoworkingMember) names "Agent" alongside 5 real
+portal actor types, but `AgentPortalController` is deliberately plain internal `[Authorize]`, not
+`[RequirePortal]` — an agent uses their existing staff login, not a portal identity. Building Agent's
+screens under the portal route group would have been exactly the "mixing internal and portal auth"
+mistake the milestone explicitly forbids; this was caught during Phase 3 planning and Agent's screens
+were built in the internal app instead, gated by the same `sales.booking.view` permission the web
+nav's "Agent Portal" entry already uses.
+
+**What was deliberately left as scoped, honestly-tracked follow-up, not silently dropped:** push
+notification *delivery* (layers 3-4 of the data-model/registration/provider/delivery breakdown) —
+no APNs/FCM credentials exist in this environment, matching Milestone 16's own
+`ANTHROPIC_API_KEY`-unconfigured precedent. Full offline write synchronization — every mutation is
+disabled while offline rather than queued, since the backend has no conflict-resolution protocol for
+that. A handful of narrow portal API shape gaps hit during Phase 3 and left unfixed rather than
+worked around: no `GET /portal/tenant/maintenance-requests/{id}` (detail is a sheet built from the
+list row), several portal list endpoints (documents, payments, owner reports) return plain arrays
+rather than paged results so those specific screens are not server-paged, vendor documents are
+scoped to the Vendor record rather than per purchase order, and CoworkingMember has neither a
+payment-history nor a self-booking endpoint. Full list in `docs/MOBILE_API_USAGE.md`'s "Known API
+shape gaps" section.
+
+**A discipline point worth recording:** this milestone's largest implementation phase (Phase 2,
+internal ERP screens) was interrupted mid-run by the user before completion. Rather than restarting
+from scratch, the already-substantial uncommitted work sitting in the delegated agent's worktree was
+independently inspected, had a stray local-dev-only artifact (`backend/src/Api/data/`, the file
+upload storage directory — never previously gitignored, now fixed) removed, and was then verified
+exactly as if a fresh pass had just completed: `tsc --noEmit`, the i18n-sync script, `expo export`,
+a live Playwright run against the real backend with newly-seeded test data, and a full backend
+regression re-run — before being committed. Resuming interrupted work with the same rigor as fresh
+work, rather than either discarding it or trusting it uninspected, was the discipline applied.
+
+### Verification performed in Milestone 18
+
+- **Backend tests:** 294/294 passing (62 unit + 232 integration, up from 287 before this milestone —
+  the 7 new tests cover device registration), zero regressions, independently re-run after each of
+  the 3 delegated implementation phases rather than taken on any implementer's word.
+- **Mobile build:** `npx tsc --noEmit` 0 errors, `node scripts/check-i18n.mjs` reports every key
+  present and in sync in both `en.ts`/`ar.ts` (800 keys) with zero mismatches, `npx expo export
+  --platform web` succeeds — all independently re-run after each phase, not taken from any
+  implementer's self-report.
+- **Frontend build:** `npm run build` still exits 0 with zero TypeScript errors — unaffected by this
+  milestone, re-verified rather than assumed.
+- **Live verification against the real running backend**, via Playwright driving the
+  React-Native-Web preview (this sandbox has no Android emulator, iOS simulator, or physical device —
+  confirmed by `which adb emulator xcrun` returning nothing; every claim here is build/bundler
+  success or web-preview behavior, never conflated with native-device testing): real seeded data
+  across the internal CRM/Property/Facility screens (a real lead and customer with real phone/email
+  device actions and a working Documents upload) and the Tenant portal area end to end — login, a
+  home screen showing real computed next-rent-due and $18,000 overdue-rent figures, a leases list and
+  detail showing the real $1,500 rent amount, documents, notifications, and a full real
+  maintenance-request submission producing a real server-created record (`MR-000001`) — zero console
+  errors across every screen exercised in both independent verification passes.
+- **Client-separation check:** a direct import-statement grep across the merged codebase confirms no
+  file under `app/(portal)/` or `src/features/portal/` imports `apiClient`, and no file under
+  `app/(internal)/agent/` or `src/features/agent/` imports `portalApiClient` — the one shared
+  exception is `features/notifications/pushRegistration.ts`, which deliberately exports both the
+  internal and portal device-registration functions, called separately from each side.
+- **Fix scope:** 3 delegated implementation phases (~205 mobile files across scaffold/auth/nav,
+  internal ERP modules, and portal areas + Agent view); 4 new backend files (the `DeviceRegistration`
+  domain/application/infrastructure layers) plus 2 small controller endpoints and 1 migration — the
+  only backend change this milestone made; no existing public API shape changed.

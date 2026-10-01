@@ -273,6 +273,12 @@ Notifications (no permission gate — every action is scoped to the caller's own
 - `POST /api/v1/notifications/{id}/read`, `POST /api/v1/notifications/read-all`.
 - `GET /api/v1/notifications/preferences` (always returns one row per `NotificationCategory`, defaulting
   to both channels enabled), `PUT /api/v1/notifications/preferences` (one category at a time).
+- `POST /api/v1/notifications/device-tokens` (Milestone 18) — `{ platform: "ios"|"android"|"web",
+  pushToken }`; upserts a `DeviceRegistration` row keyed by `(TenantId, OwnerId=caller, IsPortalOwner=
+  false, Platform)`. Storage only — nothing reads this table and sends a push; see
+  `docs/MOBILE_ARCHITECTURE.md`'s "Push notifications" section. The portal equivalent is
+  `POST /api/v1/portal/device-tokens` (`[RequirePortal]`, any actor type, same request shape,
+  `IsPortalOwner=true`, keyed by the caller's `PortalUserId`).
 
 Approvals (generic — same `(EntityType, EntityId)` pattern as Documents):
 - `GET /api/v1/approvals/inbox?status=` — no permission gate; scoped to requests where the caller is

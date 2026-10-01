@@ -665,5 +665,20 @@ Index: `IX_ai_usage_records_TenantId_OccurredAt`.
 Applied and schema-verified against both the dev and integration-test databases (`psql \dt ai_*`
 confirms all four tables exist with the expected columns/indexes/FKs).
 
+## Milestone 18 schema — Mobile Application (push device registration)
+
+One new table — the only schema change this milestone needed, added after the mobile architecture
+draft surfaced a genuine gap (nowhere existed to store a push token):
+
+- `device_registrations`: id, tenant_id, owner_id (either an `AppUser.Id` or a `PortalUser.Id`, not an
+  FK — the owning table depends on `is_portal_owner`), is_portal_owner, platform (`Ios`/`Android`/
+  `Web`), push_token, last_registered_at. Unique on `(tenant_id, owner_id, is_portal_owner, platform)`
+  — a re-registration for the same device upserts in place rather than duplicating. Nothing else reads
+  this table; no push is ever sent from it (see `docs/MOBILE_ARCHITECTURE.md`'s "Push notifications"
+  section for why storage and delivery are kept explicitly separate).
+
+Applied and schema-verified against the dev database (`psql \d device_registrations` confirms the
+table, columns, and the unique composite index).
+
 Later milestones extend this file per-module as they land — each new module's tables and
 relationships are appended here in the same milestone's PR/commit that adds the migration.
