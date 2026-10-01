@@ -59,6 +59,32 @@ export function formatDateTime(value: string | null | undefined, locale?: string
   }
 }
 
+/**
+ * A calendar day. The backend serializes C# `DateOnly` fields (booking date, due dates, lease
+ * start/end, …) as plain `YYYY-MM-DD` strings; parsing those with `new Date()` would treat them as
+ * UTC midnight and show the previous day in negative-offset zones, so they are parsed as a local
+ * date instead. Full timestamps fall back to their local calendar day.
+ */
+export function formatDay(value: string | null | undefined, locale?: string): string {
+  if (!value) return '—'
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  try {
+    return date.toLocaleDateString(resolveLocale(locale), { dateStyle: 'medium' })
+  } catch {
+    return match ? value : date.toISOString().slice(0, 10)
+  }
+}
+
+/** File sizes for document versions — "512 B", "1.4 KB", "3.2 MB". */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null) return '—'
+  if (bytes < 1024) return `${formatNumber(bytes)} B`
+  if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024, { maximumFractionDigits: 1 })} KB`
+  return `${formatNumber(bytes / (1024 * 1024), { maximumFractionDigits: 1 })} MB`
+}
+
 /** Kept as an alias of `formatDateTime`, exactly like the web `formatDate`. */
 export function formatDate(value: string | null | undefined, locale?: string): string {
   return formatDateTime(value, locale)

@@ -29,7 +29,7 @@ export interface ModuleItem {
   icon: IconName
   /** Same code as the web nav item's `permission`. */
   permission: string
-  /** Built in Phase 1 → its real screen; everything else → the Phase 2 placeholder. */
+  /** The module's real screen (Phase 1: Command Center; Phase 2: CRM … Facility); Reports is still the placeholder. */
   href: Href
 }
 
@@ -37,13 +37,13 @@ const placeholder = (key: ModuleKey): Href => ({ pathname: '/module/[key]', para
 
 export const MODULES: ModuleItem[] = [
   { key: 'commandCenter', labelKey: 'module.commandCenter', descriptionKey: 'module.commandCenter.description', icon: 'sparkles-outline', permission: 'ai.view', href: '/command-center' },
-  { key: 'crm', labelKey: 'module.crm', descriptionKey: 'module.crm.description', icon: 'people-outline', permission: 'crm.lead.view', href: placeholder('crm') },
-  { key: 'sales', labelKey: 'module.sales', descriptionKey: 'module.sales.description', icon: 'receipt-outline', permission: 'sales.booking.view', href: placeholder('sales') },
-  { key: 'projects', labelKey: 'module.projects', descriptionKey: 'module.projects.description', icon: 'folder-open-outline', permission: 'projects.view', href: placeholder('projects') },
-  { key: 'property', labelKey: 'module.property', descriptionKey: 'module.property.description', icon: 'business-outline', permission: 'property.view', href: placeholder('property') },
-  { key: 'construction', labelKey: 'module.construction', descriptionKey: 'module.construction.description', icon: 'construct-outline', permission: 'construction.view', href: placeholder('construction') },
-  { key: 'procurement', labelKey: 'module.procurement', descriptionKey: 'module.procurement.description', icon: 'cart-outline', permission: 'procurement.view', href: placeholder('procurement') },
-  { key: 'facility', labelKey: 'module.facility', descriptionKey: 'module.facility.description', icon: 'storefront-outline', permission: 'facility.view', href: placeholder('facility') },
+  { key: 'crm', labelKey: 'module.crm', descriptionKey: 'module.crm.description', icon: 'people-outline', permission: 'crm.lead.view', href: '/crm' },
+  { key: 'sales', labelKey: 'module.sales', descriptionKey: 'module.sales.description', icon: 'receipt-outline', permission: 'sales.booking.view', href: '/sales/bookings' },
+  { key: 'projects', labelKey: 'module.projects', descriptionKey: 'module.projects.description', icon: 'folder-open-outline', permission: 'projects.view', href: '/projects' },
+  { key: 'property', labelKey: 'module.property', descriptionKey: 'module.property.description', icon: 'business-outline', permission: 'property.view', href: '/property' },
+  { key: 'construction', labelKey: 'module.construction', descriptionKey: 'module.construction.description', icon: 'construct-outline', permission: 'construction.view', href: '/construction' },
+  { key: 'procurement', labelKey: 'module.procurement', descriptionKey: 'module.procurement.description', icon: 'cart-outline', permission: 'procurement.view', href: '/procurement' },
+  { key: 'facility', labelKey: 'module.facility', descriptionKey: 'module.facility.description', icon: 'storefront-outline', permission: 'facility.view', href: '/facility' },
   { key: 'reports', labelKey: 'module.reports', descriptionKey: 'module.reports.description', icon: 'bar-chart-outline', permission: 'reports.view', href: placeholder('reports') },
 ]
 

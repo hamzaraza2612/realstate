@@ -12,6 +12,7 @@ import { spacing } from '@/theme'
 import { ApprovalStatus, ApprovalStatusLabel, type ApprovalRequestDto } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 import { APPROVALS_KEY, useApprovalRequest, useDecideApproval } from './api'
+import { RelatedRecord } from './RelatedRecord'
 
 /** Review one approval request and Approve/Reject it via `POST /approvals/{id}/decide` (who may
  * decide is enforced server-side in ApprovalService.DecideAsync). */
@@ -75,6 +76,8 @@ export function ApprovalDetailScreen({ id }: { id: string }) {
           {item.requestComments ?? t('approvals.noComments')}
         </Text>
       </Card>
+
+      <RelatedRecord entityType={item.entityType} entityId={item.entityId} />
 
       {!isPending ? (
         <Card>
