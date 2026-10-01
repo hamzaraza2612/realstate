@@ -38,10 +38,14 @@ mobile:
 | CRM / Sales / Property / Construction / Procurement / Facility / Mall / Coworking data | The existing module APIs (`/crm/leads`, `/crm/customers`, `/sales/bookings`, `/property/*`, `/construction/*`, `/procurement/*`, `/facility/*`, etc.) | Every list endpoint already supports server-side pagination (`PagedRequest`/`PagedResult`) — mobile never loads an unbounded list into memory, satisfying the performance requirement without any backend change. |
 | Portal module data | The existing `Portal{Customer,Tenant,Owner,Vendor,Member}Controller` endpoints, `AgentPortalController` | One-to-one with what each portal's web module already calls. |
 
-**No new backend endpoint was needed for this milestone.** Every mobile screen is backed by an
-endpoint that already exists and is already covered by the backend's 287 passing tests. This is a
+**Every mobile screen is backed by an endpoint that already existed before this milestone** — a
 direct consequence of Milestone 14-17's own discipline of building REST APIs that are consumed by a
 generic `apiClient`/`portalApiClient` rather than hand-tuning responses for one specific frontend.
+The one exception is the device-token registration endpoint described under "Push notifications"
+below (`POST /api/v1/notifications/device-tokens` and `POST /api/v1/portal/device-tokens`) — a small,
+additive pair of endpoints needed because no device-registration concept existed anywhere in the
+backend before mobile needed one. Both reuse the existing `ITenantContext`/`IPortalContext` auth
+patterns unchanged and are covered by `DeviceRegistrationTests.cs`.
 
 ## Mobile app structure
 
@@ -171,13 +175,32 @@ refresh instead of a page-level refresh button).
 
 ## Push notifications
 
-**Architecturally prepared, not claimed as delivered.** Expo's push token registration flow
-(`expo-notifications`) is wired to call a new-but-minimal device-registration endpoint; the existing
-`Notification`/`NotificationPreference` domain model already has everything needed to represent "this
-notification should also be pushed," but actual delivery through Apple Push Notification service /
-Firebase Cloud Messaging requires provider credentials this sandbox does not have (exactly the same
-honest-disclosure situation Milestone 16 was in with `ANTHROPIC_API_KEY`). The seam exists; delivery is
-not claimed as tested or working end-to-end.
+Four distinct layers, kept explicitly separate so "the seam exists" is never confused with "push
+works":
+
+1. **Notification data model** (existed before this milestone) — `Notification`/`NotificationPreference`.
+2. **Device registration** (built in this milestone, real and tested) — `DeviceRegistration` domain
+   entity (`backend/src/Domain/Notifications/DeviceRegistration.cs`), a small `IDeviceRegistrationService`
+   upsert keyed by `(TenantId, OwnerId, IsPortalOwner, Platform)`, and two endpoints:
+   `POST /api/v1/notifications/device-tokens` (staff, via `ITenantContext`) and
+   `POST /api/v1/portal/device-tokens` (portal, via `IPortalContext`, any actor type — mirrors
+   `PortalLocalizationController`'s "standalone `[RequirePortal]` controller" pattern). The mobile app's
+   `registerInternalDeviceForPushAsync()`/`registerPortalDeviceForPushAsync()`
+   (`mobile/src/features/notifications/pushRegistration.ts`) request OS notification permission, obtain
+   an Expo push token, and POST it to the matching endpoint — wired to a real "Register this device"
+   action on the internal Profile screen. This is genuinely persisted and upserted (verified by
+   `backend/tests/IntegrationTests/DeviceRegistrationTests.cs`: registration, re-registration upsert,
+   invalid-input rejection, cross-auth rejection, tenant isolation).
+3. **Push provider integration** (not attempted) — no APNs/FCM credentials or SDK wiring exist anywhere
+   in this codebase.
+4. **Actual delivery** (not attempted, not claimed) — nothing reads `DeviceRegistration` rows and sends
+   a push. A registered token sits in the database, used by nothing, until a future milestone adds a
+   real provider integration (exactly the same honest-disclosure situation Milestone 16 was in with
+   `ANTHROPIC_API_KEY`).
+
+The mobile UI reflects this precisely: the Profile screen's action is labelled "Register this device" /
+"This device is registered," never "Notifications enabled," because registering is true today and
+enabling delivery is not.
 
 ## What this milestone does NOT build
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RealEstateErp.Api.Common;
+using RealEstateErp.Application.Common.Interfaces;
 using RealEstateErp.Application.Notifications;
 using RealEstateErp.Shared.Pagination;
 
@@ -18,11 +19,17 @@ public class NotificationsController : ApiControllerBase
 {
     private readonly INotificationService _notificationService;
     private readonly INotificationPreferenceService _preferenceService;
+    private readonly IDeviceRegistrationService _deviceRegistrationService;
+    private readonly ITenantContext _tenantContext;
 
-    public NotificationsController(INotificationService notificationService, INotificationPreferenceService preferenceService)
+    public NotificationsController(
+        INotificationService notificationService, INotificationPreferenceService preferenceService,
+        IDeviceRegistrationService deviceRegistrationService, ITenantContext tenantContext)
     {
         _notificationService = notificationService;
         _preferenceService = preferenceService;
+        _deviceRegistrationService = deviceRegistrationService;
+        _tenantContext = tenantContext;
     }
 
     [HttpGet]
@@ -61,5 +68,14 @@ public class NotificationsController : ApiControllerBase
     public async Task<IActionResult> UpdatePreference(UpdateNotificationPreferenceRequest request, CancellationToken ct)
     {
         return Ok(ApiResponse.Ok(await _preferenceService.UpdateMineAsync(request, ct)));
+    }
+
+    /// <summary>Device-registration half of the Milestone 18 push seam — stores a token only, never
+    /// sends a push. See IDeviceRegistrationService's doc comment.</summary>
+    [HttpPost("device-tokens")]
+    public async Task<IActionResult> RegisterDeviceToken(RegisterDeviceTokenRequest request, CancellationToken ct)
+    {
+        var result = await _deviceRegistrationService.RegisterAsync(_tenantContext.UserId ?? Guid.Empty, isPortalOwner: false, request, ct);
+        return result.Succeeded ? NoContent() : BadRequest(new { title = result.Error, status = 400, code = result.ErrorCode });
     }
 }

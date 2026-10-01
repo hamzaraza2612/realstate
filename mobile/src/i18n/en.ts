@@ -243,6 +243,17 @@ export const en: Record<string, string> = {
   'profile.signOutMessage': "You'll need to sign in again to use the app on this device.",
   'profile.version': 'Version {version}',
 
+  // --- Push device registration (registration only — no push delivery exists yet) ---
+  'push.title': 'This device',
+  'push.description': 'Register this device so it is ready to receive alerts once push delivery is available. This does not enable notifications yet.',
+  'push.register': 'Register this device',
+  'push.registered': 'This device is registered.',
+  'push.unsupportedSimulator': 'Push registration needs a physical device.',
+  'push.unsupportedWeb': 'Push registration is not available on web.',
+  'push.denied': 'Notification permission was denied in device settings.',
+  'push.noProjectId': 'Push registration is not configured for this build.',
+  'push.registerFailed': 'Could not register this device. Try again later.',
+
   // --- Language & RTL ---
   'language.english': 'English',
   'language.arabic': 'العربية',

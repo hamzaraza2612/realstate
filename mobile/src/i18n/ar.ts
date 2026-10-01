@@ -242,6 +242,17 @@ export const ar: Record<string, string> = {
   'profile.signOutMessage': 'ستحتاج إلى تسجيل الدخول مرة أخرى لاستخدام التطبيق على هذا الجهاز.',
   'profile.version': 'الإصدار {version}',
 
+  // --- Push device registration (registration only — no push delivery exists yet) ---
+  'push.title': 'هذا الجهاز',
+  'push.description': 'سجّل هذا الجهاز ليكون جاهزًا لتلقي التنبيهات عند توفر إرسال الإشعارات. هذا لا يفعّل الإشعارات الآن.',
+  'push.register': 'تسجيل هذا الجهاز',
+  'push.registered': 'تم تسجيل هذا الجهاز.',
+  'push.unsupportedSimulator': 'يتطلب تسجيل الإشعارات جهازًا فعليًا.',
+  'push.unsupportedWeb': 'تسجيل الإشعارات غير متاح على الويب.',
+  'push.denied': 'تم رفض إذن الإشعارات في إعدادات الجهاز.',
+  'push.noProjectId': 'تسجيل الإشعارات غير مُهيأ لهذا الإصدار.',
+  'push.registerFailed': 'تعذر تسجيل هذا الجهاز. حاول مرة أخرى لاحقًا.',
+
   // --- Language & RTL ---
   'language.english': 'English',
   'language.arabic': 'العربية',

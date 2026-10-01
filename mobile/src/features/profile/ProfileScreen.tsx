@@ -6,6 +6,7 @@ import { Screen } from '@/components/Screen'
 import { useI18n } from '@/i18n'
 import { spacing, useTheme } from '@/theme'
 import { PreferencesCard } from './PreferencesCard'
+import { PushRegistrationCard } from './PushRegistrationCard'
 import { SignOutButton } from './SignOutButton'
 
 /** Profile tab — the signed-in staff user's identity (from the session), preferences, sign-out. */
@@ -59,6 +60,8 @@ export function ProfileScreen() {
       </Card>
 
       <PreferencesCard />
+
+      <PushRegistrationCard />
 
       <SignOutButton onSignOut={logout} />
       <Text variant="caption" color="mutedForeground" style={styles.version}>
